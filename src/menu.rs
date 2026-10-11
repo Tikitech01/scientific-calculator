@@ -93,13 +93,27 @@ impl AppMenu {
         let sep = PredefinedMenuItem::separator;
 
         // ---- Numera
+        let credits = format!(
+            "Developed by {dev}\nMumbai, India\n\n\
+             Scientific, graphing, equation, matrix, statistics, conversion and programmer modes.\n\n\
+             Built with Rust and egui.\n\
+             Interface font: Inter (SIL Open Font License).\n\n\
+             {site}",
+            dev = crate::help::DEVELOPER,
+            site = crate::help::WEBSITE.trim_start_matches("https://"),
+        );
         let about = PredefinedMenuItem::about(
             Some("About Numera"),
             Some(AboutMetadata {
                 name: Some("Numera".into()),
+                // macOS shows these as "Version 1.4.0 (Build 2026-10-11)".
                 version: Some(crate::help::VERSION.into()),
+                short_version: Some(format!("Build {}", crate::help::BUILD_DATE)),
+                copyright: Some(format!("© {} {}", &crate::help::BUILD_DATE[..4], crate::help::DEVELOPER)),
+                credits: Some(credits),
+                authors: Some(vec![crate::help::DEVELOPER.into()]),
                 comments: Some("A clean, minimal scientific and graphing calculator.".into()),
-                copyright: Some("© Tiki Tech".into()),
+                website: Some(crate::help::WEBSITE.into()),
                 ..Default::default()
             }),
         );

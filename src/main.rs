@@ -201,7 +201,7 @@ impl App {
                 Cmd::Format(i) => self.format = i,
                 Cmd::KeepOnTop => self.settings.on_top = !self.settings.on_top,
                 Cmd::Guide => self.show_help = !self.show_help,
-                Cmd::Website => ctx.open_url(egui::OpenUrl::new_tab("https://github.com/Tikitech01/scientific-calculator")),
+                Cmd::Website => ctx.open_url(egui::OpenUrl::new_tab(help::WEBSITE)),
             }
         }
         let state = menu::MenuState {
@@ -245,7 +245,11 @@ impl App {
             }
         });
         ui.add_space(4.0);
-        ui.label(egui::RichText::new(format!("Numera {}", help::VERSION)).size(11.5).color(pal.faint));
+        ui.label(
+            egui::RichText::new(format!("Numera {}  ·  build {}  ·  by {}", help::VERSION, help::BUILD_DATE, help::DEVELOPER))
+                .size(11.5)
+                .color(pal.faint),
+        );
     }
 
     /// Development aid: NUMERA_MODE=1..7 opens a mode, NUMERA_DEMO=1 fills in sample content.

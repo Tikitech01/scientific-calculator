@@ -134,6 +134,9 @@ const SECTIONS: &[(&str, &[(&str, &str)])] = &[
 ];
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const BUILD_DATE: &str = env!("NUMERA_BUILD_DATE");
+pub const DEVELOPER: &str = "Tiki Tech";
+pub const WEBSITE: &str = "https://github.com/Tikitech01/scientific-calculator";
 
 fn heading(ui: &mut egui::Ui, pal: &Pal, title: &str) {
     ui.add_space(18.0);
@@ -185,7 +188,8 @@ pub fn content(ui: &mut egui::Ui, pal: &Pal, current: &str) -> bool {
         }
         ui.add_space(22.0);
         ui.label(RichText::new("Hover any field or key for a short tip.").font(theme::regular(12.5)).color(pal.dim));
-        ui.label(RichText::new(format!("Numera {}", VERSION)).font(theme::medium(12.5)).color(pal.faint));
+        ui.label(RichText::new(format!("Numera {}  ·  build {}", VERSION, BUILD_DATE)).font(theme::medium(12.5)).color(pal.faint));
+        ui.label(RichText::new(format!("Developed by {}, Mumbai", DEVELOPER)).font(theme::regular(12.5)).color(pal.faint));
         ui.add_space(16.0);
     });
     close
