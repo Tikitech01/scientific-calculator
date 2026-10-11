@@ -1,0 +1,77 @@
+name: Release installers
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust targets
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - name: Build universal binary
+        run: |
+          cargo build --release --target aarch64-apple-darwin
+          cargo build --release --target x86_64-apple-darwin
+          lipo -create -output Numera \
+            target/aarch64-apple-darwin/release/numera \
+            target/x86_64-apple-darwin/release/numera
+      - name: Assemble Numera.app and disk image
+        run: |
+          VERSION=$(grep -m1 '^version' Cargo.toml | sed 's/.*"\(.*\)"/\1/')
+          APP=Numera.app
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+          cp Numera "$APP/Contents/MacOS/Numera"
+          cp packaging/Info.plist "$APP/Contents/Info.plist"
+          ICONSET="$(mktemp -d)/Numera.iconset"; mkdir -p "$ICONSET"
+          for size in 16 32 128 256 512; do
+            sips -z $size $size packaging/icon.png --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
+            sips -z $((size*2)) $((size*2)) packaging/icon.png --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
+          done
+          iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Numera.icns"
+          codesign --force --deep --sign - "$APP"
+          mkdir -p dist dmg
+          cp -R "$APP" dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname Numera -srcfolder dmg -ov -format UDZO "dist/Numera-$VERSION-macOS.dmg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/*.dmg
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: cargo build --release
+      - name: Installer
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          $v = (Select-String -Path Cargo.toml -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1).Matches.Groups[1].Value
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$v" packaging\numera.iss
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/*.exe
+
+  release:
+    needs: [macos, windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: out/*
+          generate_release_notes: true

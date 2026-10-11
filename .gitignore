@@ -1,0 +1,4 @@
+target/
+Numera.app/
+.DS_Store
+dist/
