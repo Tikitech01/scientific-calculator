@@ -300,11 +300,13 @@ fn main() -> eframe::Result {
         .with_min_inner_size(COMPACT_MIN)
         // An empty icon keeps the icon from the app bundle.
         .with_icon(std::sync::Arc::new(egui::IconData::default()));
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "linux"))]
     let viewport = match eframe::icon_data::from_png_bytes(include_bytes!("../packaging/icon-256.png")) {
         Ok(icon) => viewport.with_icon(std::sync::Arc::new(icon)),
         Err(_) => viewport,
     };
+    #[cfg(target_os = "linux")]
+    let viewport = viewport.with_app_id("numera");
     #[cfg(target_os = "macos")]
     let viewport = viewport.with_fullsize_content_view(true).with_titlebar_shown(false).with_title_shown(false);
     let options = eframe::NativeOptions { viewport, ..Default::default() };

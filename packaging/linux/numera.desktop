@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Numera
+GenericName=Calculator
+Comment=Scientific and graphing calculator
+Exec=numera
+Icon=numera
+Terminal=false
+Categories=Utility;Calculator;Science;Math;
+Keywords=calculator;graph;scientific;math;
+StartupWMClass=numera

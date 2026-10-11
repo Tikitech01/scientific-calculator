@@ -62,8 +62,23 @@ jobs:
           name: windows
           path: dist/*.exe
 
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: cargo build --release
+      - name: Package (.deb and .tar.gz)
+        run: bash packaging/linux/package.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: |
+            dist/*.deb
+            dist/*.tar.gz
+
   release:
-    needs: [macos, windows]
+    needs: [macos, windows, linux]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
