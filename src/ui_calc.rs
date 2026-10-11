@@ -64,6 +64,14 @@ impl CalcState {
         self.pending_cursor_end = true;
     }
 
+    /// Copy the latest result to the clipboard (Edit ▸ Copy Last Result).
+    pub fn copy_last(&mut self, ctx: &egui::Context) {
+        if let Some(e) = self.history.last() {
+            ctx.copy_text(fmt::plain(&e.value));
+            self.copied_at = Some(ctx.input(|i| i.time));
+        }
+    }
+
     pub fn clear_history(&mut self) {
         self.history.clear();
         self.recall = None;

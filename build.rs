@@ -1,4 +1,9 @@
 fn main() {
+    // The native menu bar is built on macOS (and can be forced with --cfg numera_menu for checks).
+    println!("cargo::rustc-check-cfg=cfg(numera_menu)");
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
+        println!("cargo:rustc-cfg=numera_menu");
+    }
     // Embed the application icon and version info into the Windows executable.
     #[cfg(windows)]
     {

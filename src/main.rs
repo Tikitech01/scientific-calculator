@@ -7,6 +7,8 @@ mod engine;
 mod fmt;
 mod help;
 mod matrix;
+#[cfg(numera_menu)]
+mod menu;
 mod numeric;
 mod plot;
 mod stats;
@@ -54,7 +56,9 @@ const SHORT_NAMES: [&str; 8] = ["Calc", "Graph", "Table", "Equation", "Matrix", 
 const COMPACT_SIZE: [f32; 2] = [340.0, 580.0];
 const COMPACT_MIN: [f32; 2] = [300.0, 500.0];
 const FULL_SIZE: [f32; 2] = [1100.0, 700.0];
-const FULL_MIN: [f32; 2] = [960.0, 600.0];
+/// Narrowest full window: wide enough that the mode tabs never run under the controls on the
+/// right. macOS needs more room because the window buttons sit inside the top bar.
+const FULL_MIN: [f32; 2] = if cfg!(target_os = "macos") { [1060.0, 600.0] } else { [990.0, 600.0] };
 
 const FORMATS: [(&str, Fmt); 6] = [
     ("Normal", Fmt::Norm),
@@ -84,6 +88,8 @@ struct App {
     settings: Settings,
     /// The keep-on-top state last sent to the window.
     applied_on_top: Option<bool>,
+    #[cfg(numera_menu)]
+    menu: Option<menu::AppMenu>,
 }
 
 /// User preferences, saved between launches.
@@ -130,6 +136,8 @@ impl App {
             prog: Default::default(),
             settings,
             applied_on_top: None,
+            #[cfg(numera_menu)]
+            menu: None,
         };
         app.mat.push(&mut app.env);
         app.stats.push(&mut app.env);
@@ -140,6 +148,73 @@ impl App {
         #[cfg(debug_assertions)]
         app.debug_setup();
         app
+    }
+
+    fn set_compact(&mut self, compact: bool) {
+        if self.compact == compact {
+            return;
+        }
+        self.compact = compact;
+        self.size_applied = false;
+        self.mode = Mode::Calc;
+        self.calc.greek = false;
+        self.calc.shift = false;
+    }
+
+    /// Carry out what was chosen in the menu bar, then update its check marks.
+    #[cfg(numera_menu)]
+    fn menu_commands(&mut self, ctx: &egui::Context) {
+        use menu::Cmd;
+        let Some(m) = self.menu.as_mut() else { return };
+        let cmds = m.poll();
+        let key = |key: Key, shift: bool| egui::Event::Key {
+            key,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers { mac_cmd: true, command: true, shift, ..Default::default() },
+        };
+        for cmd in cmds {
+            match cmd {
+                Cmd::Settings => ctx.memory_mut(|m| m.open_popup(egui::Id::new("settings_popup"))),
+                // The menu takes these keys before the window sees them, so hand them to the text fields.
+                Cmd::Undo => ctx.input_mut(|i| i.events.push(key(Key::Z, false))),
+                Cmd::Redo => ctx.input_mut(|i| i.events.push(key(Key::Z, true))),
+                Cmd::Cut => ctx.input_mut(|i| i.events.push(egui::Event::Cut)),
+                Cmd::Copy => ctx.input_mut(|i| i.events.push(egui::Event::Copy)),
+                Cmd::Paste => {
+                    let text = arboard::Clipboard::new().and_then(|mut c| c.get_text()).unwrap_or_default();
+                    if !text.is_empty() {
+                        ctx.input_mut(|i| i.events.push(egui::Event::Paste(text)));
+                    }
+                }
+                Cmd::SelectAll => ctx.input_mut(|i| i.events.push(key(Key::A, false))),
+                Cmd::CopyResult => self.calc.copy_last(ctx),
+                Cmd::ClearHistory => self.calc.clear_history(),
+                Cmd::ToggleFull => self.set_compact(!self.compact),
+                Cmd::Mode(i) => {
+                    self.set_compact(false);
+                    self.mode = MODES[i.min(MODES.len() - 1)].0;
+                }
+                Cmd::Appearance(i) => self.settings.appearance = i,
+                Cmd::Angle(i) => self.angle = i,
+                Cmd::Format(i) => self.format = i,
+                Cmd::KeepOnTop => self.settings.on_top = !self.settings.on_top,
+                Cmd::Guide => self.show_help = !self.show_help,
+                Cmd::Website => ctx.open_url(egui::OpenUrl::new_tab("https://github.com/Tikitech01/scientific-calculator")),
+            }
+        }
+        let state = menu::MenuState {
+            full: !self.compact,
+            mode: MODES.iter().position(|m| m.0 == self.mode).unwrap_or(0),
+            appearance: self.settings.appearance,
+            angle: self.angle,
+            format: self.format,
+            on_top: self.settings.on_top,
+        };
+        if let Some(m) = self.menu.as_mut() {
+            m.sync(&state);
+        }
     }
 
     fn settings_ui(&mut self, ui: &mut egui::Ui, pal: &Pal) {
@@ -239,6 +314,8 @@ impl eframe::App for App {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        #[cfg(numera_menu)]
+        self.menu_commands(ctx);
         #[cfg(debug_assertions)]
         match std::env::var("NUMERA_THEME").as_deref() {
             Ok("dark") => self.settings.appearance = 2,
@@ -315,11 +392,7 @@ impl eframe::App for App {
                         ("‹", "Back to the simple calculator")
                     };
                     if widgets::glyph(ui, &pal, arrow, 28.0).on_hover_text(tip).clicked() {
-                        self.compact = !self.compact;
-                        self.size_applied = false;
-                        self.mode = Mode::Calc;
-                        self.calc.greek = false;
-                        self.calc.shift = false;
+                        self.set_compact(!self.compact);
                     }
                     if !self.compact {
                         ui.add_space(4.0);
@@ -434,7 +507,16 @@ fn main() -> eframe::Result {
     let viewport = viewport.with_app_id("numera");
     #[cfg(target_os = "macos")]
     let viewport = viewport.with_fullsize_content_view(true).with_titlebar_shown(false).with_title_shown(false);
-    let options = eframe::NativeOptions { viewport, persist_window: false, ..Default::default() };
+    #[allow(unused_mut)]
+    let mut options = eframe::NativeOptions { viewport, persist_window: false, ..Default::default() };
+    // Numera installs its own menu bar, so winit's default one is turned off.
+    #[cfg(target_os = "macos")]
+    {
+        options.event_loop_builder = Some(Box::new(|b| {
+            use winit::platform::macos::EventLoopBuilderExtMacOS;
+            b.with_default_menu(false);
+        }));
+    }
     eframe::run_native(
         "Numera",
         options,
@@ -446,7 +528,16 @@ fn main() -> eframe::Result {
                 .and_then(|s| s.get_string("history"))
                 .map(|h| h.lines().filter(|l| !l.trim().is_empty()).map(String::from).collect())
                 .unwrap_or_default();
-            Ok(Box::new(App::new(settings, history)))
+            #[allow(unused_mut)]
+            let mut app = App::new(settings, history);
+            #[cfg(numera_menu)]
+            {
+                let names: Vec<&str> = MODES.iter().map(|m| m.1).collect();
+                let formats: Vec<&str> = FORMATS.iter().map(|f| f.0).collect();
+                let ctx = cc.egui_ctx.clone();
+                app.menu = menu::AppMenu::install(&names, &formats, move || ctx.request_repaint());
+            }
+            Ok(Box::new(app))
         }),
     )
 }

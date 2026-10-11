@@ -32,6 +32,8 @@ calculator with scientific keys and all modes; `‹` goes back. The `?` button o
 
 ## Settings and conveniences
 
+- **Menu bar (macOS)**: Numera, Edit, View, Window and Help menus. View switches modes (⌘1 – ⌘8), the full calculator (⌘0), appearance, angle unit and number format; Window has Keep on Top; Help opens the input guide (⌘?).
+
 - **Settings** (sliders icon, top right): appearance (System, Light, Dark), digit grouping (1,234,567 · 12,34,567 · 1 234 567), decimal point or comma, keep on top, clear history. Settings are remembered.
 - **Keep on top**: the pin icon keeps the window above other apps.
 - **Copy**: click a result to copy it; right-click for *Copy as shown*, *Copy calculation* or *Insert into the input*. ⌘⇧C (Ctrl+Shift+C) copies the latest result.
