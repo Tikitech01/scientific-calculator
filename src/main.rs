@@ -75,10 +75,12 @@ struct App {
     /// The simple calculator: basic keys only, in a small window.
     compact: bool,
     size_applied: bool,
+    /// 0 = follow the system, 1 = light, 2 = dark.
+    appearance: usize,
 }
 
 impl App {
-    fn new() -> Self {
+    fn new(appearance: usize) -> Self {
         let mut app = App {
             mode: Mode::Calc,
             env: Env::default(),
@@ -93,6 +95,7 @@ impl App {
             show_help: false,
             compact: true,
             size_applied: true,
+            appearance,
         };
         app.mat.push(&mut app.env);
         app.stats.push(&mut app.env);
@@ -151,6 +154,10 @@ impl App {
 }
 
 impl eframe::App for App {
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        storage.set_string("appearance", self.appearance.to_string());
+    }
+
     fn clear_color(&self, visuals: &egui::Visuals) -> [f32; 4] {
         visuals.panel_fill.to_normalized_gamma_f32()
     }
@@ -158,10 +165,15 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         #[cfg(debug_assertions)]
         match std::env::var("NUMERA_THEME").as_deref() {
-            Ok("dark") => ctx.set_theme(egui::Theme::Dark),
-            Ok("light") => ctx.set_theme(egui::Theme::Light),
+            Ok("dark") => self.appearance = 2,
+            Ok("light") => self.appearance = 1,
             _ => {}
         }
+        ctx.set_theme(match self.appearance {
+            1 => egui::ThemePreference::Light,
+            2 => egui::ThemePreference::Dark,
+            _ => egui::ThemePreference::System,
+        });
         let pal = if ctx.style().visuals.dark_mode { Pal::dark() } else { Pal::light() };
         self.env.angle = [Angle::Deg, Angle::Rad, Angle::Grad][self.angle];
         let f = FORMATS[self.format].1;
@@ -229,9 +241,21 @@ impl eframe::App for App {
                     }
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         ui.spacing_mut().item_spacing.x = 8.0;
-                        if widgets::glyph(ui, &pal, "?", 26.0).on_hover_text("Input guide: how to type powers, roots, functions and more").clicked() {
+                        let help_clicked = widgets::glyph(ui, &pal, "?", 26.0).on_hover_text("Input guide: how to type powers, roots, functions and more").clicked();
+                        if help_clicked {
                             self.show_help = !self.show_help;
                         }
+                        let theme_btn = widgets::appearance_button(ui, &pal, 26.0).on_hover_text("Appearance: system, light or dark");
+                        let pop_id = egui::Id::new("appearance_popup");
+                        if theme_btn.clicked() {
+                            ui.memory_mut(|m| m.toggle_popup(pop_id));
+                        }
+                        egui::popup::popup_below_widget(ui, pop_id, &theme_btn, egui::popup::PopupCloseBehavior::CloseOnClickOutside, |ui| {
+                            ui.set_min_width(190.0);
+                            ui.label(egui::RichText::new("Appearance").font(theme::medium(12.0)).color(pal.dim));
+                            ui.add_space(4.0);
+                            widgets::segmented(ui, &pal, &mut self.appearance, &["System", "Light", "Dark"]);
+                        });
                         if self.compact {
                             return;
                         }
@@ -309,13 +333,19 @@ fn main() -> eframe::Result {
     let viewport = viewport.with_app_id("numera");
     #[cfg(target_os = "macos")]
     let viewport = viewport.with_fullsize_content_view(true).with_titlebar_shown(false).with_title_shown(false);
-    let options = eframe::NativeOptions { viewport, ..Default::default() };
+    let options = eframe::NativeOptions { viewport, persist_window: false, ..Default::default() };
     eframe::run_native(
         "Numera",
         options,
         Box::new(|cc| {
             theme::install(&cc.egui_ctx);
-            Ok(Box::new(App::new()))
+            let appearance = cc
+                .storage
+                .and_then(|s| s.get_string("appearance"))
+                .and_then(|v| v.parse::<usize>().ok())
+                .filter(|v| *v <= 2)
+                .unwrap_or(0);
+            Ok(Box::new(App::new(appearance)))
         }),
     )
 }

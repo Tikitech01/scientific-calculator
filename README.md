@@ -27,7 +27,7 @@ install Rust if it is missing. For development, `cargo run` starts the app direc
 ## Simple and full view
 
 The app opens as a simple calculator. The `›` arrow at the top left expands it to the full
-calculator with scientific keys and all modes; `‹` goes back. The `?` button opens the input guide. Version 1.1.0 is shown at the bottom of the guide.
+calculator with scientific keys and all modes; `‹` goes back. The `?` button opens the input guide. The version is shown at the bottom of the guide.
 
 ## Typing expressions
 

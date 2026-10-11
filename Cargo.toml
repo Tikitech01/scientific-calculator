@@ -1,11 +1,11 @@
 [package]
 name = "numera"
-version = "1.1.0"
+version = "1.2.0"
 edition = "2021"
 description = "A clean, minimal scientific and graphing calculator"
 
 [dependencies]
-eframe = "0.31"
+eframe = { version = "0.31", features = ["persistence"] }
 num-complex = "0.4"
 libm = "0.2"
 

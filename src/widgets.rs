@@ -268,3 +268,26 @@ pub fn cursor_to_end(ctx: &egui::Context, id: Id, s: &str) {
 pub fn text_width(ui: &Ui, text: &str, font: FontId) -> f32 {
     ui.painter().layout_no_wrap(text.to_string(), font, Color32::PLACEHOLDER).size().x
 }
+
+/// Round half-filled button that stands for light / dark appearance.
+pub fn appearance_button(ui: &mut Ui, pal: &Pal, size: f32) -> Response {
+    let (rect, resp) = ui.allocate_exact_size(Vec2::splat(size), Sense::click());
+    let hover = ui.ctx().animate_bool_with_time(resp.id.with("hover"), resp.hovered(), 0.10);
+    if hover > 0.0 {
+        ui.painter().rect_filled(rect, CornerRadius::same(6), mix(pal.bg, pal.key_hover, hover));
+    }
+    let color = mix(pal.dim, pal.text, hover);
+    let c = rect.center();
+    let r = size * 0.27;
+    let p = ui.painter();
+    p.circle_stroke(c, r, egui::Stroke::new(1.4_f32, color));
+    // Right half filled.
+    let pts: Vec<egui::Pos2> = (0..=16)
+        .map(|i| {
+            let a = -std::f32::consts::FRAC_PI_2 + std::f32::consts::PI * (i as f32 / 16.0);
+            egui::pos2(c.x + r * a.cos(), c.y + r * a.sin())
+        })
+        .collect();
+    p.add(egui::Shape::convex_polygon(pts, color, egui::Stroke::NONE));
+    resp.on_hover_cursor(CursorIcon::PointingHand)
+}
