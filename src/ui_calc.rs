@@ -27,6 +27,29 @@ pub struct CalcState {
     pub pending_cursor_end: bool,
     recall: Option<usize>,
     content_h: f32,
+    /// When a result was last copied (seconds, egui time), for the short "Copied" note.
+    copied_at: Option<f64>,
+}
+
+impl CalcState {
+    /// The expressions in the history, oldest first (what gets saved between launches).
+    pub fn history_exprs(&self) -> Vec<String> {
+        self.history.iter().map(|e| e.expr.clone()).collect()
+    }
+
+    /// Re-run saved expressions so the history, Ans and stored variables come back.
+    pub fn restore(&mut self, exprs: &[String], env: &mut Env) {
+        for src in exprs {
+            if let Ok(value) = engine::evaluate(src, env) {
+                self.history.push(Entry { expr: src.clone(), value });
+            }
+        }
+    }
+
+    pub fn clear_history(&mut self) {
+        self.history.clear();
+        self.recall = None;
+    }
 }
 
 pub fn input_id() -> Id {
@@ -215,6 +238,7 @@ pub fn ui(ui: &mut Ui, st: &mut CalcState, env: &mut Env, f: Fmt, pal: &Pal, com
     let mut evaluated = false;
     let mut insert: Option<String> = None;
     let mut load: Option<String> = None;
+    let mut copy: Option<String> = None;
 
     // ---- history
     ui.allocate_new_ui(UiBuilder::new().max_rect(hist_rect), |ui| {
@@ -238,12 +262,32 @@ pub fn ui(ui: &mut Ui, st: &mut CalcState, env: &mut Env, f: Fmt, pal: &Pal, com
                     let (main, alt) = display(&e.value, f, st.prefer_exact);
                     ui.horizontal(|ui| {
                         ui.with_layout(Layout::right_to_left(Align::BOTTOM), |ui| {
+                            let shown = main.clone();
                             let r = ui
                                 .add(Label::new(RichText::new(main).font(theme::regular(21.0))).sense(Sense::click()))
-                                .on_hover_cursor(CursorIcon::PointingHand);
+                                .on_hover_cursor(CursorIcon::PointingHand)
+                                .on_hover_text("Click to copy. Right-click for more.");
                             if r.clicked() {
-                                insert = Some(fmt::plain(&e.value));
+                                copy = Some(fmt::plain(&e.value));
                             }
+                            r.context_menu(|ui| {
+                                if ui.button("Copy result").clicked() {
+                                    copy = Some(fmt::plain(&e.value));
+                                    ui.close_menu();
+                                }
+                                if ui.button("Copy as shown").clicked() {
+                                    copy = Some(shown.clone());
+                                    ui.close_menu();
+                                }
+                                if ui.button("Copy calculation").clicked() {
+                                    copy = Some(format!("{} = {}", e.expr, shown));
+                                    ui.close_menu();
+                                }
+                                if ui.button("Insert into the input").clicked() {
+                                    insert = Some(fmt::plain(&e.value));
+                                    ui.close_menu();
+                                }
+                            });
                             if let Some(alt) = alt {
                                 ui.label(RichText::new(format!("{}  =", alt)).color(pal.faint).size(14.0));
                             }
@@ -270,7 +314,14 @@ pub fn ui(ui: &mut Ui, st: &mut CalcState, env: &mut Env, f: Fmt, pal: &Pal, com
     ui.allocate_new_ui(UiBuilder::new().max_rect(line_rect).layout(Layout::bottom_up(Align::RIGHT)), |ui| {
         ui.spacing_mut().item_spacing.y = 4.0;
         // Bottom-up: the preview comes first.
-        let preview = if let Some(err) = &st.error {
+        let now = ui.input(|i| i.time);
+        let just_copied = st.copied_at.map(|t| now - t < 2.5).unwrap_or(false);
+        if just_copied {
+            ui.ctx().request_repaint_after(std::time::Duration::from_millis(200));
+        }
+        let preview = if just_copied {
+            RichText::new("Copied").color(pal.accent).size(14.0)
+        } else if let Some(err) = &st.error {
             RichText::new(err).color(pal.danger).size(14.0)
         } else if st.input.trim().is_empty() {
             RichText::new(" ").size(14.0)
@@ -408,7 +459,7 @@ pub fn ui(ui: &mut Ui, st: &mut CalcState, env: &mut Env, f: Fmt, pal: &Pal, com
                 }
                 Act::Clear => {
                     if st.input.is_empty() && st.error.is_none() {
-                        st.history.clear();
+                        st.clear_history();
                     }
                     st.input.clear();
                     st.error = None;
@@ -432,6 +483,16 @@ pub fn ui(ui: &mut Ui, st: &mut CalcState, env: &mut Env, f: Fmt, pal: &Pal, com
         }
     }
 
+    // ⌘⇧C (Ctrl+Shift+C) copies the latest result.
+    if ctx.input(|i| i.modifiers.command && i.modifiers.shift && i.key_pressed(Key::C)) {
+        if let Some(e) = st.history.last() {
+            copy = Some(fmt::plain(&e.value));
+        }
+    }
+    if let Some(text) = copy {
+        ctx.copy_text(text);
+        st.copied_at = Some(ctx.input(|i| i.time));
+    }
     if let Some(text) = load {
         st.input = text;
         st.error = None;

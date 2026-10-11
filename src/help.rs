@@ -20,6 +20,7 @@ Inverse: MatA^-1.  Press return to calculate.";
 pub const DATA: &str = "One value per row. Press tab to move to the next cell.\n\
 Each cell accepts a number or a calculation.";
 pub const FREQ: &str = "Optional. How many times the X value in this row occurs.";
+pub const PROG_NOTE: &str = "Results wrap around at the word size, like a real register. In Calculate you can also write 0xFF, 0b1010 and use and( ) or( ) xor( ) not( ) shl( ) shr( ).";
 pub const BASE: &str = "Whole numbers only. Hex digits are 0–9 and A–F.";
 
 /// Tooltip for a keypad key, by its label.
@@ -82,12 +83,15 @@ const GENERAL: &[(&str, &str)] = &[
     ("Gamma", "gamma(5) is the gamma function. For the letter γ, type gamma followed by anything but a bracket, e.g. 2gamma+1."),
     ("Subscripts", "Not typed. Write log(2, 8) for log₂8, nCr(10, 3), MatA, List1."),
     ("Variables", "5->A stores 5 in A. Then use A anywhere. Ans is the last result."),
+    ("Number format", "Digit grouping (1,234,567 or 12,34,567) and the decimal comma are in Settings. They change how results look; always type a point for decimals."),
 ];
 
 const SECTIONS: &[(&str, &[(&str, &str)])] = &[
     ("Calculate", &[
         ("Evaluate", "Return or =.  ↑ ↓ recall earlier lines.  Esc clears."),
-        ("Reuse", "Click an earlier line to edit it, or a result to insert it."),
+        ("Copy", "Click a result to copy it. Right-click it to copy it as shown, copy the whole line or insert it. ⌘⇧C (Ctrl+Shift+C) copies the latest result."),
+        ("Reuse", "Click an earlier line to edit it. Ans is the last result."),
+        ("History", "Kept between launches, along with stored variables. Press AC twice, or use Clear history in Settings, to clear it."),
         ("Complex numbers", "(1+2i)(3-i),  sqrt(-4),  abs(3+4i)."),
         ("Calculus", "diff(x^3, 2)   integ(x^2, 0, 3)   sum(k^2, k, 1, 10)   solve(x^2-2, 1)."),
         ("Lists", "{1,2,3}.  mean( ) median( ) stdev( ) sum( ) sort( )."),
@@ -99,6 +103,8 @@ const SECTIONS: &[(&str, &[(&str, &str)])] = &[
         ("Parametric", "Two expressions in t inside brackets: (cos(t), sin(t))."),
         ("Move around", "Drag to pan. Scroll or pinch to zoom; hold Shift for x only, Option for y only. Double-click resets."),
         ("Analysis", "Click a function's field to analyse it. Hover the curve to trace it."),
+        ("Intersections", "Every pair of visible curves is checked. Crossings are marked on the graph and listed on the left."),
+        ("Export", "Export PNG saves the graph to your Downloads folder and copies it to the clipboard."),
         ("Angles", "sin, cos and tan follow the DEG / RAD / GRAD switch at the top right."),
     ]),
     ("Table", &[("Range", "Start, end and step accept calculations, e.g. step 1/4 or pi/6.")]),
@@ -114,6 +120,12 @@ const SECTIONS: &[(&str, &[(&str, &str)])] = &[
     ("Statistics", &[
         ("Data", "X and Y columns, one value per row. Freq is optional and repeats the X value."),
         ("Lists", "The columns are available in Calculate as List1, List2, List3."),
+    ]),
+    ("Programmer", &[
+        ("Value", "Type in the HEX, DEC, OCT or BIN row and the others follow. Spaces are ignored."),
+        ("Bits", "Click any bit to flip it. Bit 0 is on the right."),
+        ("Operations", "Enter B (12, 0xFF or 0b1010), then press AND, OR, XOR, <<, ROL, + and so on. The result replaces the value."),
+        ("Word size", "8, 16, 32 or 64 bits. Signed shows the DEC row in two's complement."),
     ]),
     ("Convert", &[
         ("Units", "Type a value or a calculation, pick its unit, and read every other unit below."),

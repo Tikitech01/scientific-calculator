@@ -23,6 +23,14 @@ jobs:
             target/aarch64-apple-darwin/release/numera \
             target/x86_64-apple-darwin/release/numera
       - name: Assemble Numera.app and disk image
+        env:
+          # Optional. With these repository secrets set, the app is signed with a Developer ID
+          # and notarised by Apple, so users can open it without the "unidentified developer" warning.
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: |
           VERSION=$(grep -m1 '^version' Cargo.toml | sed 's/.*"\(.*\)"/\1/')
           APP=Numera.app
@@ -35,11 +43,30 @@ jobs:
             sips -z $((size*2)) $((size*2)) packaging/icon.png --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
           done
           iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Numera.icns"
-          codesign --force --deep --sign - "$APP"
+          DMG="dist/Numera-$VERSION-macOS.dmg"
           mkdir -p dist dmg
+          if [ -n "$MACOS_CERT_P12" ]; then
+            KC="$RUNNER_TEMP/build.keychain"
+            echo "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+            security create-keychain -p ci "$KC"
+            security set-keychain-settings -lut 3600 "$KC"
+            security unlock-keychain -p ci "$KC"
+            security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple: -s -k ci "$KC"
+            security list-keychains -d user -s "$KC"
+            IDENTITY=$(security find-identity -v -p codesigning "$KC" | grep "Developer ID Application" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+            codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP"
+          else
+            codesign --force --deep --sign - "$APP"
+          fi
           cp -R "$APP" dmg/
           ln -s /Applications dmg/Applications
-          hdiutil create -volname Numera -srcfolder dmg -ov -format UDZO "dist/Numera-$VERSION-macOS.dmg"
+          hdiutil create -volname Numera -srcfolder dmg -ov -format UDZO "$DMG"
+          if [ -n "$MACOS_CERT_P12" ] && [ -n "$APPLE_ID" ]; then
+            codesign --force --timestamp --sign "$IDENTITY" "$DMG"
+            xcrun notarytool submit "$DMG" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+            xcrun stapler staple "$DMG"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: macos

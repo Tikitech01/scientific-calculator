@@ -86,8 +86,9 @@ pub fn draw_grid(p: &Painter, r: Rect, v: &View, pal: &Pal) {
     let step_x = nice_step(v.sx * 84.0);
     let step_y = nice_step(v.sy * 64.0);
     let origin = v.to_screen(r, 0.0, 0.0);
-    let label_y = (origin.y + 5.0).clamp(r.top() + 4.0, r.bottom() - 16.0);
-    let label_x = (origin.x - 6.0).clamp(r.left() + 30.0, r.right() - 4.0);
+    // max/min rather than clamp: a very small plot must not panic.
+    let label_y = (origin.y + 5.0).min(r.bottom() - 16.0).max(r.top() + 4.0);
+    let label_x = (origin.x - 6.0).min(r.right() - 4.0).max(r.left() + 30.0);
 
     let mut k = (x0 / step_x).ceil();
     while k * step_x <= x1 {

@@ -1,6 +1,6 @@
 [package]
 name = "numera"
-version = "1.2.0"
+version = "1.3.0"
 edition = "2021"
 description = "A clean, minimal scientific and graphing calculator"
 
@@ -8,6 +8,7 @@ description = "A clean, minimal scientific and graphing calculator"
 eframe = { version = "0.31", features = ["persistence"] }
 num-complex = "0.4"
 libm = "0.2"
+image = { version = "0.25", default-features = false, features = ["png"] }
 
 [profile.release]
 opt-level = 3

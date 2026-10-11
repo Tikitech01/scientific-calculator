@@ -1,6 +1,6 @@
 # Numera
 
-A clean, minimal scientific and graphing calculator for macOS, written in Rust (egui).
+A clean, minimal scientific and graphing calculator for macOS, Windows and Linux, written in Rust (egui).
 
 ## Build
 
@@ -12,22 +12,30 @@ This compiles a release build and assembles `Numera.app` in this folder. The scr
 install Rust if it is missing. For development, `cargo run` starts the app directly and
 `cargo test` runs the math engine tests.
 
-## Modes (⌘1 – ⌘7)
+## Modes (⌘1 – ⌘8)
 
 | Mode | What it does |
 | --- | --- |
 | Calculate | Scientific calculator with history, live preview, complex numbers, variables, fractions / π / surd forms |
-| Graph | y = f(x), polar (use θ) and parametric `(x(t), y(t))` curves; roots, extrema, intersections, integrals, trace |
+| Graph | y = f(x), polar (use θ) and parametric `(x(t), y(t))` curves; roots, extrema, intersections between every pair of curves, integrals, trace, PNG export |
 | Table | Value tables for the graphed functions |
 | Equation | Polynomial roots (degree 2–6), simultaneous linear equations (2–6 unknowns), numeric solver |
 | Matrix | Six matrices up to 6×6; determinant, inverse, transpose, row-reduce, rank, trace, free expressions |
 | Statistics | One-variable statistics, six regression models with plot, normal / binomial / Poisson distributions |
 | Convert | Units in 13 categories, number bases, physical constants |
+| Programmer | One integer in hex, decimal, octal and binary; 8–64-bit words, signed or unsigned; clickable bit grid; AND, OR, XOR, NOT, shifts, rotates and wrapping arithmetic |
 
 ## Simple and full view
 
 The app opens as a simple calculator. The `›` arrow at the top left expands it to the full
 calculator with scientific keys and all modes; `‹` goes back. The `?` button opens the input guide. The version is shown at the bottom of the guide.
+
+## Settings and conveniences
+
+- **Settings** (sliders icon, top right): appearance (System, Light, Dark), digit grouping (1,234,567 · 12,34,567 · 1 234 567), decimal point or comma, keep on top, clear history. Settings are remembered.
+- **Keep on top**: the pin icon keeps the window above other apps.
+- **Copy**: click a result to copy it; right-click for *Copy as shown*, *Copy calculation* or *Insert into the input*. ⌘⇧C (Ctrl+Shift+C) copies the latest result.
+- **History**: kept between launches, together with `Ans` and stored variables.
 
 ## Typing expressions
 
@@ -64,9 +72,22 @@ The interface font is Inter (SIL Open Font License, see `assets/Inter-LICENSE.tx
 
 Pick the file for your system from the [`downloads`](downloads) folder (click the file, then the download button):
 
-- **macOS (Apple silicon):** [`Numera-1.1.0-macOS-AppleSilicon.zip`](downloads/Numera-1.1.0-macOS-AppleSilicon.zip). Unzip it, drag Numera to Applications, then right-click it and choose Open the first time (the app is not notarised). Intel Macs: build it yourself with `bash build.sh`.
-- **Linux:** [`numera_1.1.0_amd64.deb`](downloads/numera_1.1.0_amd64.deb) for Debian, Ubuntu and Mint (`sudo apt install ./numera_1.1.0_amd64.deb`), or [`Numera-1.1.0-linux-x86_64.tar.gz`](downloads/Numera-1.1.0-linux-x86_64.tar.gz) for any other distribution (extract it and run `./install.sh`).
+- **macOS (Apple silicon):** [`Numera-1.1.0-macOS-AppleSilicon.zip`](downloads/Numera-1.1.0-macOS-AppleSilicon.zip). This is version 1.1.0 until the next Mac build. Unzip it, drag Numera to Applications, then right-click it and choose Open the first time (the app is not notarised). Intel Macs: build it yourself with `bash build.sh`.
+- **Linux:** [`numera_1.3.0_amd64.deb`](downloads/numera_1.3.0_amd64.deb) for Debian, Ubuntu and Mint (`sudo apt install ./numera_1.3.0_amd64.deb`), or [`Numera-1.3.0-linux-x86_64.tar.gz`](downloads/Numera-1.3.0-linux-x86_64.tar.gz) for any other distribution (extract it and run `./install.sh`).
 - **Windows:** the installer is not published yet. Build it on a Windows PC with `build-windows.bat` (see below).
+
+## Signed and notarised Mac builds
+
+The release workflow signs and notarises the Mac app when these repository secrets are set
+(Settings → Secrets and variables → Actions); without them it makes an unsigned build.
+
+| Secret | Value |
+| --- | --- |
+| `MACOS_CERT_P12` | Your *Developer ID Application* certificate exported as .p12, base64-encoded (`base64 -i cert.p12 \| pbcopy`) |
+| `MACOS_CERT_PASSWORD` | The password chosen when exporting the .p12 |
+| `APPLE_ID` | The Apple ID email of the developer account |
+| `APPLE_TEAM_ID` | The 10-character team ID |
+| `APPLE_APP_PASSWORD` | An app-specific password from appleid.apple.com |
 
 ## Windows
 

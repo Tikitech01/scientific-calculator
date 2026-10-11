@@ -69,6 +69,14 @@ impl Default for Env {
 }
 
 impl Env {
+    /// The last answer when it is a real number.
+    pub fn ans_real(&self) -> Option<f64> {
+        match &self.ans {
+            Value::Num(z) if z.im == 0.0 => Some(z.re),
+            _ => None,
+        }
+    }
+
     pub fn set_real(&mut self, name: &str, x: f64) {
         if let Some(v) = self.vars.get_mut(name) {
             *v = Value::real(x);

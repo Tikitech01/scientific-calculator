@@ -96,8 +96,8 @@ struct Analysis {
     roots: Vec<f64>,
     extrema: Vec<Extremum>,
     y_intercept: Option<f64>,
-    /// (other function index, x, y)
-    intersections: Vec<(usize, f64, f64)>,
+    /// Between every pair of visible y = f(x) curves: (first index, second index, x, y).
+    intersections: Vec<(usize, usize, f64, f64)>,
     integral: Option<Result<(f64, f64, f64), String>>,
 }
 
@@ -115,6 +115,10 @@ pub struct GraphState {
     pub tb_start: String,
     pub tb_end: String,
     pub tb_step: String,
+    /// PNG export: 1 = hide the controls this frame, 2 = screenshot requested, waiting for it.
+    export: u8,
+    export_rect: Rect,
+    export_msg: Option<(String, f64)>,
 }
 
 impl Default for GraphState {
@@ -132,6 +136,9 @@ impl Default for GraphState {
             tb_start: "-5".into(),
             tb_end: "5".into(),
             tb_step: "1".into(),
+            export: 0,
+            export_rect: Rect::NOTHING,
+            export_msg: None,
         }
     }
 }
@@ -213,34 +220,33 @@ fn point(x: f64, y: f64) -> String {
 
 fn analyse(st: &GraphState, env: &mut Env, x0: f64, x1: f64) -> Analysis {
     let mut a = Analysis::default();
-    let Some(expr) = st.fns.get(st.sel).and_then(|f| f.cart()) else {
-        return a;
-    };
     let n = 600;
-    a.roots = numeric::find_roots(&mut |x| engine::eval_at(expr, env, "x", x), x0, x1, n);
-    a.extrema = numeric::find_extrema(&mut |x| engine::eval_at(expr, env, "x", x), x0, x1, n);
-    let y0 = engine::eval_at(expr, env, "x", 0.0);
-    if y0.is_finite() {
-        a.y_intercept = Some(y0);
-    }
-    for (j, other) in st.fns.iter().enumerate() {
-        if j == st.sel || !other.visible {
-            continue;
-        }
-        if let Some(g) = other.cart() {
+    let carts: Vec<(usize, &Expr)> =
+        st.fns.iter().enumerate().filter(|(_, f)| f.visible).filter_map(|(i, f)| f.cart().map(|e| (i, e))).collect();
+    for (k, (i, f)) in carts.iter().enumerate() {
+        for (j, g) in carts.iter().skip(k + 1) {
             let xs = numeric::find_roots(
-                &mut |x| engine::eval_at(expr, env, "x", x) - engine::eval_at(g, env, "x", x),
+                &mut |x| engine::eval_at(f, env, "x", x) - engine::eval_at(g, env, "x", x),
                 x0,
                 x1,
                 n,
             );
             for x in xs {
-                let y = engine::eval_at(expr, env, "x", x);
+                let y = engine::eval_at(f, env, "x", x);
                 if y.is_finite() {
-                    a.intersections.push((j, x, y));
+                    a.intersections.push((*i, *j, x, y));
                 }
             }
         }
+    }
+    let Some(expr) = st.fns.get(st.sel).and_then(|f| f.cart()) else {
+        return a;
+    };
+    a.roots = numeric::find_roots(&mut |x| engine::eval_at(expr, env, "x", x), x0, x1, n);
+    a.extrema = numeric::find_extrema(&mut |x| engine::eval_at(expr, env, "x", x), x0, x1, n);
+    let y0 = engine::eval_at(expr, env, "x", 0.0);
+    if y0.is_finite() {
+        a.y_intercept = Some(y0);
     }
     if !st.int_a.trim().is_empty() && !st.int_b.trim().is_empty() {
         let bounds = (|| -> Result<(f64, f64), String> {
@@ -258,6 +264,32 @@ fn analyse(st: &GraphState, env: &mut Env, x0: f64, x1: f64) -> Analysis {
         }));
     }
     a
+}
+
+/// Every pair of visible curves that cross, listed with a dot in each curve's colour.
+fn intersections_panel(ui: &mut Ui, st: &GraphState, pal: &Pal) {
+    let visible = st.fns.iter().filter(|f| f.visible && f.cart().is_some()).count();
+    if visible < 2 {
+        return;
+    }
+    ui.add_space(8.0);
+    widgets::caption(ui, pal, "INTERSECTIONS");
+    let a = &st.analysis;
+    if a.intersections.is_empty() {
+        widgets::dim(ui, pal, "None in view");
+        return;
+    }
+    for (i, j, x, y) in a.intersections.iter().take(10) {
+        ui.horizontal(|ui| {
+            let (r, _) = ui.allocate_exact_size(vec2(24.0, 18.0), Sense::hover());
+            ui.painter().circle_filled(r.center() - vec2(5.0, 0.0), 4.0, pal.series[i % pal.series.len()]);
+            ui.painter().circle_filled(r.center() + vec2(5.0, 0.0), 4.0, pal.series[j % pal.series.len()]);
+            ui.add(egui::Label::new(RichText::new(point(*x, *y)).size(13.5)).selectable(true));
+        });
+    }
+    if a.intersections.len() > 10 {
+        widgets::dim(ui, pal, format!("+{} more", a.intersections.len() - 10));
+    }
 }
 
 fn analysis_panel(ui: &mut Ui, st: &mut GraphState, pal: &Pal) {
@@ -326,9 +358,6 @@ fn analysis_panel(ui: &mut Ui, st: &mut GraphState, pal: &Pal) {
     points(ui, "Maximum", maxs);
     if let Some(y) = a.y_intercept {
         entry(ui, "y-intercept", point(0.0, y));
-    }
-    if st.fns.iter().enumerate().any(|(j, g)| j != st.sel && g.visible && g.cart().is_some()) {
-        points(ui, "Intersections", a.intersections.iter().map(|(_, x, y)| point(*x, *y)).collect());
     }
     ui.add_space(8.0);
     widgets::caption(ui, pal, "INTEGRAL");
@@ -474,17 +503,17 @@ fn plot_ui(ui: &mut Ui, rect: Rect, st: &mut GraphState, env: &mut Env, pal: &Pa
                 let name = if e.is_max { "Maximum" } else { "Minimum" };
                 pois.push((view.to_screen(rect, e.x, e.y), format!("{}  {}", name, point(e.x, e.y)), color));
             }
-            for (_, x, y) in &st.analysis.intersections {
-                pois.push((view.to_screen(rect, *x, *y), format!("Intersection  {}", point(*x, *y)), color));
-            }
-            for (pos, _, c) in &pois {
-                if inner.contains(*pos) {
-                    plot::marker(&p, *pos, *c, pal);
-                }
+        }
+        for (_, j, x, y) in &st.analysis.intersections {
+            pois.push((view.to_screen(rect, *x, *y), format!("Intersection  {}", point(*x, *y)), pal.series[j % pal.series.len()]));
+        }
+        for (pos, _, c) in &pois {
+            if inner.contains(*pos) {
+                plot::marker(&p, *pos, *c, pal);
             }
         }
         // Trace: snap to a point of interest, otherwise follow the nearest curve.
-        if let Some(mp) = hover.filter(|m| inner.contains(*m) && !resp.dragged()) {
+        if let Some(mp) = hover.filter(|m| inner.contains(*m) && !resp.dragged() && st.export == 0) {
             let mut tip: Option<(Pos2, String, Color32)> = pois
                 .iter()
                 .filter(|(pos, _, _)| pos.distance(mp) < 12.0)
@@ -528,10 +557,18 @@ fn plot_ui(ui: &mut Ui, rect: Rect, st: &mut GraphState, env: &mut Env, pal: &Pa
 
     ui.painter().rect_stroke(rect, CornerRadius::same(12), Stroke::new(1.0_f32, pal.line), StrokeKind::Inside);
 
+    // ---- PNG export: hide the controls for a frame, then take a screenshot and crop it to the plot.
+    export_step(ui, rect, st);
+
     // ---- overlay controls
-    let controls = Rect::from_min_size(pos2(rect.right() - 150.0, rect.top() + 10.0), vec2(140.0, 30.0));
+    let controls = Rect::from_min_size(pos2(rect.right() - 230.0, rect.top() + 10.0), vec2(220.0, 30.0));
+    if st.export == 0 {
     ui.allocate_new_ui(UiBuilder::new().max_rect(controls).layout(Layout::right_to_left(Align::Center)), |ui| {
         ui.spacing_mut().item_spacing.x = 4.0;
+        if widgets::link(ui, pal, "Export PNG") {
+            st.export = 1;
+            st.export_rect = rect;
+        }
         if widgets::link(ui, pal, "Reset") {
             st.inited = false;
         }
@@ -542,6 +579,20 @@ fn plot_ui(ui: &mut Ui, rect: Rect, st: &mut GraphState, env: &mut Env, pal: &Pa
             st.view.zoom(rect, rect.center(), 1.0 / 1.5, 1.0 / 1.5);
         }
     });
+    }
+    if let Some((msg, t)) = &st.export_msg {
+        let now = ui.input(|i| i.time);
+        if now - t < 4.0 {
+            ui.painter().text(
+                pos2(rect.center().x, rect.bottom() - 26.0),
+                Align2::CENTER_CENTER,
+                msg,
+                theme::regular(12.5),
+                pal.accent,
+            );
+            ui.ctx().request_repaint_after(std::time::Duration::from_millis(300));
+        }
+    }
     if st.fns.iter().all(|f| f.kind.is_none()) {
         ui.painter().text(
             pos2(rect.center().x, rect.bottom() - 26.0),
@@ -567,6 +618,7 @@ pub fn graph_ui(ui: &mut Ui, st: &mut GraphState, env: &mut Env, pal: &Pal) {
             function_list(ui, st, pal);
             ui.add_space(14.0);
             analysis_panel(ui, st, pal);
+            intersections_panel(ui, st, pal);
         });
     });
 }
@@ -674,4 +726,69 @@ pub fn table_ui(ui: &mut Ui, st: &mut GraphState, env: &mut Env, pal: &Pal) {
             });
         });
     });
+}
+
+fn export_step(ui: &mut Ui, rect: Rect, st: &mut GraphState) {
+    match st.export {
+        1 => {
+            st.export = 2;
+            st.export_rect = rect;
+            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::UserData::default()));
+            ui.ctx().request_repaint();
+        }
+        2 => {
+            let shot = ui.input(|i| {
+                i.raw.events.iter().find_map(|e| match e {
+                    egui::Event::Screenshot { image, .. } => Some(image.clone()),
+                    _ => None,
+                })
+            });
+            if let Some(image) = shot {
+                st.export = 0;
+                let ppp = ui.ctx().pixels_per_point();
+                let img = image.region(&st.export_rect, Some(ppp));
+                let now = ui.input(|i| i.time);
+                ui.ctx().copy_image(img.clone());
+                st.export_msg = Some((
+                    match save_png(&img) {
+                        Ok(path) => format!("Saved {} and copied it to the clipboard", path),
+                        Err(e) => format!("Copied to the clipboard. Could not save the file: {}", e),
+                    },
+                    now,
+                ));
+            } else {
+                ui.ctx().request_repaint();
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Days since 1970-01-01 to (year, month, day), proleptic Gregorian.
+fn civil(days: i64) -> (i64, u32, u32) {
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
+    (yoe + era * 400 + if m <= 2 { 1 } else { 0 }, m, d)
+}
+
+/// Save to the Downloads folder (or the home folder) as Numera-graph-<date>-<time>.png.
+fn save_png(img: &egui::ColorImage) -> Result<String, String> {
+    let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")).ok_or("no home folder")?;
+    let home = std::path::PathBuf::from(home);
+    let dir = if home.join("Downloads").is_dir() { home.join("Downloads") } else { home };
+    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+    let (y, mo, d) = civil(secs.div_euclid(86_400));
+    let t = secs.rem_euclid(86_400);
+    let name = format!("Numera-graph-{}{:02}{:02}-{:02}{:02}{:02}.png", y, mo, d, t / 3600, t / 60 % 60, t % 60);
+    let path = dir.join(&name);
+    let bytes: Vec<u8> = img.pixels.iter().flat_map(|c| c.to_array()).collect();
+    image::save_buffer(&path, &bytes, img.size[0] as u32, img.size[1] as u32, image::ExtendedColorType::Rgba8)
+        .map_err(|e| e.to_string())?;
+    Ok(format!("Downloads/{}", name).replace("Downloads/", if dir.ends_with("Downloads") { "Downloads/" } else { "" }))
 }

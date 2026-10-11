@@ -3,6 +3,74 @@
 use crate::engine::Value;
 use num_complex::Complex64 as C;
 
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+
+/// Digit grouping: 0 none, 1 international (1,234,567), 2 Indian (12,34,567), 3 space (1 234 567).
+static GROUPING: AtomicU8 = AtomicU8::new(0);
+static DECIMAL_COMMA: AtomicBool = AtomicBool::new(false);
+
+/// Choose how numbers are written on screen. Typed input and copied text are not affected.
+pub fn set_notation(grouping: u8, decimal_comma: bool) {
+    GROUPING.store(grouping, Ordering::Relaxed);
+    DECIMAL_COMMA.store(decimal_comma, Ordering::Relaxed);
+}
+
+/// Apply the grouping and decimal mark to the numbers in already formatted text.
+pub fn localize(s: &str) -> String {
+    localize_with(s, GROUPING.load(Ordering::Relaxed), DECIMAL_COMMA.load(Ordering::Relaxed))
+}
+
+fn localize_with(s: &str, grouping: u8, comma: bool) -> String {
+    if grouping == 0 && !comma {
+        return s.to_string();
+    }
+    let sep = match (grouping, comma) {
+        (3, _) => ' ',
+        (_, true) => '.',
+        _ => ',',
+    };
+    let ch: Vec<char> = s.chars().collect();
+    let mut out = String::with_capacity(s.len() + 8);
+    let mut i = 0;
+    while i < ch.len() {
+        if ch[i].is_ascii_digit() {
+            let start = i;
+            while i < ch.len() && ch[i].is_ascii_digit() {
+                i += 1;
+            }
+            let run = &ch[start..i];
+            let after_point = start > 0 && ch[start - 1] == '.';
+            // Only whole-number parts are grouped, and not the exponent digits of 1E5.
+            let after_e = start > 0 && ch[start - 1] == 'E';
+            if grouping == 0 || after_point || after_e || run.len() < 4 {
+                out.extend(run);
+                continue;
+            }
+            let n = run.len();
+            for (k, c) in run.iter().enumerate() {
+                let from_right = n - k; // digits remaining including this one
+                if k > 0 {
+                    let boundary = match grouping {
+                        2 => from_right == 3 || (from_right > 3 && (from_right - 3) % 2 == 0),
+                        _ => from_right % 3 == 0,
+                    };
+                    if boundary {
+                        out.push(sep);
+                    }
+                }
+                out.push(*c);
+            }
+        } else if ch[i] == '.' && comma && i + 1 < ch.len() && ch[i + 1].is_ascii_digit() {
+            out.push(',');
+            i += 1;
+        } else {
+            out.push(ch[i]);
+            i += 1;
+        }
+    }
+    out
+}
+
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Fmt {
     Norm,
@@ -201,6 +269,10 @@ fn norm(x: f64, sig: i32, pretty: bool) -> String {
 }
 
 pub fn real(x: f64, f: Fmt) -> String {
+    localize(&real_raw(x, f))
+}
+
+fn real_raw(x: f64, f: Fmt) -> String {
     if x.is_nan() {
         return "undefined".into();
     }
@@ -224,6 +296,10 @@ pub fn real(x: f64, f: Fmt) -> String {
 
 /// Compact form for tables and axis read-outs.
 pub fn short(x: f64, sig: i32) -> String {
+    localize(&short_raw(x, sig))
+}
+
+fn short_raw(x: f64, sig: i32) -> String {
     if x.is_nan() {
         return "–".into();
     }
@@ -422,6 +498,18 @@ pub fn from_base(s: &str, radix: u32) -> Option<i64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn notation() {
+        assert_eq!(localize_with("1234567.891", 1, false), "1,234,567.891");
+        assert_eq!(localize_with("1234567.891", 2, false), "12,34,567.891");
+        assert_eq!(localize_with("1234567", 3, false), "1 234 567");
+        assert_eq!(localize_with("−1234.5", 1, true), "−1.234,5");
+        assert_eq!(localize_with("1.5E12", 1, false), "1.5E12");
+        assert_eq!(localize_with("999", 2, false), "999");
+        assert_eq!(localize_with("123456", 2, false), "1,23,456");
+        assert_eq!(localize_with("0.5", 0, true), "0,5");
+    }
 
     #[test]
     fn numbers() {
