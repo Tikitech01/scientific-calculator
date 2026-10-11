@@ -75,7 +75,7 @@ The interface font is Inter (SIL Open Font License, see `assets/Inter-LICENSE.tx
 Pick the file for your system from the [`downloads`](downloads) folder (click the file, then the download button):
 
 - **macOS (Apple silicon):** [`Numera-1.1.0-macOS-AppleSilicon.zip`](downloads/Numera-1.1.0-macOS-AppleSilicon.zip). This is version 1.1.0 until the next Mac build. Unzip it, drag Numera to Applications, then right-click it and choose Open the first time (the app is not notarised). Intel Macs: build it yourself with `bash build.sh`.
-- **Linux:** [`numera_1.3.0_amd64.deb`](downloads/numera_1.3.0_amd64.deb) for Debian, Ubuntu and Mint (`sudo apt install ./numera_1.3.0_amd64.deb`), or [`Numera-1.3.0-linux-x86_64.tar.gz`](downloads/Numera-1.3.0-linux-x86_64.tar.gz) for any other distribution (extract it and run `./install.sh`).
+- **Linux:** [`numera_1.5.0_amd64.deb`](downloads/numera_1.5.0_amd64.deb) for Debian, Ubuntu and Mint (`sudo apt install ./numera_1.5.0_amd64.deb`), or [`Numera-1.5.0-linux-x86_64.tar.gz`](downloads/Numera-1.5.0-linux-x86_64.tar.gz) for any other distribution (extract it and run `./install.sh`).
 - **Windows:** the installer is not published yet. Build it on a Windows PC with `build-windows.bat` (see below).
 
 ## Signed and notarised Mac builds
