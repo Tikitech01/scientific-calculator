@@ -61,7 +61,7 @@ fn paint_key(ui: &Ui, pal: &Pal, rect: egui::Rect, resp: &Response, label: &str,
 pub fn tab(ui: &mut Ui, pal: &Pal, label: &str, selected: bool) -> bool {
     let font = if selected { theme::medium(13.5) } else { theme::regular(13.5) };
     let galley = ui.painter().layout_no_wrap(label.to_string(), font, Color32::PLACEHOLDER);
-    let size = galley.size() + egui::vec2(20.0, 12.0);
+    let size = galley.size() + egui::vec2(16.0, 12.0);
     let (rect, resp) = ui.allocate_exact_size(size, Sense::click());
     let hover = ui.ctx().animate_bool_with_time(resp.id.with("hover"), resp.hovered(), 0.10);
     let color = if selected { pal.text } else { mix(pal.dim, pal.text, hover) };

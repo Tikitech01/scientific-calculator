@@ -764,31 +764,16 @@ fn export_step(ui: &mut Ui, rect: Rect, st: &mut GraphState) {
     }
 }
 
-/// Days since 1970-01-01 to (year, month, day), proleptic Gregorian.
-fn civil(days: i64) -> (i64, u32, u32) {
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = z - era * 146_097;
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
-    (yoe + era * 400 + if m <= 2 { 1 } else { 0 }, m, d)
-}
-
 /// Save to the Downloads folder (or the home folder) as Numera-graph-<date>-<time>.png.
 fn save_png(img: &egui::ColorImage) -> Result<String, String> {
     let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")).ok_or("no home folder")?;
     let home = std::path::PathBuf::from(home);
     let dir = if home.join("Downloads").is_dir() { home.join("Downloads") } else { home };
-    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
-    let (y, mo, d) = civil(secs.div_euclid(86_400));
-    let t = secs.rem_euclid(86_400);
-    let name = format!("Numera-graph-{}{:02}{:02}-{:02}{:02}{:02}.png", y, mo, d, t / 3600, t / 60 % 60, t % 60);
+    // Local time, so the name matches the clock on the user's computer.
+    let name = format!("Numera-graph-{}.png", chrono::Local::now().format("%Y%m%d-%H%M%S"));
     let path = dir.join(&name);
     let bytes: Vec<u8> = img.pixels.iter().flat_map(|c| c.to_array()).collect();
     image::save_buffer(&path, &bytes, img.size[0] as u32, img.size[1] as u32, image::ExtendedColorType::Rgba8)
         .map_err(|e| e.to_string())?;
-    Ok(format!("Downloads/{}", name).replace("Downloads/", if dir.ends_with("Downloads") { "Downloads/" } else { "" }))
+    Ok(if dir.ends_with("Downloads") { format!("Downloads/{}", name) } else { name })
 }

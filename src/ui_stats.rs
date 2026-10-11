@@ -20,7 +20,8 @@ pub struct StatsState {
     pub model: usize,
     pub predict: String,
     pub dist: usize,
-    pub params: [String; 4],
+    /// Inputs for each distribution: Normal, Binomial, Poisson.
+    pub params: [[String; 4]; 3],
 }
 
 impl Default for StatsState {
@@ -160,7 +161,19 @@ fn one_var(ui: &mut Ui, st: &mut StatsState, env: &mut Env, f: Fmt, pal: &Pal) {
         }
     }
     if xs.is_empty() {
-        widgets::dim(ui, pal, "Enter values in the list on the left. Freq is optional and counts each value that many times.");
+        let col = st.column.min(1);
+        let other = 1 - col;
+        if st.column(other, env).iter().any(|v| v.is_some()) {
+            let names = ["X", "Y"];
+            ui.horizontal(|ui| {
+                widgets::dim(ui, pal, format!("Column {} is empty, but {} has values.", names[col], names[other]));
+                if widgets::link(ui, pal, &format!("Use {}", names[other])) {
+                    st.column = other;
+                }
+            });
+        } else {
+            widgets::dim(ui, pal, "Enter values in the list on the left. Freq is optional and counts each value that many times.");
+        }
         return;
     }
     let s = match stats::one_var(&xs, if use_freq { Some(&ws) } else { None }) {
@@ -304,11 +317,12 @@ fn distributions(ui: &mut Ui, st: &mut StatsState, env: &mut Env, f: Fmt, pal: &
         ui.horizontal(|ui| {
             let (r, _) = ui.allocate_exact_size(vec2(130.0, 30.0), Sense::hover());
             ui.painter().text(r.left_center(), Align2::LEFT_CENTER, *label, theme::regular(13.5), pal.dim);
-            widgets::field(ui, pal, &mut st.params[i], hint, 110.0).on_hover_text(help::NUMBER);
+            widgets::field(ui, pal, &mut st.params[st.dist.min(2)][i], hint, 110.0).on_hover_text(help::NUMBER);
         });
     }
     ui.add_space(12.0);
-    let mut get = |i: usize| engine::field_value(&st.params[i], env);
+    let d = st.dist.min(2);
+    let mut get = |i: usize| engine::field_value(&st.params[d][i], env);
     let v = |x: f64| fmt::real(x, f);
     let out: Result<Vec<(String, String)>, String> = (|| {
         Ok(match st.dist {

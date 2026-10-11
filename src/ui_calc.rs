@@ -46,6 +46,24 @@ impl CalcState {
         }
     }
 
+    /// Add a value from another mode at the end of the input. When the input already ends in a
+    /// number or name, a × goes in between so the two are not run together.
+    pub fn append(&mut self, text: &str) {
+        let joins = self
+            .input
+            .trim_end()
+            .chars()
+            .last()
+            .map(|c| c.is_alphanumeric() || matches!(c, ')' | ']' | '}' | '!' | '%' | '.') || "⁰¹²³⁴⁵⁶⁷⁸⁹".contains(c))
+            .unwrap_or(false);
+        if joins {
+            self.input.push('×');
+        }
+        self.input.push_str(text);
+        self.error = None;
+        self.pending_cursor_end = true;
+    }
+
     pub fn clear_history(&mut self) {
         self.history.clear();
         self.recall = None;
@@ -484,7 +502,13 @@ pub fn ui(ui: &mut Ui, st: &mut CalcState, env: &mut Env, f: Fmt, pal: &Pal, com
     }
 
     // ⌘⇧C (Ctrl+Shift+C) copies the latest result.
-    if ctx.input(|i| i.modifiers.command && i.modifiers.shift && i.key_pressed(Key::C)) {
+    // On macOS ⌘C arrives as a Copy event rather than a key press, so accept either.
+    let copy_last = ctx.input(|i| {
+        i.modifiers.command
+            && i.modifiers.shift
+            && (i.key_pressed(Key::C) || i.events.iter().any(|e| matches!(e, egui::Event::Copy)))
+    });
+    if copy_last {
         if let Some(e) = st.history.last() {
             copy = Some(fmt::plain(&e.value));
         }

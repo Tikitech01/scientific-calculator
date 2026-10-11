@@ -49,9 +49,11 @@ const MODES: [(Mode, &str, Key); 8] = [
     (Mode::Prog, "Programmer", Key::Num8),
 ];
 
+const SHORT_NAMES: [&str; 8] = ["Calc", "Graph", "Table", "Equation", "Matrix", "Stats", "Convert", "Prog"];
+
 const COMPACT_SIZE: [f32; 2] = [340.0, 580.0];
 const COMPACT_MIN: [f32; 2] = [300.0, 500.0];
-const FULL_SIZE: [f32; 2] = [1040.0, 700.0];
+const FULL_SIZE: [f32; 2] = [1100.0, 700.0];
 const FULL_MIN: [f32; 2] = [960.0, 600.0];
 
 const FORMATS: [(&str, Fmt); 6] = [
@@ -215,7 +217,7 @@ impl App {
             self.stats.push(&mut self.env);
             self.mat.expr = "MatA⁻¹".into();
             self.mat.result = Some(engine::evaluate("MatA⁻¹", &mut self.env));
-            self.stats.params = ["100", "15", "85", "130"].map(String::from);
+            self.stats.params[0] = ["100", "15", "85", "130"].map(String::from);
         }
     }
 }
@@ -257,6 +259,11 @@ impl eframe::App for App {
             2 => egui::ThemePreference::Dark,
             _ => egui::ThemePreference::System,
         });
+        // Keep tooltips inside the window, which matters most in the small calculator.
+        let tip_w = (ctx.screen_rect().width() - 40.0).clamp(200.0, 420.0);
+        if (ctx.style().spacing.tooltip_width - tip_w).abs() > 0.5 {
+            ctx.style_mut(|s| s.spacing.tooltip_width = tip_w);
+        }
         let pal = if ctx.style().visuals.dark_mode { Pal::dark() } else { Pal::light() };
         self.env.angle = [Angle::Deg, Angle::Rad, Angle::Grad][self.angle];
         let f = FORMATS[self.format].1;
@@ -316,9 +323,15 @@ impl eframe::App for App {
                     }
                     if !self.compact {
                         ui.add_space(4.0);
-                        for (mode, name, _) in MODES {
-                            if widgets::tab(ui, &pal, name, self.mode == mode) {
-                                self.mode = mode;
+                        // Use shorter labels when the window is too narrow for the full ones,
+                        // so the tabs never run under the controls on the right.
+                        let font = theme::medium(13.5);
+                        let needed: f32 = MODES.iter().map(|(_, n, _)| widgets::text_width(ui, n, font.clone()) + 18.0).sum();
+                        let short = ui.available_width() - 370.0 < needed;
+                        for (i, (mode, name, _)) in MODES.iter().enumerate() {
+                            let label = if short { SHORT_NAMES[i] } else { name };
+                            if widgets::tab(ui, &pal, label, self.mode == *mode){
+                                self.mode = *mode;
                             }
                         }
                     }
@@ -389,19 +402,15 @@ impl eframe::App for App {
                 Mode::Stats => ui_stats::ui(ui, &mut self.stats, &mut self.env, f, &pal),
                 Mode::Prog => {
                     if let Some(text) = ui_prog::ui(ui, &mut self.prog, &mut self.env, &pal) {
-                        self.calc.input.push_str(&text);
-                        self.calc.error = None;
+                        self.calc.append(&text);
                         self.mode = Mode::Calc;
-                        self.calc.pending_cursor_end = true;
                     }
                 }
                 Mode::Convert => {
                     if let Some(text) = ui_convert::ui(ui, &mut self.conv, &mut self.env, f, &pal) {
-                        self.calc.input.push_str(&text);
-                        self.calc.error = None;
-                        self.mode = Mode::Calc;
                         // Focus is handed over on the next frame, once the input field exists.
-                        self.calc.pending_cursor_end = true;
+                        self.calc.append(&text);
+                        self.mode = Mode::Calc;
                     }
                 }
                 }

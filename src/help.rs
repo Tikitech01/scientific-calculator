@@ -166,17 +166,21 @@ pub fn content(ui: &mut egui::Ui, pal: &Pal, current: &str) -> bool {
     ui.label(RichText::new("How to type maths, and what each mode accepts.").font(theme::regular(13.0)).color(pal.dim));
     ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
         ui.set_max_width(ui.available_width());
+        // The mode in use first, then the general rules, then the other modes.
+        for (title, rows) in SECTIONS.iter().filter(|s| s.0 == current) {
+            heading(ui, pal, &format!("{}  ·  this mode", title));
+            for (what, how) in *rows {
+                entry(ui, pal, what, how);
+            }
+        }
         heading(ui, pal, "Typing maths");
         for (what, how) in GENERAL {
             entry(ui, pal, what, how);
         }
-        for pass in 0..2 {
-            for (title, rows) in SECTIONS.iter().filter(|s| (s.0 == current) == (pass == 0)) {
-                let t = if pass == 0 { format!("{}  ·  this mode", title) } else { title.to_string() };
-                heading(ui, pal, &t);
-                for (what, how) in *rows {
-                    entry(ui, pal, what, how);
-                }
+        for (title, rows) in SECTIONS.iter().filter(|s| s.0 != current) {
+            heading(ui, pal, title);
+            for (what, how) in *rows {
+                entry(ui, pal, what, how);
             }
         }
         ui.add_space(22.0);

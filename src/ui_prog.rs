@@ -196,7 +196,7 @@ fn apply(st: &mut ProgState, op: &str, env: &mut Env) {
 pub fn ui(ui: &mut Ui, st: &mut ProgState, env: &mut Env, pal: &Pal) -> Option<String> {
     let mut send = None;
     ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-        ui.set_max_width(760.0);
+        ui.set_max_width(980.0);
         ui.horizontal(|ui| {
             widgets::dim(ui, pal, "Word size");
             let before = st.word;
@@ -251,19 +251,22 @@ pub fn ui(ui: &mut Ui, st: &mut ProgState, env: &mut Env, pal: &Pal) -> Option<S
             st.error = None;
         }
 
-        // ---- bit grid, most significant bit first, 16 bits per row
         ui.add_space(16.0);
+        // Bits on the left and operations on the right, so everything fits without scrolling.
+        ui.horizontal_top(|ui| {
+        ui.vertical(|ui| {
+        // ---- bit grid, most significant bit first, 16 bits per row
         widgets::caption(ui, pal, "BITS  ·  click a bit to flip it");
         ui.add_space(6.0);
         let bits = st.bits();
         let per_row = bits.min(16);
         let rows = bits / per_row;
-        let cell = 30.0f32;
+        let cell = 26.0f32;
         let gap = 3.0f32;
         let nib_gap = 9.0f32;
         let row_w = per_row as f32 * (cell + gap) + (per_row / 4 - 1) as f32 * nib_gap;
         for row in 0..rows {
-            let (rect, _) = ui.allocate_exact_size(vec2(row_w + 40.0, cell + 16.0), Sense::hover());
+            let (rect, _) = ui.allocate_exact_size(vec2(row_w + 8.0, cell + 16.0), Sense::hover());
             for k in 0..per_row {
                 let bit = bits - 1 - (row * per_row + k);
                 let x = rect.left() + k as f32 * (cell + gap) + (k / 4) as f32 * nib_gap;
@@ -277,7 +280,7 @@ pub fn ui(ui: &mut Ui, st: &mut ProgState, env: &mut Env, pal: &Pal) -> Option<S
                     r.center(),
                     Align2::CENTER_CENTER,
                     if on { "1" } else { "0" },
-                    theme::medium(13.5),
+                    theme::medium(12.5),
                     if on { pal.on_accent } else { pal.dim },
                 );
                 if k % 4 == 3 || k == 0 {
@@ -295,18 +298,20 @@ pub fn ui(ui: &mut Ui, st: &mut ProgState, env: &mut Env, pal: &Pal) -> Option<S
             }
         }
 
+        });
+        ui.add_space(28.0);
+        ui.vertical(|ui| {
         // ---- operations
-        ui.add_space(14.0);
         widgets::caption(ui, pal, "OPERATIONS  ·  the result replaces the value");
         ui.add_space(6.0);
         ui.horizontal(|ui| {
             widgets::dim(ui, pal, "B");
-            widgets::field(ui, pal, &mut st.operand, "e.g. 0xFF, 0b1010, 12", 200.0)
+            widgets::field(ui, pal, &mut st.operand, "e.g. 0xFF, 0b1010, 12", 180.0)
                 .on_hover_text("The second number for the operation: decimal, 0x… for hex or 0b… for binary. Calculations work too.");
-            if let Some(e) = &st.op_error {
-                widgets::error(ui, pal, e.clone());
-            }
         });
+        if let Some(e) = &st.op_error {
+            widgets::error(ui, pal, e.clone());
+        }
         ui.add_space(8.0);
         let groups: [&[(&str, &str)]; 3] = [
             &[
@@ -337,7 +342,7 @@ pub fn ui(ui: &mut Ui, st: &mut ProgState, env: &mut Env, pal: &Pal) -> Option<S
                 ui.spacing_mut().item_spacing.x = 6.0;
                 for (op, tip) in g {
                     let kind = widgets::KeyKind::Op;
-                    if widgets::key(ui, pal, op, kind, vec2(64.0, 36.0), false).on_hover_text(*tip).clicked() {
+                    if widgets::key(ui, pal, op, kind, vec2(58.0, 34.0), false).on_hover_text(*tip).clicked() {
                         apply(st, op, env);
                     }
                 }
@@ -362,6 +367,8 @@ pub fn ui(ui: &mut Ui, st: &mut ProgState, env: &mut Env, pal: &Pal) -> Option<S
             if widgets::link(ui, pal, "Send to Calculate") {
                 send = Some(if st.signed { st.signed_value().to_string() } else { st.value.to_string() });
             }
+        });
+        });
         });
         ui.add_space(8.0);
         widgets::dim(ui, pal, help::PROG_NOTE);

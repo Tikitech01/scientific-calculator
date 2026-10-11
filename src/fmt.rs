@@ -97,7 +97,9 @@ fn superscript(s: &str) -> String {
         .collect()
 }
 
-const GREEK_NAMES: [(&str, char, char); 23] = [
+const GREEK_NAMES: [(&str, char, char); 24] = [
+    // The constant π, written out.
+    ("pi", 'π', 'π'),
     ("alpha", 'α', 'Α'),
     ("beta", 'β', 'Β'),
     ("gamma", 'γ', 'Γ'),
@@ -252,7 +254,9 @@ fn norm(x: f64, sig: i32, pretty: bool) -> String {
         return "0".into();
     }
     let e = x.abs().log10().floor() as i32;
-    if e >= sig || e < -(sig - 1) {
+    // Very small numbers switch to ×10ⁿ early: 5.67×10⁻⁸ reads better than 0.0000000567.
+    let low = (-(sig - 1)).max(-5);
+    if e >= sig || e < low {
         return sci(x, (sig - 1) as usize, true, pretty);
     }
     let dec = (sig - 1 - e).max(0) as usize;
@@ -435,6 +439,10 @@ pub fn exact(x: f64) -> Option<String> {
         if q == 1 {
             return None;
         }
+        // A fraction with a huge numerator (1234567891/500) is no easier to read than the decimal.
+        if p.unsigned_abs() >= 100_000 {
+            return None;
+        }
         return Some(frac_text(p, q, ""));
     }
     if let Some((p, q)) = rational(x / std::f64::consts::PI, 360) {
@@ -548,6 +556,12 @@ mod tests {
         assert_eq!(prettify("x^2.5+1", true), "x^2.5+1");
         assert_eq!(prettify("2^(n+1)", true), "2^(n+1)");
         assert_eq!(prettify("2^3^2 ", true), "2^3² ");
+    }
+
+    #[test]
+    fn pi_name() {
+        assert_eq!(prettify("2pi+sin(pi/6)", true), "2π+sin(π/6)");
+        assert_eq!(prettify("spin", true), "spin");
     }
 
     #[test]
