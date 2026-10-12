@@ -104,7 +104,8 @@ pub const FUNCS: &[&str] = &[
     "round", "sign", "fact", "gamma", "nPr", "nCr", "gcd", "lcm", "mod", "min", "max", "rand", "randint", "sum",
     "prod", "mean", "median", "stdev", "stdevp", "variance", "len", "sort", "det", "inv", "trn", "rref", "rank",
     "trace", "identity", "dim", "norm", "dot", "cross", "Pol", "Rec", "and", "or", "xor", "not", "shl", "shr",
-    "normpdf", "normcdf", "invnorm", "binompdf", "binomcdf", "poissonpdf", "poissoncdf", "diff", "integ", "solve",
+    "normpdf", "normcdf", "invnorm", "tpdf", "tcdf", "invt", "chi2pdf", "chi2cdf", "invchi2", "fpdf", "fcdf",
+    "invf", "binompdf", "binomcdf", "poissonpdf", "poissoncdf", "diff", "integ", "solve",
     "seq",
 ];
 
@@ -1305,6 +1306,58 @@ fn call(name: &str, a: &[Value], ang: Angle) -> R {
                 }
             }))
         }
+        "tpdf" | "tcdf" | "invt" | "chi2pdf" | "chi2cdf" | "invchi2" | "fpdf" | "fcdf" | "invf" => {
+            use crate::hypothesis as h;
+            let usage = match name {
+                "tpdf" => "tpdf(x, df)",
+                "tcdf" => "tcdf(lower, upper, df)",
+                "invt" => "invt(p, df)",
+                "chi2pdf" => "chi2pdf(x, df)",
+                "chi2cdf" => "chi2cdf(lower, upper, df)",
+                "invchi2" => "invchi2(p, df)",
+                "fpdf" => "fpdf(x, df1, df2)",
+                "fcdf" => "fcdf(lower, upper, df1, df2)",
+                _ => "invf(p, df1, df2)",
+            };
+            let want = usage.matches(',').count() + 1;
+            if n != want {
+                return Err(format!("Use {}", usage));
+            }
+            let df_ok = |d: f64| -> Result<f64, String> {
+                if d > 0.0 {
+                    Ok(d)
+                } else {
+                    Err("Degrees of freedom must be positive".into())
+                }
+            };
+            let prob = |p: f64| -> Result<f64, String> {
+                if p > 0.0 && p < 1.0 {
+                    Ok(p)
+                } else {
+                    Err("The probability must be between 0 and 1".into())
+                }
+            };
+            Ok(Value::real(match name {
+                "tpdf" => h::t_pdf(r(0)?, df_ok(r(1)?)?),
+                "tcdf" => {
+                    let v = df_ok(r(2)?)?;
+                    h::t_cdf(r(1)?, v) - h::t_cdf(r(0)?, v)
+                }
+                "invt" => h::inv_t(prob(r(0)?)?, df_ok(r(1)?)?),
+                "chi2pdf" => h::chi2_pdf(r(0)?, df_ok(r(1)?)?),
+                "chi2cdf" => {
+                    let k = df_ok(r(2)?)?;
+                    h::chi2_cdf(r(1)?, k) - h::chi2_cdf(r(0)?, k)
+                }
+                "invchi2" => h::inv_chi2(prob(r(0)?)?, df_ok(r(1)?)?),
+                "fpdf" => h::f_pdf(r(0)?, df_ok(r(1)?)?, df_ok(r(2)?)?),
+                "fcdf" => {
+                    let (d1, d2) = (df_ok(r(2)?)?, df_ok(r(3)?)?);
+                    h::f_cdf(r(1)?, d1, d2) - h::f_cdf(r(0)?, d1, d2)
+                }
+                _ => h::inv_f(prob(r(0)?)?, df_ok(r(1)?)?, df_ok(r(2)?)?),
+            }))
+        }
         "binompdf" | "binomcdf" => {
             need(3, 3)?;
             let (k, trials, p) = (r(0)?, r(1)?, r(2)?);
@@ -1681,6 +1734,10 @@ mod tests {
         close(ev("invnorm(0.975)"), 1.959963984540054);
         close(ev("binompdf(3, 10, 0.5)"), 0.1171875);
         close(ev("binomcdf(3, 10, 0.5)"), 0.171875);
+        close(ev("invt(0.975, 10)"), 2.228138851986274);
+        close(ev("tcdf(-2, 2, 10)"), 0.9266119652292598);
+        close(ev("chi2cdf(0, 3.84, 1)"), 0.9499564787512949);
+        close(ev("invf(0.95, 3, 20)"), 3.098391212140781);
         close(ev("poissonpdf(2, 3)"), 0.224041807655388);
     }
 

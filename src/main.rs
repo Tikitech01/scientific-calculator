@@ -7,6 +7,7 @@ mod engine;
 mod fmt;
 mod about;
 mod help;
+mod hypothesis;
 mod matrix;
 #[cfg(native_menu)]
 mod menu;
@@ -21,6 +22,7 @@ mod ui_graph;
 mod ui_matrix;
 mod ui_prog;
 mod ui_stats;
+mod ui_tests;
 mod units;
 mod widgets;
 
@@ -337,6 +339,14 @@ impl App {
             self.stats.sub = s;
             self.conv.sub = s;
         }
+        if let Some(k) = std::env::var("NUMERA_TEST").ok().and_then(|v| v.parse().ok()) {
+            self.stats.tests.kind = k;
+        }
+        if let Some(k) = std::env::var("NUMERA_TSUB").ok().and_then(|v| v.parse().ok()) {
+            self.stats.tests.t_kind = k;
+            self.stats.tests.chi_kind = k;
+            self.stats.tests.z_kind = k;
+        }
         if std::env::var("NUMERA_DEMO").is_ok() {
             for src in ["sin(30)+√(2)÷2", "√(2)÷2", "(1+2i)(3−i)", "integ(x²,0,3)", "[[1,2],[3,4]]→MatA", "2^64"] {
                 if let Ok(value) = engine::evaluate(src, &mut self.env) {
@@ -358,10 +368,12 @@ impl App {
             self.eq.sys[1] = ["1", "-1", "", "", "", "", "1"].map(String::from).to_vec();
             self.eq.equation = "x³ − 2x = 5".into();
             self.stats.load_demo();
+            self.stats.tests.groups = "23 25 21 27 24\n30 28 33 29 31\n18 22 20 19 21".into();
+            self.stats.tests.table = "20 30 25\n15 35 40".into();
             self.stats.push(&mut self.env);
             self.mat.expr = "MatA⁻¹".into();
             self.mat.result = Some(engine::evaluate("MatA⁻¹", &mut self.env));
-            self.stats.params[0] = ["100", "15", "85", "130"].map(String::from);
+            self.stats.params[0] = ["100", "15", "85", "130", ""].map(String::from);
         }
     }
 }

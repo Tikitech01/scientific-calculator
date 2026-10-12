@@ -17,8 +17,8 @@ all in one fast native app that works completely offline.
 | --- | --- | --- |
 | **macOS** (Apple silicon, M1 or later) | [Scientific-Calculator-2.0.0-macOS-AppleSilicon.zip](downloads/Scientific-Calculator-2.0.0-macOS-AppleSilicon.zip) | Unzip, drag **Scientific Calculator** to Applications. The first time, right-click the app and choose **Open** (the app is not notarised yet). |
 | **Windows** 10 / 11 (64-bit) | [Scientific-Calculator-2.0.0-Windows-Setup.exe](downloads/Scientific-Calculator-2.0.0-Windows-Setup.exe) | Run the installer and follow the steps. If SmartScreen appears, choose **More info → Run anyway** (the installer is not code-signed yet). |
-| **Linux** – Debian, Ubuntu, Mint | [scientific-calculator_2.0.1_amd64.deb](downloads/scientific-calculator_2.0.1_amd64.deb) | `sudo apt install ./scientific-calculator_2.0.1_amd64.deb` |
-| **Linux** – any other distribution | [Scientific-Calculator-2.0.1-Linux-x86_64.tar.gz](downloads/Scientific-Calculator-2.0.1-Linux-x86_64.tar.gz) | Extract it and run `./install.sh` (no root needed). |
+| **Linux** – Debian, Ubuntu, Mint | [scientific-calculator_2.1.0_amd64.deb](downloads/scientific-calculator_2.1.0_amd64.deb) | `sudo apt install ./scientific-calculator_2.1.0_amd64.deb` |
+| **Linux** – any other distribution | [Scientific-Calculator-2.1.0-Linux-x86_64.tar.gz](downloads/Scientific-Calculator-2.1.0-Linux-x86_64.tar.gz) | Extract it and run `./install.sh` (no root needed). |
 
 All downloads are in the [`downloads`](downloads) folder: click a file, then the download button.
 Intel Macs and other systems can [build from source](#build-from-source) in a few minutes.
@@ -33,6 +33,8 @@ Intel Macs and other systems can [build from source](#build-from-source) in a fe
   dark mode.
 - **Programmers and electronics hobbyists**: hexadecimal, binary and octal side by side, a bit
   grid, bitwise operations, shifts and rotates for 8, 16, 32 and 64-bit numbers.
+- **Statistics and research students, analysts and researchers**: t, z, F and χ² tests, ANOVA and
+  correlation with p-values, critical values and confidence intervals, without opening a spreadsheet.
 - **Finance, business and data work**: percentages, statistics, regression and digit grouping
   in international (1,234,567) or Indian (12,34,567) style.
 - **Anyone** who wants a quick, good-looking desktop calculator that stays out of the way, and
@@ -69,7 +71,15 @@ Intel Macs and other systems can [build from source](#build-from-source) in a fe
 ### Statistics
 - One-variable statistics with frequencies: mean, standard deviations, quartiles, median, mode
 - Six regression models (linear, quadratic, cubic, exponential, logarithmic, power) with a plot and predictions
-- Normal, binomial and Poisson distributions
+- Distributions: normal, binomial, Poisson, Student t, χ² and F, with probabilities, densities and critical values
+- **Hypothesis tests**, each with the test statistic, p-value, critical value, confidence interval and a clear
+  "reject / do not reject H₀" verdict at your chosen α:
+  - **t-tests**: one sample, two samples (Welch or pooled variances) and paired
+  - **z-tests**: one mean with known σ, one proportion, two proportions
+  - **F-test** for equality of two variances
+  - **χ² tests**: goodness of fit and independence (contingency table, with expected counts and Cramér's V)
+  - **One-way ANOVA** with the full ANOVA table (SS, df, MS, F, p), η² and group summaries
+  - **Correlation**: Pearson r and Spearman rank ρ with significance tests
 
 ### Convert
 - Units in 13 categories: length, area, volume, mass, temperature, speed, time, pressure, energy, power, force, angle and data
@@ -114,6 +124,7 @@ Intel Macs and other systems can [build from source](#build-from-source) in a fe
 | --- | --- |
 | ![Graph](docs/screenshots/graph.png) | ![Equation](docs/screenshots/equation.png) |
 | ![Statistics](docs/screenshots/statistics.png) | ![Programmer](docs/screenshots/programmer.png) |
+| ![t-test](docs/screenshots/t-test.png) | ![ANOVA](docs/screenshots/anova.png) |
 | ![Convert](docs/screenshots/convert.png) | ![Calculate](docs/screenshots/calculate.png) |
 
 ## Typing maths: quick reference
@@ -124,7 +135,7 @@ Intel Macs and other systems can [build from source](#build-from-source) in a fe
   abs arg conj round(x,n) gamma nCr nPr gcd lcm mod min max rand`
 - Calculus: `diff(x^3, 2)`, `integ(x^2, 0, 3)`, `sum(k^2, k, 1, 10)`, `prod(k, k, 1, 5)`, `solve(x^2-2, 1)`
 - Lists `{1,2,3}`, matrices `[[1,2],[3,4]]`, number bases `0xFF`, `0b1010`, `0o17`
-- Distributions: `normpdf normcdf invnorm binompdf binomcdf poissonpdf poissoncdf`
+- Distributions: `normpdf normcdf invnorm binompdf binomcdf poissonpdf poissoncdf tpdf tcdf invt chi2pdf chi2cdf invchi2 fpdf fcdf invf`
 
 ## Build from source
 

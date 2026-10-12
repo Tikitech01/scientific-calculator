@@ -20,8 +20,9 @@ pub struct StatsState {
     pub model: usize,
     pub predict: String,
     pub dist: usize,
-    /// Inputs for each distribution: Normal, Binomial, Poisson.
-    pub params: [[String; 4]; 3],
+    /// Inputs for each distribution: Normal, Binomial, Poisson, Student t, χ², F.
+    pub params: [[String; 5]; 6],
+    pub tests: crate::ui_tests::TestsState,
 }
 
 impl Default for StatsState {
@@ -34,6 +35,7 @@ impl Default for StatsState {
             predict: String::new(),
             dist: 0,
             params: Default::default(),
+            tests: Default::default(),
         }
     }
 }
@@ -133,12 +135,17 @@ pub fn ui(ui: &mut Ui, st: &mut StatsState, env: &mut Env, f: Fmt, pal: &Pal) {
 
     // ---- results
     ui.allocate_new_ui(UiBuilder::new().max_rect(right), |ui| {
-        widgets::segmented(ui, pal, &mut st.sub, &["One variable", "Regression", "Distributions"]);
+        widgets::segmented(ui, pal, &mut st.sub, &["One variable", "Regression", "Distributions", "Tests"]);
         ui.add_space(12.0);
         match st.sub {
             0 => one_var(ui, st, env, f, pal),
             1 => regression(ui, st, env, f, pal),
-            _ => distributions(ui, st, env, f, pal),
+            2 => distributions(ui, st, env, f, pal),
+            _ => {
+                let x = st.list(0, env);
+                let y = st.list(1, env);
+                crate::ui_tests::ui(ui, &mut st.tests, &x, &y, env, f, pal);
+            }
         }
     });
 }
@@ -306,46 +313,81 @@ fn regression(ui: &mut Ui, st: &mut StatsState, env: &mut Env, f: Fmt, pal: &Pal
 }
 
 fn distributions(ui: &mut Ui, st: &mut StatsState, env: &mut Env, f: Fmt, pal: &Pal) {
-    widgets::segmented(ui, pal, &mut st.dist, &["Normal", "Binomial", "Poisson"]);
+    widgets::segmented(ui, pal, &mut st.dist, &["Normal", "Binomial", "Poisson", "Student t", "χ²", "F"]);
     ui.add_space(12.0);
-    let labels: &[(&str, &str)] = match st.dist {
-        0 => &[("Mean  μ", "0"), ("Std deviation  σ", "1"), ("Lower", "−∞"), ("Upper", "+∞")],
+    let d = st.dist.min(5);
+    let labels: &[(&str, &str)] = match d {
+        0 => &[("Mean  μ", "0"), ("Std deviation  σ", "1"), ("Lower", "−∞"), ("Upper", "+∞"), ("Inverse: area left", "e.g. 0.975")],
         1 => &[("Trials  n", ""), ("Probability  p", ""), ("Successes  k", "")],
-        _ => &[("Mean  λ", ""), ("Events  k", "")],
+        2 => &[("Mean  λ", ""), ("Events  k", "")],
+        3 => &[("Degrees of freedom  ν", ""), ("Lower", "−∞"), ("Upper", "+∞"), ("Inverse: area left", "e.g. 0.975")],
+        4 => &[("Degrees of freedom  k", ""), ("Lower", "0"), ("Upper", "+∞"), ("Inverse: area left", "e.g. 0.95")],
+        _ => &[("df₁  numerator", ""), ("df₂  denominator", ""), ("Lower", "0"), ("Upper", "+∞"), ("Inverse: area left", "e.g. 0.95")],
     };
     for (i, (label, hint)) in labels.iter().enumerate() {
         ui.horizontal(|ui| {
-            let (r, _) = ui.allocate_exact_size(vec2(130.0, 30.0), Sense::hover());
+            let (r, _) = ui.allocate_exact_size(vec2(150.0, 30.0), Sense::hover());
             ui.painter().text(r.left_center(), Align2::LEFT_CENTER, *label, theme::regular(13.5), pal.dim);
-            widgets::field(ui, pal, &mut st.params[st.dist.min(2)][i], hint, 110.0).on_hover_text(help::NUMBER);
+            let tip = if label.starts_with("Inverse") {
+                "Optional. A probability between 0 and 1: the value x with that much area to its left (a critical value)."
+            } else {
+                help::NUMBER
+            };
+            widgets::field(ui, pal, &mut st.params[d][i], hint, 110.0).on_hover_text(tip);
         });
     }
     ui.add_space(12.0);
-    let d = st.dist.min(2);
     let mut get = |i: usize| engine::field_value(&st.params[d][i], env);
     let v = |x: f64| fmt::real(x, f);
+    // Rows for a continuous distribution: interval probability, densities and the inverse.
+    let continuous = |cdf: &dyn Fn(f64) -> f64,
+                      pdf: &dyn Fn(f64) -> f64,
+                      inv: &dyn Fn(f64) -> f64,
+                      lo: Option<f64>,
+                      hi: Option<f64>,
+                      p: Option<f64>|
+     -> Result<Vec<(String, String)>, String> {
+        let mut rows = Vec::new();
+        if lo.is_some() || hi.is_some() {
+            let cl = lo.map(cdf).unwrap_or(0.0);
+            let ch = hi.map(cdf).unwrap_or(1.0);
+            rows.push(("P(lower ≤ X ≤ upper)".to_string(), v((ch - cl).max(0.0))));
+            if let Some(x) = lo {
+                rows.push(("Density at lower".into(), v(pdf(x))));
+            }
+            if let Some(x) = hi {
+                rows.push(("Density at upper".into(), v(pdf(x))));
+            }
+        }
+        if let Some(p) = p {
+            if !(p > 0.0 && p < 1.0) {
+                return Err("The area must be between 0 and 1".into());
+            }
+            rows.push((format!("x with area {} to its left", fmt::short(p, 6)), v(inv(p))));
+        }
+        Ok(rows)
+    };
     let out: Result<Vec<(String, String)>, String> = (|| {
-        Ok(match st.dist {
+        Ok(match d {
             0 => {
                 let mu = get(0)?.unwrap_or(0.0);
                 let sigma = get(1)?.unwrap_or(1.0);
                 if sigma <= 0.0 {
                     return Err("σ must be positive".into());
                 }
-                let lo = get(2)?;
-                let hi = get(3)?;
-                if lo.is_none() && hi.is_none() {
-                    return Ok(vec![]);
-                }
-                let cl = lo.map(|x| stats::norm_cdf(x, mu, sigma)).unwrap_or(0.0);
-                let ch = hi.map(|x| stats::norm_cdf(x, mu, sigma)).unwrap_or(1.0);
-                let mut rows = vec![("P(lower ≤ X ≤ upper)".to_string(), v((ch - cl).max(0.0)))];
+                let (lo, hi, p) = (get(2)?, get(3)?, get(4)?);
+                let mut rows = continuous(
+                    &|x| stats::norm_cdf(x, mu, sigma),
+                    &|x| stats::norm_pdf(x, mu, sigma),
+                    &|p| mu + sigma * stats::inv_norm(p),
+                    lo,
+                    hi,
+                    p,
+                )?;
                 if let Some(x) = lo {
-                    rows.push(("Density at lower".into(), v(stats::norm_pdf(x, mu, sigma))));
                     rows.push(("z-score of lower".into(), v((x - mu) / sigma)));
                 }
                 if let Some(x) = hi {
-                    rows.push(("Density at upper".into(), v(stats::norm_pdf(x, mu, sigma))));
                     rows.push(("z-score of upper".into(), v((x - mu) / sigma)));
                 }
                 rows
@@ -366,7 +408,7 @@ fn distributions(ui: &mut Ui, st: &mut StatsState, env: &mut Env, f: Fmt, pal: &
                     ("Std deviation".into(), v((n * p * (1.0 - p)).sqrt())),
                 ]
             }
-            _ => {
+            2 => {
                 let (Some(l), Some(k)) = (get(0)?, get(1)?) else {
                     return Ok(vec![]);
                 };
@@ -380,6 +422,62 @@ fn distributions(ui: &mut Ui, st: &mut StatsState, env: &mut Env, f: Fmt, pal: &
                     ("P(X > k)".into(), v((1.0 - cdf).max(0.0))),
                 ]
             }
+            3 => {
+                let Some(df) = get(0)? else { return Ok(vec![]) };
+                if df <= 0.0 {
+                    return Err("ν must be positive".into());
+                }
+                let mut rows = continuous(
+                    &|x| crate::hypothesis::t_cdf(x, df),
+                    &|x| crate::hypothesis::t_pdf(x, df),
+                    &|p| crate::hypothesis::inv_t(p, df),
+                    get(1)?,
+                    get(2)?,
+                    get(3)?,
+                )?;
+                if !rows.is_empty() {
+                    rows.push(("Mean".into(), if df > 1.0 { v(0.0) } else { "undefined".into() }));
+                    rows.push(("Variance".into(), if df > 2.0 { v(df / (df - 2.0)) } else { "∞".into() }));
+                }
+                rows
+            }
+            4 => {
+                let Some(k) = get(0)? else { return Ok(vec![]) };
+                if k <= 0.0 {
+                    return Err("k must be positive".into());
+                }
+                let mut rows = continuous(
+                    &|x| crate::hypothesis::chi2_cdf(x, k),
+                    &|x| crate::hypothesis::chi2_pdf(x, k),
+                    &|p| crate::hypothesis::inv_chi2(p, k),
+                    get(1)?,
+                    get(2)?,
+                    get(3)?,
+                )?;
+                if !rows.is_empty() {
+                    rows.push(("Mean".into(), v(k)));
+                    rows.push(("Variance".into(), v(2.0 * k)));
+                }
+                rows
+            }
+            _ => {
+                let (Some(d1), Some(d2)) = (get(0)?, get(1)?) else { return Ok(vec![]) };
+                if d1 <= 0.0 || d2 <= 0.0 {
+                    return Err("Both degrees of freedom must be positive".into());
+                }
+                let mut rows = continuous(
+                    &|x| crate::hypothesis::f_cdf(x, d1, d2),
+                    &|x| crate::hypothesis::f_pdf(x, d1, d2),
+                    &|p| crate::hypothesis::inv_f(p, d1, d2),
+                    get(2)?,
+                    get(3)?,
+                    get(4)?,
+                )?;
+                if !rows.is_empty() && d2 > 2.0 {
+                    rows.push(("Mean".into(), v(d2 / (d2 - 2.0))));
+                }
+                rows
+            }
         })
     })();
     match out {
@@ -387,15 +485,15 @@ fn distributions(ui: &mut Ui, st: &mut StatsState, env: &mut Env, f: Fmt, pal: &
         Ok(rows) if rows.is_empty() => widgets::dim(
             ui,
             pal,
-            if st.dist == 0 {
-                "Enter a lower bound, an upper bound, or both. A blank bound means unbounded."
-            } else {
-                "Fill in every field to see the probabilities."
+            match d {
+                1 | 2 => "Fill in every field to see the probabilities.",
+                0 => "Enter a lower bound, an upper bound, or both (a blank bound means unbounded), or an area for the inverse.",
+                _ => "Enter the degrees of freedom, then a lower and/or upper bound, or an area to find a critical value.",
             },
         ),
         Ok(rows) => {
             ui.scope(|ui| {
-                ui.set_max_width(400.0);
+                ui.set_max_width(420.0);
                 widgets::card(ui, pal, |ui| {
                     ui.spacing_mut().item_spacing.y = 3.0;
                     for (l, val) in rows {
