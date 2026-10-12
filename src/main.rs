@@ -84,6 +84,11 @@ struct App {
     /// The simple calculator: basic keys only, in a small window.
     compact: bool,
     size_applied: bool,
+    /// Where the window should move when it changes size, so it stays on screen.
+    pending_pos: Option<egui::Pos2>,
+    /// The full calculator grew to the left (the small one sat on the right of the screen),
+    /// so going back to the small one keeps the right edge in place.
+    grew_left: bool,
     prog: ui_prog::ProgState,
     settings: Settings,
     /// The keep-on-top state last sent to the window.
@@ -133,6 +138,8 @@ impl App {
             show_help: false,
             compact: true,
             size_applied: true,
+            pending_pos: None,
+            grew_left: false,
             prog: Default::default(),
             settings,
             applied_on_top: None,
@@ -150,10 +157,54 @@ impl App {
         app
     }
 
-    fn set_compact(&mut self, compact: bool) {
+    /// Whether the window sits in the right half of its screen.
+    fn on_right_half(ctx: &egui::Context) -> bool {
+        ctx.input(|i| {
+            let vp = i.viewport();
+            match (vp.outer_rect, vp.monitor_size) {
+                (Some(r), Some(m)) if m.x > 0.0 => {
+                    let x0 = (r.center().x / m.x).floor() * m.x;
+                    r.center().x - x0 > m.x / 2.0
+                }
+                _ => false,
+            }
+        })
+    }
+
+    /// Top-left corner for the window at its new size: grow or shrink towards the middle of the
+    /// screen (keep the right edge when the window is on the right), then keep it on screen.
+    fn position_for(ctx: &egui::Context, new_inner: [f32; 2], keep_right: bool) -> Option<egui::Pos2> {
+        ctx.input(|i| {
+            let vp = i.viewport();
+            let outer = vp.outer_rect?;
+            let inner = vp.inner_rect.unwrap_or(outer);
+            let mon = vp.monitor_size?;
+            if mon.x <= 0.0 || mon.y <= 0.0 {
+                return None;
+            }
+            let frame = outer.size() - inner.size();
+            let w = new_inner[0] + frame.x;
+            let h = new_inner[1] + frame.y;
+            // Monitors side by side: find the one the window is on.
+            let x0 = (outer.center().x / mon.x).floor() * mon.x;
+            let y0 = (outer.center().y / mon.y).floor() * mon.y;
+            let x = if keep_right { outer.right() - w } else { outer.left() };
+            let x = x.min(x0 + mon.x - w).max(x0);
+            let y = outer.top().min(y0 + mon.y - h).max(y0);
+            Some(egui::pos2(x, y))
+        })
+    }
+
+    fn set_compact(&mut self, ctx: &egui::Context, compact: bool) {
         if self.compact == compact {
             return;
         }
+        let keep_right = if compact { self.grew_left } else { Self::on_right_half(ctx) };
+        if !compact {
+            self.grew_left = keep_right;
+        }
+        let size = if compact { COMPACT_SIZE } else { FULL_SIZE };
+        self.pending_pos = Self::position_for(ctx, size, keep_right);
         self.compact = compact;
         self.size_applied = false;
         self.mode = Mode::Calc;
@@ -191,9 +242,9 @@ impl App {
                 Cmd::SelectAll => ctx.input_mut(|i| i.events.push(key(Key::A, false))),
                 Cmd::CopyResult => self.calc.copy_last(ctx),
                 Cmd::ClearHistory => self.calc.clear_history(),
-                Cmd::ToggleFull => self.set_compact(!self.compact),
+                Cmd::ToggleFull => self.set_compact(ctx, !self.compact),
                 Cmd::Mode(i) => {
-                    self.set_compact(false);
+                    self.set_compact(ctx, false);
                     self.mode = MODES[i.min(MODES.len() - 1)].0;
                 }
                 Cmd::Appearance(i) => self.settings.appearance = i,
@@ -368,6 +419,9 @@ impl eframe::App for App {
             ctx.send_viewport_cmd(egui::ViewportCommand::MinInnerSize(COMPACT_MIN.into()));
             ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(size.into()));
             ctx.send_viewport_cmd(egui::ViewportCommand::MinInnerSize(min.into()));
+            if let Some(pos) = self.pending_pos.take() {
+                ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(pos));
+            }
         }
 
         // On macOS the window content runs under the title bar, so leave room for the traffic lights.
@@ -390,13 +444,17 @@ impl eframe::App for App {
                 }
                 ui.horizontal_centered(|ui| {
                     ui.spacing_mut().item_spacing.x = 2.0;
-                    let (arrow, tip) = if self.compact {
-                        ("›", "Show the full calculator: scientific keys, graphs, equations and more")
+                    // The arrow points the way the window will grow or shrink: towards the
+                    // middle of the screen, so the full calculator never opens off screen.
+                    let left = if self.compact { Self::on_right_half(ctx) } else { !self.grew_left };
+                    let arrow = if left { "‹" } else { "›" };
+                    let tip = if self.compact {
+                        "Show the full calculator: scientific keys, graphs, equations and more"
                     } else {
-                        ("‹", "Back to the simple calculator")
+                        "Back to the simple calculator"
                     };
                     if widgets::glyph(ui, &pal, arrow, 28.0).on_hover_text(tip).clicked() {
-                        self.set_compact(!self.compact);
+                        self.set_compact(ctx, !self.compact);
                     }
                     if !self.compact {
                         ui.add_space(4.0);
@@ -509,6 +567,12 @@ fn main() -> eframe::Result {
     };
     #[cfg(target_os = "linux")]
     let viewport = viewport.with_app_id("numera");
+    // Development aid: NUMERA_X=900 opens the window at that x position.
+    #[cfg(debug_assertions)]
+    let viewport = match std::env::var("NUMERA_X").ok().and_then(|v| v.parse::<f32>().ok()) {
+        Some(x) => viewport.with_position([x, 40.0]),
+        None => viewport,
+    };
     #[cfg(target_os = "macos")]
     let viewport = viewport.with_fullsize_content_view(true).with_titlebar_shown(false).with_title_shown(false);
     #[allow(unused_mut)]
