@@ -142,9 +142,9 @@ Builds `Scientific Calculator.app` in this folder (the script offers to install 
 
 Double-click `build-windows.bat` (or run `.\build-windows.ps1` in PowerShell). It produces
 `dist\Scientific-Calculator-<version>-Windows-Setup.exe`, an installer with a Start-menu entry,
-an optional desktop shortcut and an uninstaller. It needs Rust (MSVC), Visual Studio Build Tools
-("Desktop development with C++") and Inno Setup; the script offers to install Rust and Inno Setup
-with winget.
+an optional desktop shortcut and an uninstaller. The script installs what is missing with winget: Rust, Inno Setup and a
+C++ linker (either Visual Studio Build Tools, or Rust's smaller GNU toolchain if you prefer not to
+install Visual Studio).
 
 **Linux**
 

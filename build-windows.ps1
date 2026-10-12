@@ -18,13 +18,38 @@ if (-not (Have cargo)) {
         rustup default stable-msvc
     } else { Write-Host "Install Rust from https://rustup.rs and run this again."; exit 1 }
 }
-if (-not (Have link)) {
-    Write-Host "Note: if the build fails with 'link.exe not found', install Visual Studio Build Tools with the 'Desktop development with C++' workload:"
-    Write-Host "  winget install Microsoft.VisualStudio.2022.BuildTools --override '--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --passive'"
+# Rust needs a C++ linker on Windows. Use Visual Studio Build Tools when they are installed;
+# otherwise offer to install them, or fall back to Rust's GNU toolchain, which brings its own linker.
+function Have-MsvcTools {
+    $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+    if (-not (Test-Path $vswhere)) { return $false }
+    $path = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+    return [bool]$path
+}
+
+$toolchain = ""
+if (-not (Have-MsvcTools)) {
+    Write-Host ""
+    Write-Host "The Visual Studio C++ build tools are not installed (Rust needs them to link programs)."
+    Write-Host "  [1] Install Visual Studio Build Tools now (recommended, about 3 GB download)"
+    Write-Host "  [2] Use Rust's GNU toolchain instead (smaller, no Visual Studio needed)"
+    $a = Read-Host "Choose 1 or 2 [2]"
+    if ($a -eq "1") {
+        winget install --id Microsoft.VisualStudio.2022.BuildTools -e --accept-source-agreements --accept-package-agreements --override "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --passive --wait"
+        if (-not (Have-MsvcTools)) {
+            Write-Host "The build tools did not finish installing. Restart the PC if asked, then run this script again."
+            exit 1
+        }
+    } else {
+        Write-Host "Installing Rust's GNU toolchain..."
+        rustup toolchain install stable-x86_64-pc-windows-gnu --profile minimal
+        if ($LASTEXITCODE -ne 0) { throw "could not install the GNU toolchain" }
+        $toolchain = "+stable-x86_64-pc-windows-gnu"
+    }
 }
 
 Write-Host "Compiling (the first build takes a few minutes)..."
-cargo build --release
+if ($toolchain) { cargo $toolchain build --release } else { cargo build --release }
 if ($LASTEXITCODE -ne 0) { throw "cargo build failed" }
 
 $version = (Select-String -Path Cargo.toml -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1).Matches.Groups[1].Value
