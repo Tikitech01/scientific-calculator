@@ -1,4 +1,5 @@
-//! Statistics ▸ Tests: t, z, F, χ², ANOVA and correlation tests.
+//! Statistics ▸ Tests: t, z, F, χ², ANOVA (with Tukey post-hoc and two-way), correlation and
+//! non-parametric tests.
 
 use crate::engine::{self, Env};
 use crate::fmt::{self, Fmt};
@@ -25,6 +26,9 @@ pub struct TestsState {
     pub p0: String,
     pub table: String,
     pub groups: String,
+    pub anova_kind: usize,
+    pub table2: String,
+    pub np_kind: usize,
 }
 
 impl Default for TestsState {
@@ -47,11 +51,14 @@ impl Default for TestsState {
             p0: "0.5".into(),
             table: String::new(),
             groups: String::new(),
+            anova_kind: 0,
+            table2: String::new(),
+            np_kind: 0,
         }
     }
 }
 
-const KINDS: [&str; 6] = ["t-test", "z-test", "F-test", "χ² test", "ANOVA", "Correlation"];
+const KINDS: [&str; 7] = ["t-test", "z-test", "F-test", "χ² test", "ANOVA", "Correlation", "Non-parametric"];
 
 fn label(ui: &mut Ui, pal: &Pal, text: &str, w: f32) {
     let (r, _) = ui.allocate_exact_size(vec2(w, 30.0), Sense::hover());
@@ -205,6 +212,7 @@ pub fn ui(ui: &mut Ui, st: &mut TestsState, x: &[f64], y: &[f64], env: &mut Env,
             }
             3 => return chi_test(ui, st, x, y, env, f, pal, alpha),
             4 => return anova(ui, st, x, y, env, f, pal, alpha),
+            6 => nonparametric(ui, st, x, y, env, pal, tail, alpha),
             _ => {
                 widgets::segmented(ui, pal, &mut st.corr_kind, &["Pearson r", "Spearman rank ρ"]);
                 ui.add_space(6.0);
@@ -401,6 +409,11 @@ fn grid(ui: &mut Ui, pal: &Pal, rows: &[Vec<f64>]) {
 
 #[allow(clippy::too_many_arguments)]
 fn anova(ui: &mut Ui, st: &mut TestsState, x: &[f64], y: &[f64], env: &mut Env, f: Fmt, pal: &Pal, alpha: f64) {
+    widgets::segmented(ui, pal, &mut st.anova_kind, &["One-way", "Two-way"]);
+    ui.add_space(6.0);
+    if st.anova_kind == 1 {
+        return anova2(ui, st, env, f, pal, alpha);
+    }
     widgets::dim(ui, pal, "One-way ANOVA: are the means of several groups equal? Type one group per line, or leave the box empty to compare the X and Y columns.");
     multiline(ui, pal, &mut st.groups, "e.g.\n23 25 21 27\n30 28 33 29\n18 22 20 19", "Each line is one group. Separate the values with spaces, commas or tabs.");
     tail_and_alpha(ui, st, pal, false);
@@ -500,4 +513,190 @@ fn anova(ui: &mut Ui, st: &mut TestsState, x: &[f64], y: &[f64], env: &mut Env, 
             }
         });
     });
+    // Which pairs differ: Tukey's HSD.
+    if groups.len() > 2 {
+        if let Ok(pairs) = h::tukey_hsd(&groups, alpha) {
+            ui.add_space(8.0);
+            widgets::caption(ui, pal, "POST-HOC: TUKEY HSD (WHICH PAIRS DIFFER)");
+            ui.add_space(4.0);
+            widgets::card(ui, pal, |ui| {
+                egui::Grid::new("tukey").spacing(vec2(20.0, 4.0)).show(ui, |ui| {
+                    for t in ["Pair", "Difference", "q", "p", &format!("{}% CI", fmt::short((1.0 - alpha) * 100.0, 4)), ""] {
+                        ui.label(RichText::new(t).font(theme::medium(12.5)).color(pal.dim));
+                    }
+                    ui.end_row();
+                    for p in &pairs {
+                        let sig = p.p < alpha;
+                        ui.label(RichText::new(format!("{} − {}", p.i + 1, p.j + 1)).font(theme::regular(13.5)));
+                        ui.label(RichText::new(v(p.diff)).font(theme::regular(13.5)));
+                        ui.label(RichText::new(v(p.q)).font(theme::regular(13.5)));
+                        ui.label(RichText::new(p_text(p.p, f)).font(theme::regular(13.5)));
+                        ui.label(RichText::new(format!("({}, {})", v(p.lo), v(p.hi))).font(theme::regular(13.5)));
+                        ui.label(RichText::new(if sig { "significant" } else { "" }).font(theme::medium(12.5)).color(pal.accent));
+                        ui.end_row();
+                    }
+                });
+                ui.add_space(4.0);
+                ui.label(RichText::new("Studentized range test on every pair of group means, with the Tukey–Kramer adjustment for unequal group sizes.").font(theme::regular(12.5)).color(pal.faint));
+            });
+        }
+    }
+}
+
+/// Two-way ANOVA: the cells are typed as a grid.
+fn anova2(ui: &mut Ui, st: &mut TestsState, env: &mut Env, f: Fmt, pal: &Pal, alpha: f64) {
+    widgets::dim(ui, pal, "Two-way ANOVA: the effect of two factors and their interaction. Each line is one level of factor A; separate the levels of factor B with |, and the repeated values inside a cell with spaces.");
+    multiline(ui, pal, &mut st.table2, "e.g. (2 × 2 design, 3 values per cell)
+4 5 6 | 6 7 8
+8 9 10 | 14 15 16", "Rows: levels of the first factor. Columns (split by |): levels of the second factor. Every cell needs the same number of values.");
+    tail_and_alpha(ui, st, pal, false);
+    ui.label(RichText::new("H₀: no row effect, no column effect, no interaction").font(theme::regular(13.0)).color(pal.dim));
+    if st.table2.trim().is_empty() {
+        ui.add_space(6.0);
+        widgets::dim(ui, pal, "Type the grid above.");
+        return;
+    }
+    let mut cells: Vec<Vec<Vec<f64>>> = Vec::new();
+    for (i, line) in st.table2.lines().filter(|l| !l.trim().is_empty()).enumerate() {
+        let mut row = Vec::new();
+        for cell in line.split('|') {
+            match parse_numbers(cell, env) {
+                Ok(v) => row.push(v),
+                Err(e) => {
+                    widgets::error(ui, pal, format!("Line {}: {}", i + 1, e));
+                    return;
+                }
+            }
+        }
+        cells.push(row);
+    }
+    let a = match h::anova_two_way(&cells, alpha) {
+        Ok(a) => a,
+        Err(e) => {
+            widgets::error(ui, pal, e);
+            return;
+        }
+    };
+    let v = |x: f64| fmt::real(x, f);
+    ui.add_space(6.0);
+    widgets::card(ui, pal, |ui| {
+        let head = |ui: &mut Ui, t: &str| {
+            ui.label(RichText::new(t).font(theme::medium(12.5)).color(pal.dim));
+        };
+        let cell = |ui: &mut Ui, t: String| {
+            ui.label(RichText::new(t).font(theme::regular(13.5)));
+        };
+        egui::Grid::new("anova2_table").spacing(vec2(20.0, 5.0)).show(ui, |ui| {
+            for t in ["Source", "SS", "df", "MS", "F", "p", ""] {
+                head(ui, t);
+            }
+            ui.end_row();
+            for s in &a.sources {
+                cell(ui, s.name.into());
+                cell(ui, v(s.ss));
+                cell(ui, v(s.df));
+                cell(ui, v(s.ss / s.df));
+                cell(ui, s.f.map(v).unwrap_or_default());
+                cell(ui, s.p.map(|p| p_text(p, f)).unwrap_or_default());
+                let sig = s.p.map(|p| p < alpha).unwrap_or(false);
+                ui.label(RichText::new(if sig { "significant" } else { "" }).font(theme::medium(12.5)).color(pal.accent));
+                ui.end_row();
+            }
+            cell(ui, "Total".into());
+            cell(ui, v(a.ss_total));
+            cell(ui, v(a.df_total));
+            ui.end_row();
+        });
+        ui.add_space(6.0);
+        let err = a.sources.last().unwrap();
+        for s in a.sources.iter().filter(|s| s.f.is_some()) {
+            widgets::row(ui, pal, &format!("Critical F, {}", s.name), &fmt::short(h::inv_f(1.0 - alpha, s.df, err.df), 6));
+        }
+        if a.replicates == 1 {
+            ui.add_space(4.0);
+            ui.label(RichText::new("One value per cell, so the interaction cannot be separated from the error.").font(theme::regular(12.5)).color(pal.faint));
+        }
+    });
+    ui.add_space(8.0);
+    widgets::caption(ui, pal, "CELL MEANS");
+    ui.add_space(4.0);
+    widgets::card(ui, pal, |ui| {
+        egui::Grid::new("anova2_means").spacing(vec2(20.0, 4.0)).show(ui, |ui| {
+            ui.label(RichText::new("A \\ B").font(theme::medium(12.5)).color(pal.dim));
+            for j in 0..a.col_means.len() {
+                ui.label(RichText::new(format!("B{}", j + 1)).font(theme::medium(12.5)).color(pal.dim));
+            }
+            ui.label(RichText::new("Row mean").font(theme::medium(12.5)).color(pal.dim));
+            ui.end_row();
+            for (i, r) in a.cell_means.iter().enumerate() {
+                ui.label(RichText::new(format!("A{}", i + 1)).font(theme::medium(12.5)).color(pal.dim));
+                for m in r {
+                    ui.label(RichText::new(v(*m)).font(theme::regular(13.5)));
+                }
+                ui.label(RichText::new(v(a.row_means[i])).font(theme::regular(13.5)));
+                ui.end_row();
+            }
+            ui.label(RichText::new("Column mean").font(theme::medium(12.5)).color(pal.dim));
+            for m in &a.col_means {
+                ui.label(RichText::new(v(*m)).font(theme::regular(13.5)));
+            }
+            ui.end_row();
+        });
+    });
+}
+
+#[allow(clippy::too_many_arguments)]
+fn nonparametric(ui: &mut Ui, st: &mut TestsState, x: &[f64], y: &[f64], env: &mut Env, pal: &Pal, tail: Tail, alpha: f64) -> Option<Result<Outcome, String>> {
+    widgets::segmented(ui, pal, &mut st.np_kind, &["Mann–Whitney U", "Wilcoxon signed-rank", "Kruskal–Wallis", "Normality"]);
+    ui.add_space(6.0);
+    match st.np_kind {
+        0 => {
+            widgets::dim(ui, pal, "Rank-based alternative to the two-sample t-test: do the X and Y columns come from the same distribution? No normality needed.");
+            tail_and_alpha(ui, st, pal, true);
+            hypotheses(ui, pal, "X", "Y", tail);
+            if x.is_empty() || y.is_empty() {
+                None
+            } else {
+                Some(h::mann_whitney(x, y, tail, alpha))
+            }
+        }
+        1 => {
+            widgets::dim(ui, pal, "Rank-based alternative to the paired t-test: are the paired X and Y values different? For one sample, put the hypothesised median in every Y row.");
+            tail_and_alpha(ui, st, pal, true);
+            hypotheses(ui, pal, "median(X − Y)", "0", tail);
+            if x.is_empty() || y.is_empty() {
+                None
+            } else {
+                Some(h::wilcoxon(x, y, tail, alpha))
+            }
+        }
+        2 => {
+            widgets::dim(ui, pal, "Rank-based alternative to one-way ANOVA. Type one group per line, or leave the box empty to compare the X and Y columns.");
+            multiline(ui, pal, &mut st.groups, "e.g.\n23 25 21 27\n30 28 33 29\n18 22 20 19", "Each line is one group. Separate the values with spaces, commas or tabs.");
+            tail_and_alpha(ui, st, pal, false);
+            ui.label(RichText::new("H₀: all groups have the same distribution").font(theme::regular(13.0)).color(pal.dim));
+            let groups: Vec<Vec<f64>> = if st.groups.trim().is_empty() {
+                if x.is_empty() || y.is_empty() {
+                    return None;
+                }
+                vec![x.to_vec(), y.to_vec()]
+            } else {
+                match parse_lines(&st.groups, env) {
+                    Ok(g) => g,
+                    Err(e) => return Some(Err(e)),
+                }
+            };
+            Some(h::kruskal_wallis(&groups, alpha))
+        }
+        _ => {
+            widgets::dim(ui, pal, "Jarque–Bera test: is the X column normally distributed? Uses skewness and kurtosis.");
+            tail_and_alpha(ui, st, pal, false);
+            ui.label(RichText::new("H₀: the data are normally distributed").font(theme::regular(13.0)).color(pal.dim));
+            if x.len() < 4 {
+                None
+            } else {
+                Some(h::jarque_bera(x, alpha))
+            }
+        }
+    }
 }

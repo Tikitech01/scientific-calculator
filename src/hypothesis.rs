@@ -654,6 +654,370 @@ pub fn correlation(x: &[f64], y: &[f64], spearman: bool, tail: Tail, alpha: f64)
     })
 }
 
+
+// ---------------------------------------------------------------------------
+// Studentized range (Tukey), two-way ANOVA and non-parametric tests
+
+fn phi(z: f64) -> f64 {
+    (-0.5 * z * z).exp() / (2.0 * std::f64::consts::PI).sqrt()
+}
+
+fn std_cdf(z: f64) -> f64 {
+    norm_cdf(z, 0.0, 1.0)
+}
+
+/// Simpson's rule on [a, b] with `n` (even) intervals.
+fn simpson(a: f64, b: f64, n: usize, f: impl Fn(f64) -> f64) -> f64 {
+    let n = n + n % 2;
+    let h = (b - a) / n as f64;
+    let mut s = f(a) + f(b);
+    for i in 1..n {
+        let x = a + h * i as f64;
+        s += if i % 2 == 1 { 4.0 } else { 2.0 } * f(x);
+    }
+    s * h / 3.0
+}
+
+/// P(range of k standard normals ≤ w).
+fn range_cdf(w: f64, k: f64) -> f64 {
+    if w <= 0.0 {
+        return 0.0;
+    }
+    k * simpson(-8.0, 8.0 + w, 600, |z| phi(z) * (std_cdf(z) - std_cdf(z - w)).powf(k - 1.0))
+}
+
+/// Cumulative distribution of the studentized range q with k groups and `df` error degrees of freedom.
+pub fn ptukey(q: f64, k: f64, df: f64) -> f64 {
+    if q <= 0.0 || k < 2.0 {
+        return 0.0;
+    }
+    if df > 5000.0 {
+        return range_cdf(q, k);
+    }
+    // s = sqrt(chi²_df / df) has density c · s^(df-1) · exp(-df s²/2).
+    let ln_c = 0.5 * df * (df / 2.0).ln() - ln_gamma(df / 2.0) + (2.0f64).ln();
+    let dens = |s: f64| if s <= 0.0 { 0.0 } else { (ln_c + (df - 1.0) * s.ln() - 0.5 * df * s * s).exp() };
+    let spread = 6.0 / df.sqrt();
+    let (a, b) = ((1.0 - spread).max(0.0), 1.0 + spread.max(0.6));
+    // The inner integral is smooth in s, so a moderate grid is enough.
+    simpson(a, b, 120, |s| dens(s) * range_cdf(q * s, k)).min(1.0)
+}
+
+/// Critical value q with P(Q ≤ q) = p.
+pub fn inv_tukey(p: f64, k: f64, df: f64) -> f64 {
+    let (mut lo, mut hi) = (0.0, 20.0);
+    for _ in 0..40 {
+        let mid = 0.5 * (lo + hi);
+        if ptukey(mid, k, df) < p {
+            lo = mid;
+        } else {
+            hi = mid;
+        }
+    }
+    0.5 * (lo + hi)
+}
+
+/// One pairwise comparison after ANOVA.
+pub struct Pair {
+    pub i: usize,
+    pub j: usize,
+    pub diff: f64,
+    pub q: f64,
+    pub p: f64,
+    pub lo: f64,
+    pub hi: f64,
+}
+
+/// Tukey's honestly significant difference: every pair of group means, with the Tukey–Kramer
+/// correction for unequal sizes.
+pub fn tukey_hsd(groups: &[Vec<f64>], alpha: f64) -> Result<Vec<Pair>, String> {
+    let a = anova_one_way(groups, alpha)?;
+    let groups: Vec<&Vec<f64>> = groups.iter().filter(|g| !g.is_empty()).collect();
+    let k = groups.len() as f64;
+    let msw = a.ss_within / a.df_within;
+    let q_crit = inv_tukey(1.0 - alpha, k, a.df_within);
+    let mut out = Vec::new();
+    for i in 0..groups.len() {
+        for j in i + 1..groups.len() {
+            let (ni, nj) = (groups[i].len() as f64, groups[j].len() as f64);
+            let diff = mean(groups[i]) - mean(groups[j]);
+            let se = (msw / 2.0 * (1.0 / ni + 1.0 / nj)).sqrt();
+            let q = diff.abs() / se;
+            out.push(Pair { i, j, diff, q, p: 1.0 - ptukey(q, k, a.df_within), lo: diff - q_crit * se, hi: diff + q_crit * se });
+        }
+    }
+    Ok(out)
+}
+
+/// One source line of a two-way ANOVA table.
+pub struct Source {
+    pub name: &'static str,
+    pub ss: f64,
+    pub df: f64,
+    pub f: Option<f64>,
+    pub p: Option<f64>,
+}
+
+pub struct Anova2 {
+    pub sources: Vec<Source>,
+    pub ss_total: f64,
+    pub df_total: f64,
+    pub row_means: Vec<f64>,
+    pub col_means: Vec<f64>,
+    pub cell_means: Vec<Vec<f64>>,
+    pub replicates: usize,
+}
+
+/// Two-way ANOVA for a balanced design: `cells[r][c]` holds the replicates for row factor
+/// level r and column factor level c. With one value per cell there is no interaction term.
+pub fn anova_two_way(cells: &[Vec<Vec<f64>>], alpha: f64) -> Result<Anova2, String> {
+    let _ = alpha;
+    let a = cells.len();
+    if a < 2 {
+        return Err("Two-way ANOVA needs at least two rows (levels of the first factor)".into());
+    }
+    let b = cells[0].len();
+    if b < 2 || cells.iter().any(|r| r.len() != b) {
+        return Err("Every row needs the same number of cells, and at least two".into());
+    }
+    let n = cells[0][0].len();
+    if n < 1 || cells.iter().flatten().any(|c| c.len() != n) {
+        return Err("Every cell needs the same number of values (a balanced design)".into());
+    }
+    let (af, bf, nf) = (a as f64, b as f64, n as f64);
+    let total: f64 = cells.iter().flatten().flatten().sum();
+    let grand = total / (af * bf * nf);
+    let cell_means: Vec<Vec<f64>> = cells.iter().map(|r| r.iter().map(|c| mean(c)).collect()).collect();
+    let row_means: Vec<f64> = cells.iter().map(|r| r.iter().flatten().sum::<f64>() / (bf * nf)).collect();
+    let col_means: Vec<f64> = (0..b).map(|j| cells.iter().map(|r| r[j].iter().sum::<f64>()).sum::<f64>() / (af * nf)).collect();
+    let ss_a = bf * nf * row_means.iter().map(|m| (m - grand).powi(2)).sum::<f64>();
+    let ss_b = af * nf * col_means.iter().map(|m| (m - grand).powi(2)).sum::<f64>();
+    let ss_total: f64 = cells.iter().flatten().flatten().map(|x| (x - grand).powi(2)).sum();
+    let ss_cells = nf
+        * cell_means
+            .iter()
+            .enumerate()
+            .flat_map(|(i, r)| r.iter().enumerate().map(move |(j, m)| (i, j, *m)))
+            .map(|(_, _, m)| (m - grand).powi(2))
+            .sum::<f64>();
+    let (df_a, df_b) = (af - 1.0, bf - 1.0);
+    let mut sources = Vec::new();
+    let (ss_e, df_e) = if n > 1 {
+        let ss_ab = ss_cells - ss_a - ss_b;
+        let ss_e = ss_total - ss_cells;
+        let df_e = af * bf * (nf - 1.0);
+        let df_ab = df_a * df_b;
+        if ss_e <= 0.0 {
+            return Err("There is no variation inside the cells, so F is undefined".into());
+        }
+        let mse = ss_e / df_e;
+        let fv = |ss: f64, df: f64| (ss / df) / mse;
+        for (name, ss, df) in [("Rows (factor A)", ss_a, df_a), ("Columns (factor B)", ss_b, df_b), ("Interaction (A × B)", ss_ab, df_ab)] {
+            let f = fv(ss, df);
+            sources.push(Source { name, ss, df, f: Some(f), p: Some(1.0 - f_cdf(f, df, df_e)) });
+        }
+        (ss_e, df_e)
+    } else {
+        let ss_e = ss_total - ss_a - ss_b;
+        let df_e = df_a * df_b;
+        if ss_e <= 0.0 {
+            return Err("The residual variation is zero, so F is undefined".into());
+        }
+        let mse = ss_e / df_e;
+        for (name, ss, df) in [("Rows (factor A)", ss_a, df_a), ("Columns (factor B)", ss_b, df_b)] {
+            let f = (ss / df) / mse;
+            sources.push(Source { name, ss, df, f: Some(f), p: Some(1.0 - f_cdf(f, df, df_e)) });
+        }
+        (ss_e, df_e)
+    };
+    sources.push(Source { name: "Error (within)", ss: ss_e, df: df_e, f: None, p: None });
+    Ok(Anova2 { sources, ss_total, df_total: af * bf * nf - 1.0, row_means, col_means, cell_means, replicates: n })
+}
+
+/// Sum of t³ − t over tie groups, for tie corrections.
+fn tie_term(v: &[f64]) -> f64 {
+    let mut s: Vec<f64> = v.to_vec();
+    s.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let mut total = 0.0;
+    let mut i = 0;
+    while i < s.len() {
+        let mut j = i;
+        while j + 1 < s.len() && s[j + 1] == s[i] {
+            j += 1;
+        }
+        let t = (j - i + 1) as f64;
+        total += t * t * t - t;
+        i = j + 1;
+    }
+    total
+}
+
+/// Mann–Whitney U test (Wilcoxon rank-sum): are two independent samples from the same distribution?
+/// Normal approximation with tie and continuity corrections.
+pub fn mann_whitney(x: &[f64], y: &[f64], tail: Tail, alpha: f64) -> Result<Outcome, String> {
+    need(x, 1, "X")?;
+    need(y, 1, "Y")?;
+    let (n1, n2) = (x.len() as f64, y.len() as f64);
+    let all: Vec<f64> = x.iter().chain(y).copied().collect();
+    let r = ranks(&all);
+    let r1: f64 = r[..x.len()].iter().sum();
+    let u1 = r1 - n1 * (n1 + 1.0) / 2.0;
+    let u2 = n1 * n2 - u1;
+    let n = n1 + n2;
+    let mu = n1 * n2 / 2.0;
+    let sigma = (n1 * n2 / 12.0 * ((n + 1.0) - tie_term(&all) / (n * (n - 1.0)))).sqrt();
+    if sigma == 0.0 {
+        return Err("All the values are equal".into());
+    }
+    // Continuity-corrected z for each direction, p from the appropriate tail.
+    let z_of = |u: f64| (u - mu - 0.5) / sigma;
+    let p = match tail {
+        Tail::Greater => 1.0 - std_cdf(z_of(u1)),
+        Tail::Less => 1.0 - std_cdf(z_of(u2)),
+        Tail::Two => (2.0 * (1.0 - std_cdf(z_of(u1.max(u2))))).min(1.0),
+    };
+    let z = (u1 - mu) / sigma;
+    let mut rows = vec![
+        ("U₁ (X)".to_string(), u1),
+        ("U₂ (Y)".to_string(), u2),
+        ("z".to_string(), z),
+        ("Mean rank X".to_string(), r1 / n1),
+        ("Mean rank Y".to_string(), (r.iter().sum::<f64>() - r1) / n2),
+    ];
+    let med = |v: &[f64]| {
+        let mut s = v.to_vec();
+        s.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let m = s.len() / 2;
+        if s.len() % 2 == 0 { (s[m - 1] + s[m]) / 2.0 } else { s[m] }
+    };
+    rows.push(("Median X".into(), med(x)));
+    rows.push(("Median Y".into(), med(y)));
+    rows.push(("Effect size r".into(), z.abs() / n.sqrt()));
+    Ok(Outcome {
+        statistic: ("U", u1.min(u2)),
+        p,
+        rows,
+        ci: None,
+        critical: Some(z_critical(alpha, tail)),
+        note: Some(if n1 < 8.0 || n2 < 8.0 {
+            "Normal approximation; with fewer than 8 values per group exact tables are more accurate.".into()
+        } else {
+            "Normal approximation with tie and continuity corrections.".into()
+        }),
+    })
+}
+
+/// Wilcoxon signed-rank test for paired samples (or one sample against a median when y is a
+/// constant), with the normal approximation.
+pub fn wilcoxon(x: &[f64], y: &[f64], tail: Tail, alpha: f64) -> Result<Outcome, String> {
+    if x.len() != y.len() {
+        return Err("Paired data needs the same number of X and Y values".into());
+    }
+    let d: Vec<f64> = x.iter().zip(y).map(|(a, b)| a - b).filter(|d| *d != 0.0).collect();
+    if d.len() < 2 {
+        return Err("Fewer than two non-zero differences".into());
+    }
+    let n = d.len() as f64;
+    let abs: Vec<f64> = d.iter().map(|v| v.abs()).collect();
+    let r = ranks(&abs);
+    let w_plus: f64 = d.iter().zip(&r).filter(|(v, _)| **v > 0.0).map(|(_, r)| *r).sum();
+    let w_minus = n * (n + 1.0) / 2.0 - w_plus;
+    let mu = n * (n + 1.0) / 4.0;
+    let sigma = ((n * (n + 1.0) * (2.0 * n + 1.0) - tie_term(&abs) / 2.0) / 24.0).sqrt();
+    if sigma == 0.0 {
+        return Err("The differences are all equal".into());
+    }
+    let z_of = |w: f64| (w - mu - 0.5) / sigma;
+    let p = match tail {
+        Tail::Greater => 1.0 - std_cdf(z_of(w_plus)),
+        Tail::Less => 1.0 - std_cdf(z_of(w_minus)),
+        Tail::Two => (2.0 * (1.0 - std_cdf(z_of(w_plus.max(w_minus))))).min(1.0),
+    };
+    let z = (w_plus - mu) / sigma;
+    let zeros = x.len() - d.len();
+    Ok(Outcome {
+        statistic: ("W", w_plus.min(w_minus)),
+        p,
+        rows: vec![
+            ("W⁺ (X > Y)".into(), w_plus),
+            ("W⁻ (X < Y)".into(), w_minus),
+            ("z".into(), z),
+            ("Non-zero pairs".into(), n),
+            ("Effect size r".into(), z.abs() / n.sqrt()),
+        ],
+        ci: None,
+        critical: Some(z_critical(alpha, tail)),
+        note: Some(format!(
+            "Normal approximation with tie and continuity corrections{}.{}",
+            if zeros > 0 { format!("; {} zero difference{} dropped", zeros, if zeros == 1 { "" } else { "s" }) } else { String::new() },
+            if n < 10.0 { " With fewer than 10 pairs exact tables are more accurate." } else { "" }
+        )),
+    })
+}
+
+/// Kruskal–Wallis H test: the rank-based alternative to one-way ANOVA.
+pub fn kruskal_wallis(groups: &[Vec<f64>], alpha: f64) -> Result<Outcome, String> {
+    let groups: Vec<&Vec<f64>> = groups.iter().filter(|g| !g.is_empty()).collect();
+    if groups.len() < 2 {
+        return Err("Kruskal–Wallis needs at least two groups".into());
+    }
+    let all: Vec<f64> = groups.iter().flat_map(|g| g.iter().copied()).collect();
+    let n = all.len() as f64;
+    let r = ranks(&all);
+    let mut h = 0.0;
+    let mut rows = Vec::new();
+    let mut start = 0;
+    for (i, g) in groups.iter().enumerate() {
+        let ni = g.len() as f64;
+        let rs: f64 = r[start..start + g.len()].iter().sum();
+        start += g.len();
+        h += rs * rs / ni;
+        rows.push((format!("Mean rank, group {}", i + 1), rs / ni));
+    }
+    h = 12.0 / (n * (n + 1.0)) * h - 3.0 * (n + 1.0);
+    let corr = 1.0 - tie_term(&all) / (n * n * n - n);
+    if corr <= 0.0 {
+        return Err("All the values are equal".into());
+    }
+    h /= corr;
+    let df = (groups.len() - 1) as f64;
+    let p = 1.0 - chi2_cdf(h, df);
+    rows.insert(0, ("df".into(), df));
+    rows.push(("Effect size ε²".into(), h / (n - 1.0)));
+    Ok(Outcome {
+        statistic: ("H", h),
+        p,
+        rows,
+        ci: None,
+        critical: Some(format!("χ² = {}", crate::fmt::short(inv_chi2(1.0 - alpha, df), 6))),
+        note: Some("χ² approximation with tie correction; best with 5 or more values per group.".into()),
+    })
+}
+
+/// Jarque–Bera test of normality from skewness and kurtosis.
+pub fn jarque_bera(x: &[f64], alpha: f64) -> Result<Outcome, String> {
+    need(x, 4, "The sample")?;
+    let n = x.len() as f64;
+    let m = mean(x);
+    let m2 = x.iter().map(|v| (v - m).powi(2)).sum::<f64>() / n;
+    let m3 = x.iter().map(|v| (v - m).powi(3)).sum::<f64>() / n;
+    let m4 = x.iter().map(|v| (v - m).powi(4)).sum::<f64>() / n;
+    if m2 == 0.0 {
+        return Err("All the values are equal".into());
+    }
+    let skew = m3 / m2.powf(1.5);
+    let kurt = m4 / (m2 * m2);
+    let jb = n / 6.0 * (skew * skew + (kurt - 3.0).powi(2) / 4.0);
+    Ok(Outcome {
+        statistic: ("JB", jb),
+        p: 1.0 - chi2_cdf(jb, 2.0),
+        rows: vec![("Skewness".into(), skew), ("Excess kurtosis".into(), kurt - 3.0), ("n".into(), n)],
+        ci: None,
+        critical: Some(format!("χ² = {}", crate::fmt::short(inv_chi2(1.0 - alpha, 2.0), 6))),
+        note: Some("H₀: the data come from a normal distribution. The χ² approximation needs a fairly large sample (about 30 or more).".into()),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -714,5 +1078,43 @@ mod tests {
         let f = f_test(&[20.0, 22.0, 19.0, 24.0, 25.0], &[28.0, 30.0, 27.0, 26.0, 29.0], Tail::Two, 0.05).unwrap();
         close(f.statistic.1, 2.6, 1e-12);
         close(f.p, 0.37722908093278473, 1e-9);
+    }
+
+    #[test]
+    fn tukey_matches_scipy() {
+        // scipy.stats.studentized_range.cdf(3.5, 3, 20) = 0.944108
+        assert!((ptukey(3.5, 3.0, 20.0) - 0.944108).abs() < 2e-4);
+        // q crit (k=3, df=12, 0.05) = 3.773
+        assert!((inv_tukey(0.95, 3.0, 12.0) - 3.773).abs() < 3e-3);
+    }
+
+    #[test]
+    fn nonparametric() {
+        let x = [1.1, 2.3, 3.2, 4.8, 5.5, 6.1];
+        let y = [2.0, 3.9, 5.1, 6.6, 7.2, 8.9, 9.0];
+        let o = mann_whitney(&x, &y, Tail::Two, 0.05).unwrap();
+        assert!((o.p - 0.13361).abs() < 1e-4, "{}", o.p);
+        let a = [10.0, 12.0, 9.0, 15.0, 11.0, 13.0, 14.0, 8.0];
+        let b = [8.0, 11.0, 9.0, 12.0, 10.0, 10.0, 12.0, 9.0];
+        let o = wilcoxon(&a, &b, Tail::Two, 0.05).unwrap();
+        assert!((o.p - 0.04941).abs() < 1e-4, "{}", o.p);
+        let g = vec![vec![23.0, 25.0, 21.0, 27.0, 24.0], vec![30.0, 28.0, 33.0, 29.0, 31.0], vec![18.0, 22.0, 20.0, 19.0, 21.0]];
+        let o = kruskal_wallis(&g, 0.05).unwrap();
+        assert!((o.statistic.1 - 11.8161).abs() < 1e-3, "{}", o.statistic.1);
+        let o = jarque_bera(&[2.0, 3.0, 3.0, 4.0, 5.0, 5.0, 6.0, 9.0, 12.0, 15.0], 0.05).unwrap();
+        assert!((o.statistic.1 - 1.61464).abs() < 1e-4);
+    }
+
+    #[test]
+    fn two_way() {
+        let cells = vec![
+            vec![vec![4.0, 5.0, 6.0], vec![6.0, 7.0, 8.0]],
+            vec![vec![8.0, 9.0, 10.0], vec![14.0, 15.0, 16.0]],
+        ];
+        let a = anova_two_way(&cells, 0.05).unwrap();
+        assert!((a.sources[0].ss - 108.0).abs() < 1e-9);
+        assert!((a.sources[1].ss - 48.0).abs() < 1e-9);
+        assert!((a.sources[2].ss - 12.0).abs() < 1e-9);
+        assert!((a.sources[3].ss - 8.0).abs() < 1e-9);
     }
 }

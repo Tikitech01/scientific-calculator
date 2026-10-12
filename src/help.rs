@@ -121,7 +121,9 @@ const SECTIONS: &[(&str, &[(&str, &str)])] = &[
     ("Statistics", &[
         ("Data", "X and Y columns, one value per row. Freq is optional and repeats the X value."),
         ("Lists", "The columns are available in Calculate as List1, List2, List3."),
-        ("Tests", "t-test (one sample, two samples, paired), z-test (mean, one or two proportions), F-test for variances, χ² goodness of fit and independence, one-way ANOVA, Pearson and Spearman correlation. Each shows the statistic, p-value, critical value, confidence interval and whether to reject H₀ at your α."),
+        ("Tests", "t-test (one sample, two samples, paired), z-test (mean, one or two proportions), F-test for variances, χ² goodness of fit and independence, one-way ANOVA with Tukey HSD, two-way ANOVA, Pearson and Spearman correlation. Each shows the statistic, p-value, critical value, confidence interval and whether to reject H₀ at your α."),
+        ("Non-parametric", "Mann–Whitney U (two independent samples), Wilcoxon signed-rank (paired), Kruskal–Wallis (several groups) and the Jarque–Bera normality test. Use these when the data are not normal or are ranks."),
+        ("Two-way ANOVA", "Type a grid: each line is a level of factor A, cells split by |, repeated values inside a cell separated by spaces. Every cell needs the same number of values."),
         ("Test data", "Most tests use the X and Y columns. The χ² independence table and ANOVA groups are typed one row or group per line, values separated by spaces or commas."),
         ("Distributions", "Normal, binomial, Poisson, Student t, χ² and F: probabilities between bounds, densities and inverse (critical) values."),
         ("In Calculate", "tcdf(lo, hi, df), invt(p, df), chi2cdf(lo, hi, df), invchi2(p, df), fcdf(lo, hi, d1, d2), invf(p, d1, d2), plus tpdf, chi2pdf, fpdf."),

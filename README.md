@@ -35,8 +35,9 @@ Intel Macs and other systems can [build from source](#build-from-source) in a fe
   dark mode.
 - **Programmers and electronics hobbyists**: hexadecimal, binary and octal side by side, a bit
   grid, bitwise operations, shifts and rotates for 8, 16, 32 and 64-bit numbers.
-- **Statistics and research students, analysts and researchers**: t, z, F and χ² tests, ANOVA and
-  correlation with p-values, critical values and confidence intervals, without opening a spreadsheet.
+- **Statistics and research students, analysts and researchers**: t, z, F and χ² tests, one- and
+  two-way ANOVA with Tukey post-hoc, non-parametric tests and correlation, with p-values, critical
+  values and confidence intervals, without opening a spreadsheet.
 - **Finance, business and accounting**: EMI and loan schedules, time value of money, NPV and IRR,
   compound interest and CAGR, depreciation, break-even, margins and GST, with digit grouping
   in international (1,234,567) or Indian (12,34,567) style.
@@ -98,8 +99,12 @@ The type only decides which tabs are shown; ⌘1, ⌘2 … follow the tabs you s
   - **z-tests**: one mean with known σ, one proportion, two proportions
   - **F-test** for equality of two variances
   - **χ² tests**: goodness of fit and independence (contingency table, with expected counts and Cramér's V)
-  - **One-way ANOVA** with the full ANOVA table (SS, df, MS, F, p), η² and group summaries
+  - **One-way ANOVA** with the full ANOVA table (SS, df, MS, F, p), η², group summaries and
+    **Tukey HSD** post-hoc comparisons showing which pairs differ
+  - **Two-way ANOVA** with row, column and interaction effects and the cell means
   - **Correlation**: Pearson r and Spearman rank ρ with significance tests
+  - **Non-parametric tests**: Mann–Whitney U, Wilcoxon signed-rank, Kruskal–Wallis and the
+    Jarque–Bera normality test
 
 ### Finance
 - **Time value of money**: solve for any of N, I/Y, PV, PMT or FV, with payments per year,

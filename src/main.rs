@@ -467,6 +467,8 @@ impl App {
             self.stats.tests.t_kind = k;
             self.stats.tests.chi_kind = k;
             self.stats.tests.z_kind = k;
+            self.stats.tests.anova_kind = k;
+            self.stats.tests.np_kind = k;
         }
         if std::env::var("NUMERA_DEMO").is_ok() {
             for src in ["sin(30)+√(2)÷2", "√(2)÷2", "(1+2i)(3−i)", "integ(x²,0,3)", "[[1,2],[3,4]]→MatA", "2^64"] {
@@ -492,6 +494,7 @@ impl App {
             self.fin.load_demo();
             self.stats.tests.groups = "23 25 21 27 24\n30 28 33 29 31\n18 22 20 19 21".into();
             self.stats.tests.table = "20 30 25\n15 35 40".into();
+            self.stats.tests.table2 = "4 5 6 | 6 7 8\n8 9 10 | 14 15 16".into();
             self.stats.push(&mut self.env);
             self.mat.expr = "MatA⁻¹".into();
             self.mat.result = Some(engine::evaluate("MatA⁻¹", &mut self.env));
