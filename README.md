@@ -1,98 +1,189 @@
-# Numera
+# Scientific Calculator
 
-A clean, minimal scientific and graphing calculator for macOS, Windows and Linux, written in Rust (egui).
+**A clean, minimal scientific and graphing calculator for macOS, Windows and Linux.**
+It starts as a small, simple calculator and expands into a full scientific workstation:
+graphs, equation solving, matrices, statistics, unit conversion and a programmer mode,
+all in one fast native app that works completely offline.
 
-## Build
+<p align="center">
+  <img src="docs/screenshots/simple.png" alt="Simple calculator" height="360">
+  &nbsp;
+  <img src="docs/screenshots/calculate.png" alt="Full scientific calculator" height="360">
+</p>
+
+## Download
+
+| System | File | How to install |
+| --- | --- | --- |
+| **macOS** (Apple silicon, M1 or later) | [Scientific-Calculator-2.0.0-macOS-AppleSilicon.zip](downloads/Scientific-Calculator-2.0.0-macOS-AppleSilicon.zip) | Unzip, drag **Scientific Calculator** to Applications. The first time, right-click the app and choose **Open** (the app is not notarised yet). |
+| **Windows** 10 / 11 | Coming soon: `Scientific-Calculator-2.0.0-Windows-Setup.exe` | Run the installer. If SmartScreen appears, choose **More info → Run anyway**. Until it is published you can build it yourself, see [Build from source](#build-from-source). |
+| **Linux** – Debian, Ubuntu, Mint | [scientific-calculator_2.0.0_amd64.deb](downloads/scientific-calculator_2.0.0_amd64.deb) | `sudo apt install ./scientific-calculator_2.0.0_amd64.deb` |
+| **Linux** – any other distribution | [Scientific-Calculator-2.0.0-Linux-x86_64.tar.gz](downloads/Scientific-Calculator-2.0.0-Linux-x86_64.tar.gz) | Extract it and run `./install.sh` (no root needed). |
+
+All downloads are in the [`downloads`](downloads) folder: click a file, then the download button.
+Intel Macs and other systems can [build from source](#build-from-source) in a few minutes.
+
+## Who it is for
+
+- **School and college students**: algebra, trigonometry, logarithms, calculus, statistics and
+  graphs, with a calculator that shows answers as fractions, multiples of π and square roots.
+- **Engineers and scientists**: complex numbers, matrices, simultaneous equations, a numeric
+  solver, integrals and derivatives, unit conversion and physical constants.
+- **Teachers**: a clear, uncluttered display that is easy to show on a projector, in light or
+  dark mode.
+- **Programmers and electronics hobbyists**: hexadecimal, binary and octal side by side, a bit
+  grid, bitwise operations, shifts and rotates for 8, 16, 32 and 64-bit numbers.
+- **Finance, business and data work**: percentages, statistics, regression and digit grouping
+  in international (1,234,567) or Indian (12,34,567) style.
+- **Anyone** who wants a quick, good-looking desktop calculator that stays out of the way, and
+  can stay on top of other windows while you work.
+
+## Features
+
+### Calculate
+- Scientific keypad with second functions and a Greek-letter layer (α β γ θ λ ω …)
+- Type naturally: `2x`, `3(4+1)`, `x^2` shows as x², `sqrt`, `pi` → π, `theta` → θ
+- Live preview of the answer while you type; history you can click to reuse
+- Exact answers: fractions, multiples of π and square-root forms (5/2, 3π/4, √2/2)
+- Complex numbers, variables (`5 → A`), `Ans`, lists, matrices
+- Calculus: derivatives, integrals, sums, products and a solver
+- Degrees, radians or gradians; Normal, Fix and Sci number formats
+
+### Graph and Table
+- Up to six functions: y = f(x), polar r = f(θ) and parametric (x(t), y(t))
+- Roots, minimum and maximum, y-intercept and shaded definite integrals
+- Intersections between every pair of curves, marked on the graph
+- Trace the curves with the mouse, drag to pan, scroll or pinch to zoom
+- Export the graph as a PNG (saved to Downloads and copied to the clipboard)
+- Value tables for every function with any start, end and step
+
+### Equation
+- Polynomial roots up to degree 6, including complex roots
+- Simultaneous linear equations with 2 to 6 unknowns
+- Numeric solver for any equation, e.g. `cos(x) = x`, listing every solution in a range
+
+### Matrix
+- Six matrices (A–F) up to 6 × 6
+- Determinant, inverse, transpose, row-reduce, rank, trace and free expressions such as `MatA*MatB + 2MatC`
+
+### Statistics
+- One-variable statistics with frequencies: mean, standard deviations, quartiles, median, mode
+- Six regression models (linear, quadratic, cubic, exponential, logarithmic, power) with a plot and predictions
+- Normal, binomial and Poisson distributions
+
+### Convert
+- Units in 13 categories: length, area, volume, mass, temperature, speed, time, pressure, energy, power, force, angle and data
+- Number bases: decimal, hexadecimal, octal and binary
+- Physical constants (CODATA) you can click to use in a calculation
+
+### Programmer
+- One integer shown in HEX, DEC, OCT and BIN at the same time; type in any of them
+- 8, 16, 32 or 64-bit words, signed (two's complement) or unsigned
+- Click any bit to flip it
+- AND, OR, XOR, NAND, NOR, NOT, shifts, rotates and wrapping arithmetic
+
+### Everyday conveniences
+- **Simple or full**: the app opens as a small calculator; the arrow expands it into the full
+  scientific calculator, growing towards the middle of the screen so it never goes off screen
+- **Copy results**: click a result to copy it; right-click for *Copy as shown*, *Copy calculation*
+  or *Insert into the input*
+- **History that is remembered**, together with `Ans` and stored variables
+- **Settings**: System, Light or Dark appearance; digit grouping; decimal point or comma;
+  keep on top; clear history
+- **Input guide** (the `?` button) explains how to type powers, roots, functions and more, and
+  every field and key has a tooltip
+- **macOS menu bar** with View, Window and Help menus and the usual shortcuts
+- Works offline, collects no data and needs no account
+
+### Keyboard shortcuts
+
+| Shortcut | Action |
+| --- | --- |
+| Return or `=` | Calculate |
+| ↑ / ↓ | Recall earlier calculations |
+| Esc | Clear the line |
+| ⌘1 … ⌘8 (Ctrl on Windows/Linux) | Calculate, Graph, Table, Equation, Matrix, Statistics, Convert, Programmer |
+| ⌘0 | Simple / full calculator (macOS menu) |
+| ⇧⌘C | Copy the last result |
+| ⌘, | Settings (macOS menu) |
+| ⌘? | Input guide (macOS menu) |
+
+## Screenshots
+
+| | |
+| --- | --- |
+| ![Graph](docs/screenshots/graph.png) | ![Equation](docs/screenshots/equation.png) |
+| ![Statistics](docs/screenshots/statistics.png) | ![Programmer](docs/screenshots/programmer.png) |
+| ![Convert](docs/screenshots/convert.png) | ![Calculate](docs/screenshots/calculate.png) |
+
+## Typing maths: quick reference
+
+- Operators: `+ - * / ^ ! %` and implicit multiplication (`2π`, `3(4+1)`, `2sin(30)`)
+- Store a value: `5 -> A`, then use `A` anywhere; `Ans` is the last result
+- Functions: `sin cos tan asin acos atan sinh cosh tanh ln log log(b,x) exp sqrt cbrt root(n,x)
+  abs arg conj round(x,n) gamma nCr nPr gcd lcm mod min max rand`
+- Calculus: `diff(x^3, 2)`, `integ(x^2, 0, 3)`, `sum(k^2, k, 1, 10)`, `prod(k, k, 1, 5)`, `solve(x^2-2, 1)`
+- Lists `{1,2,3}`, matrices `[[1,2],[3,4]]`, number bases `0xFF`, `0b1010`, `0o17`
+- Distributions: `normpdf normcdf invnorm binompdf binomcdf poissonpdf poissoncdf`
+
+## Build from source
+
+The app is written in Rust with [egui](https://github.com/emilk/egui).
+
+**macOS**
 
 ```
 bash build.sh
 ```
 
-This compiles a release build and assembles `Numera.app` in this folder. The script offers to
-install Rust if it is missing. For development, `cargo run` starts the app directly and
-`cargo test` runs the math engine tests.
+Builds `Scientific Calculator.app` in this folder (the script offers to install Rust if needed).
 
-## Modes (⌘1 – ⌘8)
+**Windows 10 / 11**
 
-| Mode | What it does |
-| --- | --- |
-| Calculate | Scientific calculator with history, live preview, complex numbers, variables, fractions / π / surd forms |
-| Graph | y = f(x), polar (use θ) and parametric `(x(t), y(t))` curves; roots, extrema, intersections between every pair of curves, integrals, trace, PNG export |
-| Table | Value tables for the graphed functions |
-| Equation | Polynomial roots (degree 2–6), simultaneous linear equations (2–6 unknowns), numeric solver |
-| Matrix | Six matrices up to 6×6; determinant, inverse, transpose, row-reduce, rank, trace, free expressions |
-| Statistics | One-variable statistics, six regression models with plot, normal / binomial / Poisson distributions |
-| Convert | Units in 13 categories, number bases, physical constants |
-| Programmer | One integer in hex, decimal, octal and binary; 8–64-bit words, signed or unsigned; clickable bit grid; AND, OR, XOR, NOT, shifts, rotates and wrapping arithmetic |
+Double-click `build-windows.bat` (or run `.\build-windows.ps1` in PowerShell). It produces
+`dist\Scientific-Calculator-<version>-Windows-Setup.exe`, an installer with a Start-menu entry,
+an optional desktop shortcut and an uninstaller. It needs Rust (MSVC), Visual Studio Build Tools
+("Desktop development with C++") and Inno Setup; the script offers to install Rust and Inno Setup
+with winget.
 
-## Simple and full view
-
-The app opens as a simple calculator. The `›` arrow at the top left expands it to the full
-calculator with scientific keys and all modes; `‹` goes back. The `?` button opens the input guide. The version is shown at the bottom of the guide.
-
-## Settings and conveniences
-
-- **Menu bar (macOS)**: Numera, Edit, View, Window and Help menus. View switches modes (⌘1 – ⌘8), the full calculator (⌘0), appearance, angle unit and number format; Window has Keep on Top; Help opens the input guide (⌘?).
-
-- **Settings** (sliders icon, top right): appearance (System, Light, Dark), digit grouping (1,234,567 · 12,34,567 · 1 234 567), decimal point or comma, keep on top, clear history. Settings are remembered.
-- **Keep on top**: the pin icon keeps the window above other apps.
-- **Copy**: click a result to copy it; right-click for *Copy as shown*, *Copy calculation* or *Insert into the input*. ⌘⇧C (Ctrl+Shift+C) copies the latest result.
-- **History**: kept between launches, together with `Ans` and stored variables.
-
-## Typing expressions
-
-- Operators: `+ - * / ^ !  %`, implicit multiplication (`2π`, `3(4+1)`, `2sin(30)`)
-- Return or `=` evaluates, ↑ / ↓ recall history, Esc clears
-- Store a value: `5 → A` (type `->`), then use `A` anywhere. `Ans` is the last result
-- Powers: `x^12` is shown as x¹² once you type on
-- Greek letters: type `alpha`, `theta`, `Delta` … or use the `αβγ` key; they work as variables
-- Constants: `π` or `pi`, `e`, `i`
-- Functions: `sin cos tan asin acos atan sinh cosh tanh asinh acosh atanh ln log log(b,x) log2 exp sqrt cbrt root(n,x)
-  abs arg conj re im int frac floor ceil round(x,n) sign gamma nCr nPr gcd lcm mod min max rand randint`
-- Calculus: `diff(x^3, 2)`, `integ(x^2, 0, 3)`, `sum(k^2, k, 1, 10)`, `prod(k, k, 1, 5)`, `solve(x^2-2, 1)`, `seq(n^2, n, 1, 5)`
-- Lists: `{1,2,3}`, `mean median stdev stdevp variance sum prod sort len dot cross`
-- Matrices: `[[1,2],[3,4]]` or `[1,2;3,4]`, `det inv trn rref rank trace identity norm`, `MatA … MatF`
-- Number bases: `0xFF`, `0b1010`, `0o17`, `and or xor not shl shr`
-- Distributions: `normpdf normcdf invnorm binompdf binomcdf poissonpdf poissoncdf`
-
-## Layout
+**Linux**
 
 ```
-src/engine.rs     lexer, parser, evaluator
-src/numeric.rs    calculus, root finding, polynomial roots, linear systems
-src/matrix.rs     matrix type
-src/stats.rs      statistics, regression, distributions
-src/fmt.rs        number formatting and exact forms
-src/units.rs      unit tables and constants
-src/theme.rs      colours and fonts          src/widgets.rs   shared controls
-src/plot.rs       plot surface               src/ui_*.rs      one file per mode
+cargo build --release
+bash packaging/linux/package.sh
 ```
 
-The interface font is Inter (SIL Open Font License, see `assets/Inter-LICENSE.txt`).
+Produces a `.deb` package and a `.tar.gz` in `dist/`.
 
-## Download
+**Development:** `cargo run` starts the app, `cargo test` runs the maths engine tests.
 
-Pick the file for your system from the [`downloads`](downloads) folder (click the file, then the download button):
+### Automatic release builds
 
-- **macOS (Apple silicon):** [`Numera-1.1.0-macOS-AppleSilicon.zip`](downloads/Numera-1.1.0-macOS-AppleSilicon.zip). This is version 1.1.0 until the next Mac build. Unzip it, drag Numera to Applications, then right-click it and choose Open the first time (the app is not notarised). Intel Macs: build it yourself with `bash build.sh`.
-- **Linux:** [`numera_1.5.1_amd64.deb`](downloads/numera_1.5.1_amd64.deb) for Debian, Ubuntu and Mint (`sudo apt install ./numera_1.5.1_amd64.deb`), or [`Numera-1.5.1-linux-x86_64.tar.gz`](downloads/Numera-1.5.1-linux-x86_64.tar.gz) for any other distribution (extract it and run `./install.sh`).
-- **Windows:** the installer is not published yet. Build it on a Windows PC with `build-windows.bat` (see below).
-
-## Signed and notarised Mac builds
-
-The release workflow signs and notarises the Mac app when these repository secrets are set
-(Settings → Secrets and variables → Actions); without them it makes an unsigned build.
+`.github/workflows/release.yml` builds the macOS disk image (universal: Apple silicon and Intel),
+the Windows installer and the Linux packages, and attaches them to a GitHub release. Run it from
+the **Actions** tab. When these repository secrets are set, the Mac app is also signed and
+notarised by Apple:
 
 | Secret | Value |
 | --- | --- |
-| `MACOS_CERT_P12` | Your *Developer ID Application* certificate exported as .p12, base64-encoded (`base64 -i cert.p12 \| pbcopy`) |
-| `MACOS_CERT_PASSWORD` | The password chosen when exporting the .p12 |
-| `APPLE_ID` | The Apple ID email of the developer account |
-| `APPLE_TEAM_ID` | The 10-character team ID |
-| `APPLE_APP_PASSWORD` | An app-specific password from appleid.apple.com |
+| `MACOS_CERT_P12` | *Developer ID Application* certificate exported as .p12, base64-encoded |
+| `MACOS_CERT_PASSWORD` | Password of the .p12 |
+| `APPLE_ID` | Apple ID email of the developer account |
+| `APPLE_TEAM_ID` | 10-character team ID |
+| `APPLE_APP_PASSWORD` | App-specific password from appleid.apple.com |
 
-## Windows
+### Source layout
 
-On a Windows 10/11 PC, copy this folder over and double-click `build-windows.bat` (or run `.\build-windows.ps1` in PowerShell).
-It compiles the app and produces `dist\Numera-<version>-Setup.exe`, a normal installer with a Start-menu entry, an optional desktop shortcut and an uninstaller.
-Needs Rust (MSVC toolchain), Visual Studio Build Tools ("Desktop development with C++") and Inno Setup; the script offers to install Rust and Inno Setup through winget.
+```
+src/engine.rs     parser and evaluator         src/numeric.rs   calculus, roots, linear systems
+src/matrix.rs     matrices                     src/stats.rs     statistics, regression, distributions
+src/fmt.rs        number formatting            src/units.rs     units and constants
+src/theme.rs      colours and fonts            src/widgets.rs   shared controls
+src/plot.rs       graph drawing                src/menu.rs      macOS menu bar
+src/ui_*.rs       one file per mode            src/main.rs      window, top bar, settings
+```
+
+## Credits
+
+Developed by **Tiki Tech**, Mumbai, India.
+The interface font is [Inter](https://rsms.me/inter/) (SIL Open Font License, see `assets/Inter-LICENSE.txt`).

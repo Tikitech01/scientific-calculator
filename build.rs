@@ -1,8 +1,8 @@
 fn main() {
-    // The native menu bar is built on macOS (and can be forced with --cfg numera_menu for checks).
-    println!("cargo::rustc-check-cfg=cfg(numera_menu)");
+    // The native menu bar is built on macOS (and can be forced with --cfg native_menu for checks).
+    println!("cargo::rustc-check-cfg=cfg(native_menu)");
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
-        println!("cargo:rustc-cfg=numera_menu");
+        println!("cargo:rustc-cfg=native_menu");
     }
 
     // Build date for the About window, e.g. 2026-10-11.
@@ -25,8 +25,8 @@ fn main() {
     {
         let mut res = winresource::WindowsResource::new();
         res.set_icon("packaging/icon.ico");
-        res.set("ProductName", "Numera");
-        res.set("FileDescription", "Numera — scientific and graphing calculator");
+        res.set("ProductName", "Scientific Calculator");
+        res.set("FileDescription", "Scientific Calculator");
         res.set("CompanyName", "Tiki Tech");
         if let Err(e) = res.compile() {
             println!("cargo:warning=could not embed the Windows icon: {e}");

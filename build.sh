@@ -1,9 +1,9 @@
 #!/bin/bash
-# Builds Numera.app in this folder. Run it from Terminal:  ./build.sh
+# Builds "Scientific Calculator.app" in this folder. Run it from Terminal:  ./build.sh
 set -euo pipefail
 cd "$(dirname "$0")"
 
-APP="Numera.app"
+APP="Scientific Calculator.app"
 
 # The Rust toolchain may be installed but not yet on PATH in this shell.
 if ! command -v cargo >/dev/null 2>&1 && [ -f "$HOME/.cargo/env" ]; then
@@ -38,17 +38,17 @@ cargo build --release
 echo "Assembling $APP…"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp target/release/numera "$APP/Contents/MacOS/Numera"
+cp target/release/scientific-calculator "$APP/Contents/MacOS/ScientificCalculator"
 cp packaging/Info.plist "$APP/Contents/Info.plist"
 
-ICONSET="$(mktemp -d)/Numera.iconset"
+ICONSET="$(mktemp -d)/AppIcon.iconset"
 mkdir -p "$ICONSET"
 for size in 16 32 128 256 512; do
     double=$((size * 2))
     sips -z "$size" "$size" packaging/icon.png --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
     sips -z "$double" "$double" packaging/icon.png --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
 done
-iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Numera.icns"
+iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 
 # Ad-hoc signature so macOS runs the app without complaint on this Mac.
 codesign --force --deep --sign - "$APP" >/dev/null 2>&1 || true

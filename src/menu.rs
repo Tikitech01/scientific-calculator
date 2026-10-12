@@ -1,4 +1,4 @@
-//! The macOS menu bar: Numera, Edit, View, Window and Help menus.
+//! The macOS menu bar: app, Edit, View, Window and Help menus.
 //!
 //! Menu shortcuts are caught by macOS before the window sees the key, so every command
 //! (including Copy and Paste) comes back here as an event and is carried out by the app.
@@ -92,7 +92,7 @@ impl AppMenu {
         let mut commands: Vec<(MenuId, Cmd)> = Vec::new();
         let sep = PredefinedMenuItem::separator;
 
-        // ---- Numera
+        // ---- App menu
         let credits = format!(
             "Developed by {dev}\nMumbai, India\n\n\
              Scientific, graphing, equation, matrix, statistics, conversion and programmer modes.\n\n\
@@ -103,9 +103,9 @@ impl AppMenu {
             site = crate::help::WEBSITE.trim_start_matches("https://"),
         );
         let about = PredefinedMenuItem::about(
-            Some("About Numera"),
+            Some("About Scientific Calculator"),
             Some(AboutMetadata {
-                name: Some("Numera".into()),
+                name: Some(crate::help::APP_NAME.into()),
                 // macOS shows these as "Version 1.4.0 (Build 2026-10-11)".
                 version: Some(crate::help::VERSION.into()),
                 short_version: Some(format!("Build {}", crate::help::BUILD_DATE)),
@@ -119,7 +119,7 @@ impl AppMenu {
         );
         let settings = item(&mut commands, "Settings…", "CmdOrCtrl+Comma", Cmd::Settings);
         let app_menu = Submenu::with_items(
-            "Numera",
+            crate::help::APP_NAME,
             true,
             &[
                 &about,
@@ -128,11 +128,11 @@ impl AppMenu {
                 &sep(),
                 &PredefinedMenuItem::services(None),
                 &sep(),
-                &PredefinedMenuItem::hide(None),
+                &PredefinedMenuItem::hide(Some("Hide Scientific Calculator")),
                 &PredefinedMenuItem::hide_others(None),
                 &PredefinedMenuItem::show_all(None),
                 &sep(),
-                &PredefinedMenuItem::quit(None),
+                &PredefinedMenuItem::quit(Some("Quit Scientific Calculator")),
             ],
         )
         .ok()?;
@@ -200,7 +200,7 @@ impl AppMenu {
 
         // ---- Help
         let guide = item(&mut commands, "Input Guide", "CmdOrCtrl+Shift+Slash", Cmd::Guide);
-        let website = item(&mut commands, "Numera on GitHub", "", Cmd::Website);
+        let website = item(&mut commands, "Scientific Calculator on GitHub", "", Cmd::Website);
         let help_menu = Submenu::with_items("Help", true, &[&guide, &website]).ok()?;
 
         let menu = Menu::with_items(&[&app_menu, &edit_menu, &view_menu, &window_menu, &help_menu]).ok()?;

@@ -19,10 +19,10 @@ jobs:
         run: |
           cargo build --release --target aarch64-apple-darwin
           cargo build --release --target x86_64-apple-darwin
-          lipo -create -output Numera \
-            target/aarch64-apple-darwin/release/numera \
-            target/x86_64-apple-darwin/release/numera
-      - name: Assemble Numera.app and disk image
+          lipo -create -output ScientificCalculator \
+            target/aarch64-apple-darwin/release/scientific-calculator \
+            target/x86_64-apple-darwin/release/scientific-calculator
+      - name: Assemble the app and disk image
         env:
           # Optional. With these repository secrets set, the app is signed with a Developer ID
           # and notarised by Apple, so users can open it without the "unidentified developer" warning.
@@ -33,17 +33,17 @@ jobs:
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: |
           VERSION=$(grep -m1 '^version' Cargo.toml | sed 's/.*"\(.*\)"/\1/')
-          APP=Numera.app
+          APP="Scientific Calculator.app"
           mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-          cp Numera "$APP/Contents/MacOS/Numera"
+          cp ScientificCalculator "$APP/Contents/MacOS/ScientificCalculator"
           cp packaging/Info.plist "$APP/Contents/Info.plist"
-          ICONSET="$(mktemp -d)/Numera.iconset"; mkdir -p "$ICONSET"
+          ICONSET="$(mktemp -d)/AppIcon.iconset"; mkdir -p "$ICONSET"
           for size in 16 32 128 256 512; do
             sips -z $size $size packaging/icon.png --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
             sips -z $((size*2)) $((size*2)) packaging/icon.png --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
           done
-          iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Numera.icns"
-          DMG="dist/Numera-$VERSION-macOS.dmg"
+          iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
+          DMG="dist/Scientific-Calculator-$VERSION-macOS.dmg"
           mkdir -p dist dmg
           if [ -n "$MACOS_CERT_P12" ]; then
             KC="$RUNNER_TEMP/build.keychain"
@@ -61,7 +61,7 @@ jobs:
           fi
           cp -R "$APP" dmg/
           ln -s /Applications dmg/Applications
-          hdiutil create -volname Numera -srcfolder dmg -ov -format UDZO "$DMG"
+          hdiutil create -volname "Scientific Calculator" -srcfolder dmg -ov -format UDZO "$DMG"
           if [ -n "$MACOS_CERT_P12" ] && [ -n "$APPLE_ID" ]; then
             codesign --force --timestamp --sign "$IDENTITY" "$DMG"
             xcrun notarytool submit "$DMG" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
@@ -83,7 +83,7 @@ jobs:
         run: |
           choco install innosetup -y --no-progress
           $v = (Select-String -Path Cargo.toml -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1).Matches.Groups[1].Value
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$v" packaging\numera.iss
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$v" packaging\installer.iss
       - uses: actions/upload-artifact@v4
         with:
           name: windows
@@ -119,6 +119,6 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.v.outputs.tag }}
-          name: Numera ${{ steps.v.outputs.tag }}
+          name: Scientific Calculator ${{ steps.v.outputs.tag }}
           files: out/*
           generate_release_notes: true

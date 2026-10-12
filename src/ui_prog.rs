@@ -216,7 +216,8 @@ pub fn ui(ui: &mut Ui, st: &mut ProgState, env: &mut Env, pal: &Pal) -> Option<S
         let mut new_focus = None;
         for (i, (name, radix)) in ROWS.iter().enumerate() {
             if st.focus != Some(i) {
-                st.text[i] = st.format(*radix);
+                // Zero shows as the grey hint, so typing starts from an empty field.
+                st.text[i] = if st.value == 0 { String::new() } else { st.format(*radix) };
             }
             ui.horizontal(|ui| {
                 let (r, _) = ui.allocate_exact_size(vec2(44.0, 32.0), Sense::hover());

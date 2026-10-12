@@ -1,11 +1,11 @@
 [Desktop Entry]
 Type=Application
-Name=Numera
+Name=Scientific Calculator
 GenericName=Calculator
 Comment=Scientific and graphing calculator
-Exec=numera
-Icon=numera
+Exec=scientific-calculator
+Icon=scientific-calculator
 Terminal=false
 Categories=Utility;Calculator;Science;Math;
 Keywords=calculator;graph;scientific;math;
-StartupWMClass=numera
+StartupWMClass=scientific-calculator

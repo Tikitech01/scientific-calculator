@@ -1,4 +1,4 @@
-# Builds the Numera installer for Windows.
+# Builds the Scientific Calculator installer for Windows.
 # Run from PowerShell in this folder:   .\build-windows.ps1
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
@@ -52,15 +52,15 @@ if (-not $iscc) {
 }
 
 if ($iscc) {
-    & $iscc "/DAppVersion=$version" "packaging\numera.iss"
+    & $iscc "/DAppVersion=$version" "packaging\installer.iss"
     if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
     Write-Host ""
-    Write-Host "Done: $PWD\dist\Numera-$version-Setup.exe"
+    Write-Host "Done: $PWD\dist\Scientific-Calculator-$version-Windows-Setup.exe"
 } else {
     # Fallback: a portable zip.
-    $zip = "dist\Numera-$version-portable.zip"
-    Copy-Item target\release\numera.exe dist\Numera.exe -Force
-    Compress-Archive -Path dist\Numera.exe -DestinationPath $zip -Force
+    $zip = "dist\Scientific-Calculator-$version-Windows-portable.zip"
+    Copy-Item target\release\scientific-calculator.exe dist\ScientificCalculator.exe -Force
+    Compress-Archive -Path dist\ScientificCalculator.exe -DestinationPath $zip -Force
     Write-Host ""
     Write-Host "Inno Setup not available. Portable build: $PWD\$zip"
 }

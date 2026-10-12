@@ -764,13 +764,13 @@ fn export_step(ui: &mut Ui, rect: Rect, st: &mut GraphState) {
     }
 }
 
-/// Save to the Downloads folder (or the home folder) as Numera-graph-<date>-<time>.png.
+/// Save to the Downloads folder (or the home folder) as Scientific-Calculator-graph-<date>-<time>.png.
 fn save_png(img: &egui::ColorImage) -> Result<String, String> {
     let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")).ok_or("no home folder")?;
     let home = std::path::PathBuf::from(home);
     let dir = if home.join("Downloads").is_dir() { home.join("Downloads") } else { home };
     // Local time, so the name matches the clock on the user's computer.
-    let name = format!("Numera-graph-{}.png", chrono::Local::now().format("%Y%m%d-%H%M%S"));
+    let name = format!("Scientific-Calculator-graph-{}.png", chrono::Local::now().format("%Y%m%d-%H%M%S"));
     let path = dir.join(&name);
     let bytes: Vec<u8> = img.pixels.iter().flat_map(|c| c.to_array()).collect();
     image::save_buffer(&path, &bytes, img.size[0] as u32, img.size[1] as u32, image::ExtendedColorType::Rgba8)

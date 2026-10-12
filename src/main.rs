@@ -1,4 +1,4 @@
-//! Numera — a clean, minimal scientific and graphing calculator.
+//! Scientific Calculator — a clean, minimal scientific and graphing calculator.
 #![allow(dead_code)]
 // No console window behind the app on Windows.
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
@@ -7,7 +7,7 @@ mod engine;
 mod fmt;
 mod help;
 mod matrix;
-#[cfg(numera_menu)]
+#[cfg(native_menu)]
 mod menu;
 mod numeric;
 mod plot;
@@ -93,7 +93,7 @@ struct App {
     settings: Settings,
     /// The keep-on-top state last sent to the window.
     applied_on_top: Option<bool>,
-    #[cfg(numera_menu)]
+    #[cfg(native_menu)]
     menu: Option<menu::AppMenu>,
 }
 
@@ -143,7 +143,7 @@ impl App {
             prog: Default::default(),
             settings,
             applied_on_top: None,
-            #[cfg(numera_menu)]
+            #[cfg(native_menu)]
             menu: None,
         };
         app.mat.push(&mut app.env);
@@ -213,7 +213,7 @@ impl App {
     }
 
     /// Carry out what was chosen in the menu bar, then update its check marks.
-    #[cfg(numera_menu)]
+    #[cfg(native_menu)]
     fn menu_commands(&mut self, ctx: &egui::Context) {
         use menu::Cmd;
         let Some(m) = self.menu.as_mut() else { return };
@@ -297,7 +297,7 @@ impl App {
         });
         ui.add_space(4.0);
         ui.label(
-            egui::RichText::new(format!("Numera {}  ·  build {}  ·  by {}", help::VERSION, help::BUILD_DATE, help::DEVELOPER))
+            egui::RichText::new(format!("{} {}  ·  build {}  ·  by {}", help::APP_NAME, help::VERSION, help::BUILD_DATE, help::DEVELOPER))
                 .size(11.5)
                 .color(pal.faint),
         );
@@ -369,7 +369,7 @@ impl eframe::App for App {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        #[cfg(numera_menu)]
+        #[cfg(native_menu)]
         self.menu_commands(ctx);
         #[cfg(debug_assertions)]
         match std::env::var("NUMERA_THEME").as_deref() {
@@ -484,7 +484,7 @@ impl eframe::App for App {
                         egui::popup::popup_below_widget(ui, pop_id, &set_btn, egui::popup::PopupCloseBehavior::CloseOnClickOutside, |ui| {
                             self.settings_ui(ui, &pal);
                         });
-                        let pin_tip = if self.settings.on_top { "Keeping Numera above other windows. Click to stop." } else { "Keep Numera above other windows" };
+                        let pin_tip = if self.settings.on_top { "Staying above other windows. Click to stop." } else { "Keep the calculator above other windows" };
                         if widgets::pin_button(ui, &pal, 26.0, self.settings.on_top).on_hover_text(pin_tip).clicked() {
                             self.settings.on_top = !self.settings.on_top;
                         }
@@ -553,9 +553,23 @@ impl eframe::App for App {
     }
 }
 
+/// Name of the folder that holds saved settings and history.
+const STORAGE_NAME: &str = "Scientific Calculator";
+
+/// The app used to be called Numera: carry its saved settings and history over once.
+fn migrate_settings() {
+    let (Some(old), Some(new)) = (eframe::storage_dir("Numera"), eframe::storage_dir(STORAGE_NAME)) else {
+        return;
+    };
+    let (old_file, new_file) = (old.join("app.ron"), new.join("app.ron"));
+    if old_file.exists() && !new_file.exists() && std::fs::create_dir_all(&new).is_ok() {
+        let _ = std::fs::copy(&old_file, &new_file);
+    }
+}
+
 fn main() -> eframe::Result {
     let viewport = egui::ViewportBuilder::default()
-        .with_title("Numera")
+        .with_title(help::APP_NAME)
         .with_inner_size(COMPACT_SIZE)
         .with_min_inner_size(COMPACT_MIN)
         // An empty icon keeps the icon from the app bundle.
@@ -566,7 +580,7 @@ fn main() -> eframe::Result {
         Err(_) => viewport,
     };
     #[cfg(target_os = "linux")]
-    let viewport = viewport.with_app_id("numera");
+    let viewport = viewport.with_app_id("scientific-calculator");
     // Development aid: NUMERA_X=900 opens the window at that x position.
     #[cfg(debug_assertions)]
     let viewport = match std::env::var("NUMERA_X").ok().and_then(|v| v.parse::<f32>().ok()) {
@@ -577,7 +591,7 @@ fn main() -> eframe::Result {
     let viewport = viewport.with_fullsize_content_view(true).with_titlebar_shown(false).with_title_shown(false);
     #[allow(unused_mut)]
     let mut options = eframe::NativeOptions { viewport, persist_window: false, ..Default::default() };
-    // Numera installs its own menu bar, so winit's default one is turned off.
+    // The app installs its own menu bar, so winit's default one is turned off.
     #[cfg(target_os = "macos")]
     {
         options.event_loop_builder = Some(Box::new(|b| {
@@ -585,8 +599,9 @@ fn main() -> eframe::Result {
             b.with_default_menu(false);
         }));
     }
+    migrate_settings();
     eframe::run_native(
-        "Numera",
+        STORAGE_NAME,
         options,
         Box::new(|cc| {
             theme::install(&cc.egui_ctx);
@@ -598,7 +613,7 @@ fn main() -> eframe::Result {
                 .unwrap_or_default();
             #[allow(unused_mut)]
             let mut app = App::new(settings, history);
-            #[cfg(numera_menu)]
+            #[cfg(native_menu)]
             {
                 let names: Vec<&str> = MODES.iter().map(|m| m.1).collect();
                 let formats: Vec<&str> = FORMATS.iter().map(|f| f.0).collect();
