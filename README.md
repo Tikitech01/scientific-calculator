@@ -16,7 +16,7 @@ all in one fast native app that works completely offline.
 | System | File | How to install |
 | --- | --- | --- |
 | **macOS** (Apple silicon, M1 or later) | [Scientific-Calculator-2.0.0-macOS-AppleSilicon.zip](downloads/Scientific-Calculator-2.0.0-macOS-AppleSilicon.zip) | Unzip, drag **Scientific Calculator** to Applications. The first time, right-click the app and choose **Open** (the app is not notarised yet). |
-| **Windows** 10 / 11 | Coming soon: `Scientific-Calculator-2.0.0-Windows-Setup.exe` | Run the installer. If SmartScreen appears, choose **More info → Run anyway**. Until it is published you can build it yourself, see [Build from source](#build-from-source). |
+| **Windows** 10 / 11 (64-bit) | [Scientific-Calculator-2.0.0-Windows-Setup.exe](downloads/Scientific-Calculator-2.0.0-Windows-Setup.exe) | Run the installer and follow the steps. If SmartScreen appears, choose **More info → Run anyway** (the installer is not code-signed yet). |
 | **Linux** – Debian, Ubuntu, Mint | [scientific-calculator_2.0.0_amd64.deb](downloads/scientific-calculator_2.0.0_amd64.deb) | `sudo apt install ./scientific-calculator_2.0.0_amd64.deb` |
 | **Linux** – any other distribution | [Scientific-Calculator-2.0.0-Linux-x86_64.tar.gz](downloads/Scientific-Calculator-2.0.0-Linux-x86_64.tar.gz) | Extract it and run `./install.sh` (no root needed). |
 
