@@ -134,11 +134,13 @@ pub fn install(ctx: &egui::Context) {
         ("inter", &include_bytes!("../assets/Inter-Regular.ttf")[..]),
         ("inter-light", &include_bytes!("../assets/Inter-Light.ttf")[..]),
         ("inter-medium", &include_bytes!("../assets/Inter-Medium.ttf")[..]),
+        // Maths symbols Inter lacks (∠, ⋚, arrows …), from DejaVu Sans.
+        ("symbols", &include_bytes!("../assets/DejaVuSans-Symbols.ttf")[..]),
     ] {
         fonts.font_data.insert(name.to_string(), Arc::new(FontData::from_static(bytes)));
     }
     let chain = |first: &str| {
-        let mut v = vec![first.to_string()];
+        let mut v = vec![first.to_string(), "symbols".to_string()];
         v.extend(defaults.iter().cloned());
         v
     };

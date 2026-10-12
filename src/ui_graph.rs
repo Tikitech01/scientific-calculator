@@ -822,6 +822,20 @@ pub fn table_ui(ui: &mut Ui, st: &mut GraphState, env: &mut Env, pal: &Pal) {
         env.set_real(&p.name, p.value);
     }
     let (left, right) = split(ui);
+    let cols: Vec<usize> = (0..st.fns.len()).filter(|i| st.fns[*i].cart().is_some()).collect();
+    let range = (|| -> Result<(f64, f64, usize), String> {
+        let a = engine::field_value(&st.tb_start, env)?.ok_or("Enter a start value")?;
+        let b = engine::field_value(&st.tb_end, env)?.ok_or("Enter an end value")?;
+        let s = engine::field_value(&st.tb_step, env)?.ok_or("Enter a step")?;
+        if s == 0.0 || (b - a) / s < 0.0 {
+            return Err("The step must move from start towards end".into());
+        }
+        let n = ((b - a) / s + 1e-9).floor() as usize + 1;
+        if n > 5000 {
+            return Err("That is more than 5000 rows. Use a larger step".into());
+        }
+        Ok((a, s, n))
+    })();
     ui.allocate_new_ui(UiBuilder::new().max_rect(left), |ui| {
         ScrollArea::vertical().id_salt("table_side").auto_shrink([false, false]).show(ui, |ui| {
             ui.set_width(left.width() - 8.0);
@@ -837,26 +851,34 @@ pub fn table_ui(ui: &mut Ui, st: &mut GraphState, env: &mut Env, pal: &Pal) {
                     widgets::field(ui, pal, text, "", 120.0).on_hover_text(help::NUMBER);
                 });
             }
+            // Copy as tab-separated text for a spreadsheet.
+            if let (Ok((a, s, n)), false) = (&range, cols.is_empty()) {
+                let (a, s, n) = (*a, *s, *n);
+                ui.add_space(8.0);
+                let mut head: Vec<String> = vec!["x".into()];
+                head.extend(cols.iter().map(|c| format!("y{}", c + 1)));
+                let head_refs: Vec<&str> = head.iter().map(String::as_str).collect();
+                let fns = &st.fns;
+                engine::with_var(env, "x", |env| {
+                    let env = std::cell::RefCell::new(env);
+                    widgets::copy_table(ui, pal, &head_refs, || {
+                        let mut env = env.borrow_mut();
+                        (0..n)
+                            .map(|i| {
+                                let x = a + s * i as f64;
+                                let mut row = vec![fmt::short(x, 10)];
+                                row.extend(cols.iter().map(|c| fmt::short(engine::eval_at(fns[*c].cart().unwrap(), &mut env, "x", x), 10)));
+                                row
+                            })
+                            .collect()
+                    });
+                });
+            }
         });
     });
 
     ui.painter().rect_filled(right, CornerRadius::same(12), pal.surface);
     ui.painter().rect_stroke(right, CornerRadius::same(12), Stroke::new(1.0_f32, pal.line), StrokeKind::Inside);
-    let cols: Vec<usize> = (0..st.fns.len()).filter(|i| st.fns[*i].cart().is_some()).collect();
-    let range = (|| -> Result<(f64, f64, usize), String> {
-        let a = engine::field_value(&st.tb_start, env)?.ok_or("Enter a start value")?;
-        let b = engine::field_value(&st.tb_end, env)?.ok_or("Enter an end value")?;
-        let s = engine::field_value(&st.tb_step, env)?.ok_or("Enter a step")?;
-        if s == 0.0 || (b - a) / s < 0.0 {
-            return Err("The step must move from start towards end".into());
-        }
-        let n = ((b - a) / s + 1e-9).floor() as usize + 1;
-        if n > 5000 {
-            return Err("That is more than 5000 rows. Use a larger step".into());
-        }
-        Ok((a, s, n))
-    })();
-
     let body = right.shrink2(vec2(18.0, 12.0));
     ui.allocate_new_ui(UiBuilder::new().max_rect(body), |ui| {
         let (a, s, n) = match range {

@@ -8,7 +8,7 @@ use crate::stats::{self, Model};
 use crate::theme::{self, Pal};
 use crate::widgets;
 use eframe::egui::{
-    pos2, vec2, Align, Align2, CornerRadius, Rect, ScrollArea, Sense, Stroke, StrokeKind, Ui, UiBuilder,
+    self, pos2, vec2, Align, RichText, Align2, CornerRadius, Rect, ScrollArea, Sense, Stroke, StrokeKind, Ui, UiBuilder,
 };
 
 const COLS: [&str; 3] = ["X", "Y", "Freq"];
@@ -23,6 +23,9 @@ pub struct StatsState {
     /// Inputs for each distribution: Normal, Binomial, Poisson, Student t, χ², F.
     pub params: [[String; 5]; 6],
     pub tests: crate::ui_tests::TestsState,
+    /// The paste box: text pasted from a spreadsheet or CSV, split into the columns.
+    pub paste_open: bool,
+    pub paste_text: String,
 }
 
 impl Default for StatsState {
@@ -36,6 +39,8 @@ impl Default for StatsState {
             dist: 0,
             params: Default::default(),
             tests: Default::default(),
+            paste_open: false,
+            paste_text: String::new(),
         }
     }
 }
@@ -73,6 +78,35 @@ impl StatsState {
                 }
             }
         }
+    }
+
+    /// Fill the columns from pasted text: one row per line, columns separated by tabs, commas,
+    /// semicolons or spaces. A first line of words is treated as a header and skipped.
+    pub fn import(&mut self, text: &str) -> usize {
+        let mut rows: Vec<[String; 3]> = Vec::new();
+        for line in text.lines() {
+            let cells: Vec<&str> = line
+                .split(|c: char| c == '\t' || c == ',' || c == ';' || c.is_whitespace())
+                .filter(|c| !c.trim().is_empty())
+                .collect();
+            if cells.is_empty() {
+                continue;
+            }
+            if rows.is_empty() && cells.iter().all(|c| c.parse::<f64>().is_err() && !c.contains(|ch: char| ch.is_ascii_digit())) {
+                continue; // header
+            }
+            let mut row: [String; 3] = Default::default();
+            for (i, c) in cells.iter().take(3).enumerate() {
+                row[i] = c.trim().trim_matches('"').to_string();
+            }
+            rows.push(row);
+        }
+        let n = rows.len();
+        if n > 0 {
+            self.rows = rows;
+            self.rows.push(Default::default());
+        }
+        n
     }
 
     pub fn load_demo(&mut self) {
@@ -124,7 +158,41 @@ pub fn ui(ui: &mut Ui, st: &mut StatsState, env: &mut Env, f: Fmt, pal: &Pal) {
                 if widgets::link(ui, pal, "Clear all") {
                     st.rows = vec![Default::default(); 8];
                 }
+                if widgets::link(ui, pal, "Paste data…") {
+                    st.paste_open = !st.paste_open;
+                }
             });
+            if st.paste_open {
+                ui.add_space(6.0);
+                ui.label(RichText::new("Paste rows here (X, Y, Freq separated by tabs, commas or spaces):").size(12.0).color(pal.dim));
+                egui::Frame::new()
+                    .fill(pal.surface)
+                    .stroke(Stroke::new(1.0_f32, pal.line))
+                    .corner_radius(CornerRadius::same(7))
+                    .inner_margin(egui::Margin::symmetric(8, 6))
+                    .show(ui, |ui| {
+                        ui.add(
+                            egui::TextEdit::multiline(&mut st.paste_text)
+                                .frame(false)
+                                .desired_rows(6)
+                                .desired_width(ui.available_width())
+                                .font(theme::regular(13.0))
+                                .hint_text(RichText::new("1\t2.1\n2\t3.9\n3\t6.2").color(pal.faint)),
+                        );
+                    });
+                ui.horizontal(|ui| {
+                    ui.add_space(26.0);
+                    if ui.add(egui::Button::new(RichText::new("Use these rows").size(12.5))).clicked() {
+                        if st.import(&st.paste_text.clone()) > 0 {
+                            st.paste_open = false;
+                            st.paste_text.clear();
+                        }
+                    }
+                    if widgets::link(ui, pal, "Cancel") {
+                        st.paste_open = false;
+                    }
+                });
+            }
         });
     });
     // Always keep an empty row at the end.

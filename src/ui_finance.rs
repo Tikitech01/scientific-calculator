@@ -142,6 +142,7 @@ fn big(ui: &mut Ui, pal: &Pal, label: &str, val: &str) {
 }
 
 fn table<const N: usize>(ui: &mut Ui, pal: &Pal, id: &str, head: [&str; N], rows: &[[String; N]]) {
+    widgets::copy_table(ui, pal, &head, || rows.iter().map(|r| r.to_vec()).collect());
     ScrollArea::vertical().id_salt(id).max_height(320.0).auto_shrink([false, true]).show(ui, |ui| {
         egui::Grid::new(id).striped(true).spacing(vec2(18.0, 4.0)).min_col_width(105.0).show(ui, |ui| {
             for h in head {

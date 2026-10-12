@@ -358,3 +358,19 @@ pub fn type_picker(ui: &mut Ui, pal: &Pal, sel: &mut usize, names: &[&str], desc
     });
     changed
 }
+
+/// "Copy table" link: puts rows on the clipboard as tab-separated text (pastes straight into a
+/// spreadsheet). Returns true when clicked.
+pub fn copy_table(ui: &mut Ui, pal: &Pal, head: &[&str], rows: impl Fn() -> Vec<Vec<String>>) -> bool {
+    let clicked = link(ui, pal, "Copy table");
+    if clicked {
+        let mut text = head.join("\t");
+        for r in rows() {
+            text.push('\n');
+            // Plain ASCII minus and no digit grouping, so spreadsheets read the numbers.
+            text.push_str(&r.iter().map(|c| c.replace('−', "-").replace('\u{2009}', "")).collect::<Vec<_>>().join("\t"));
+        }
+        ui.ctx().copy_text(text);
+    }
+    clicked
+}

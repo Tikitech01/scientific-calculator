@@ -148,8 +148,11 @@ The type only decides which tabs are shown; ⌘1, ⌘2 … follow the tabs you s
 - **Copy results**: click a result to copy it; right-click for *Copy as shown*, *Copy calculation*
   or *Insert into the input*
 - **History that is remembered**, together with `Ans` and stored variables
-- **Settings**: System, Light or Dark appearance; digit grouping; decimal point or comma;
-  keep on top; clear history
+- **Settings**: System, Light or Dark appearance; Small, Normal or Large text; open as the simple or
+  the full calculator (the last mode is remembered); digit grouping; decimal point or comma;
+  complex numbers as a + bi or r∠θ; keep on top; clear history
+- **Paste data** into Statistics from a spreadsheet or CSV, and **Copy table** from the value
+  table and the Finance schedules straight into a spreadsheet
 - **Input guide** (the `?` button) explains how to type powers, roots, functions and more, and
   every field and key has a tooltip
 - **macOS menu bar** with View, Window and Help menus and the usual shortcuts
@@ -251,4 +254,5 @@ src/ui_*.rs       one file per mode            src/main.rs      window, top bar,
 
 Created by **Sopè Technology** · [sopetechnology.com](https://sopetechnology.com)  
 © 2026 Sopè Technology. All rights reserved.
-The interface font is [Inter](https://rsms.me/inter/) (SIL Open Font License, see `assets/Inter-LICENSE.txt`).
+The interface font is [Inter](https://rsms.me/inter/) (SIL Open Font License, see `assets/Inter-LICENSE.txt`);
+mathematical symbols come from [DejaVu Sans](https://dejavu-fonts.github.io/) (see `assets/DejaVu-LICENSE.txt`).

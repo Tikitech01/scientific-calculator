@@ -184,6 +184,12 @@ struct Settings {
     calc_type: usize,
     /// Complex numbers: 0 = a + bi, 1 = r∠θ.
     polar: usize,
+    /// Text size: 0 small, 1 normal, 2 large.
+    text_size: usize,
+    /// 0 = open as the simple calculator, 1 = open the full calculator.
+    start_full: usize,
+    /// Mode to return to, saved between launches (index into ALL_MODES).
+    last_mode: usize,
 }
 
 impl Settings {
@@ -195,7 +201,7 @@ impl Settings {
                 .filter(|v| *v <= max)
                 .unwrap_or(0)
         };
-        Settings { appearance: get("appearance", 2), grouping: get("grouping", 3), decimal: get("decimal", 1), on_top: get("on_top", 1) == 1, calc_type: get("calc_type", TYPES.len() - 1), polar: get("polar", 1) }
+        Settings { appearance: get("appearance", 2), grouping: get("grouping", 3), decimal: get("decimal", 1), on_top: get("on_top", 1) == 1, calc_type: get("calc_type", TYPES.len() - 1), polar: get("polar", 1), text_size: get("text_size", 2).max(if storage.and_then(|s| s.get_string("text_size")).is_some() { 0 } else { 1 }), start_full: get("start_full", 1), last_mode: get("last_mode", ALL_MODES.len() - 1) }
     }
 }
 
@@ -227,6 +233,14 @@ impl App {
             #[cfg(native_menu)]
             menu: None,
         };
+        if app.settings.start_full == 1 {
+            app.compact = false;
+            app.size_applied = false;
+        }
+        let last = ALL_MODES[app.settings.last_mode.min(ALL_MODES.len() - 1)];
+        if app.modes().contains(&last) {
+            app.mode = last;
+        }
         app.mat.push(&mut app.env);
         app.stats.push(&mut app.env);
         // Replaying the saved history also brings back Ans and stored variables.
@@ -402,6 +416,10 @@ impl App {
         ui.label(egui::RichText::new(self.calc_type().describe()).size(11.5).color(pal.faint));
         head(ui, "Appearance");
         widgets::segmented(ui, pal, &mut self.settings.appearance, &["System", "Light", "Dark"]);
+        head(ui, "Text size");
+        widgets::segmented(ui, pal, &mut self.settings.text_size, &["Small", "Normal", "Large"]);
+        head(ui, "Open as");
+        widgets::segmented(ui, pal, &mut self.settings.start_full, &["Simple calculator", "Full calculator"]);
         head(ui, "Digit grouping");
         widgets::segmented(ui, pal, &mut self.settings.grouping, &["None", "1,234,567", "12,34,567", "1 234 567"]);
         head(ui, "Decimal mark");
@@ -523,6 +541,9 @@ impl eframe::App for App {
         storage.set_string("on_top", (st.on_top as usize).to_string());
         storage.set_string("calc_type", st.calc_type.to_string());
         storage.set_string("polar", st.polar.to_string());
+        storage.set_string("text_size", st.text_size.to_string());
+        storage.set_string("start_full", st.start_full.to_string());
+        storage.set_string("last_mode", ALL_MODES.iter().position(|m| *m == self.mode).unwrap_or(0).to_string());
         let hist = self.calc.history_exprs();
         let keep = &hist[hist.len().saturating_sub(200)..];
         storage.set_string("history", keep.join("\n"));
@@ -543,6 +564,10 @@ impl eframe::App for App {
         }
         fmt::set_notation(self.settings.grouping as u8, self.settings.decimal == 1);
         fmt::set_complex_form(self.settings.polar == 1, self.angle as u8);
+        let zoom = [0.9, 1.0, 1.15][self.settings.text_size.min(2)];
+        if (ctx.zoom_factor() - zoom).abs() > 0.001 {
+            ctx.set_zoom_factor(zoom);
+        }
         if self.applied_on_top != Some(self.settings.on_top) {
             self.applied_on_top = Some(self.settings.on_top);
             ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(if self.settings.on_top {

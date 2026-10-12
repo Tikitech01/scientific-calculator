@@ -94,7 +94,7 @@ pub fn window(ctx: &egui::Context, pal: &Pal, open: &mut bool, cache: &mut Optio
             ui.add_space(6.0);
             ui.with_layout(Layout::top_down(Align::Center), |ui| {
                 ui.label(RichText::new(format!("© {} {}. All rights reserved.", year, DEVELOPER)).font(theme::regular(12.5)).color(pal.dim));
-                ui.label(RichText::new("Interface font: Inter (SIL Open Font License).").font(theme::regular(11.5)).color(pal.faint));
+                ui.label(RichText::new("Fonts: Inter (SIL Open Font License) and DejaVu Sans symbols.").font(theme::regular(11.5)).color(pal.faint));
                 ui.add_space(12.0);
                 if ui
                     .add(egui::Button::new(RichText::new("  Close  ").font(theme::medium(13.5))).corner_radius(CornerRadius::same(8)))

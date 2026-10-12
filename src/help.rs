@@ -83,6 +83,7 @@ const GENERAL: &[(&str, &str)] = &[
     ("Gamma", "gamma(5) is the gamma function. For the letter γ, type gamma followed by anything but a bracket, e.g. 2gamma+1."),
     ("Subscripts", "Not typed. Write log(2, 8) for log₂8, nCr(10, 3), MatA, List1."),
     ("Variables", "5->A stores 5 in A. Then use A anywhere. Ans is the last result."),
+    ("Text size, start-up", "Settings has Small / Normal / Large text, and whether the app opens as the simple or the full calculator. The last mode you used is remembered."),
     ("Calculator type", "The coloured button at the top left (or View ▸ Calculator Type, or Settings) picks Scientific, Financial, Statistics, Programmer or All in one. It only changes which tabs are shown; everything is still there under All in one. ⌘1, ⌘2 … follow the tabs you see."),
     ("Number format", "Digit grouping (1,234,567 or 12,34,567) and the decimal comma are in Settings. They change how results look; always type a point for decimals."),
 ];
@@ -114,7 +115,10 @@ const SECTIONS: &[(&str, &[(&str, &str)])] = &[
         ("Export", "Export PNG saves the graph to your Downloads folder and copies it to the clipboard."),
         ("Angles", "sin, cos and tan follow the DEG / RAD / GRAD switch at the top right."),
     ]),
-    ("Table", &[("Range", "Start, end and step accept calculations, e.g. step 1/4 or pi/6.")]),
+    ("Table", &[
+        ("Range", "Start, end and step accept calculations, e.g. step 1/4 or pi/6."),
+        ("Copy table", "Copies every row as tab-separated text, ready to paste into a spreadsheet. The Finance schedules have the same link."),
+    ]),
     ("Equation", &[
         ("Coefficients", "Each box takes a number or a calculation: 1/3, sqrt(2). Empty means 0."),
         ("Solver", "Write the equation in x with one =, e.g. x^3 - 2x = 5. Widen the search range if a solution is missing."),
@@ -126,6 +130,7 @@ const SECTIONS: &[(&str, &[(&str, &str)])] = &[
     ]),
     ("Statistics", &[
         ("Data", "X and Y columns, one value per row. Freq is optional and repeats the X value."),
+        ("Paste data", "Paste data… takes rows copied from a spreadsheet or a CSV file (tabs, commas or spaces between the columns). A header line is skipped."),
         ("Lists", "The columns are available in Calculate as List1, List2, List3."),
         ("Tests", "t-test (one sample, two samples, paired), z-test (mean, one or two proportions), F-test for variances, χ² goodness of fit and independence, one-way ANOVA with Tukey HSD, two-way ANOVA, Pearson and Spearman correlation. Each shows the statistic, p-value, critical value, confidence interval and whether to reject H₀ at your α."),
         ("Non-parametric", "Mann–Whitney U (two independent samples), Wilcoxon signed-rank (paired), Kruskal–Wallis (several groups) and the Jarque–Bera normality test. Use these when the data are not normal or are ranks."),
