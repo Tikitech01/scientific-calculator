@@ -1,5 +1,6 @@
 //! Small hand-drawn widgets shared by every mode.
 
+use crate::anim;
 use crate::theme::{self, mix, Pal};
 use eframe::egui::{
     self, text::CCursor, text::CCursorRange, Align, Align2, Color32, CornerRadius, CursorIcon, FontId, Frame, Id,
@@ -29,15 +30,22 @@ pub fn key_at(ui: &mut Ui, pal: &Pal, rect: egui::Rect, id: impl std::hash::Hash
 }
 
 fn paint_key(ui: &Ui, pal: &Pal, rect: egui::Rect, resp: &Response, label: &str, kind: KeyKind, active: bool) {
-    let hover = ui.ctx().animate_bool_with_time(resp.id.with("hover"), resp.hovered(), 0.10);
-    let down = resp.is_pointer_button_down_on();
+    let hover = anim::hover(ui.ctx(), resp.id, resp.hovered());
+    let down_now = resp.is_pointer_button_down_on();
+    // The key sinks a little while pressed and springs back; keyboard-triggered keys flash.
+    let press = anim::press(ui.ctx(), resp.id, down_now);
+    let flash = anim::flash(ui.ctx(), resp.id, resp.clicked() && !down_now, 0.25);
+    let down = down_now || press > 0.5;
+    let shrink = (press.max(flash) * 0.04 * rect.height()).min(3.0);
+    let rect = rect.shrink(shrink);
     let (base, over, pressed, text) = match kind {
         KeyKind::Digit => (pal.surface, mix(pal.surface, pal.key, 0.7), pal.key_hover, pal.text),
         KeyKind::Func => (pal.bg, pal.key, pal.key_hover, pal.dim),
         KeyKind::Op => (pal.key, pal.key_hover, pal.key_down, pal.text),
         KeyKind::Accent => (pal.accent, pal.accent_hover, mix(pal.accent_hover, pal.text, 0.12), pal.on_accent),
     };
-    let mut fill = if down { pressed } else { mix(base, over, hover) };
+    let mut fill = mix(mix(base, over, hover), pressed, press.max(flash * 0.8));
+    let _ = down;
     let mut text_color = if kind == KeyKind::Func { mix(text, pal.text, hover) } else { text };
     if active {
         fill = mix(pal.bg, pal.accent, 0.16);
@@ -63,10 +71,15 @@ pub fn tab(ui: &mut Ui, pal: &Pal, label: &str, selected: bool) -> bool {
     let galley = ui.painter().layout_no_wrap(label.to_string(), font, Color32::PLACEHOLDER);
     let size = galley.size() + egui::vec2(16.0, 12.0);
     let (rect, resp) = ui.allocate_exact_size(size, Sense::click());
-    let hover = ui.ctx().animate_bool_with_time(resp.id.with("hover"), resp.hovered(), 0.10);
-    let color = if selected { pal.text } else { mix(pal.dim, pal.text, hover) };
-    if selected {
-        ui.painter().rect_filled(rect, CornerRadius::same(7), pal.key);
+    let hover = anim::hover(ui.ctx(), resp.id, resp.hovered());
+    let sel = anim::toggle(ui.ctx(), resp.id.with("sel"), selected, 0.18);
+    let press = anim::press(ui.ctx(), resp.id, resp.is_pointer_button_down_on());
+    let color = mix(mix(pal.dim, pal.text, hover), pal.text, sel);
+    if sel > 0.0 {
+        let fill = mix(pal.key, pal.key_hover, press * 0.6);
+        ui.painter().rect_filled(rect.shrink(press * 1.5), CornerRadius::same(7), fill.gamma_multiply(sel));
+    } else if hover > 0.0 {
+        ui.painter().rect_filled(rect, CornerRadius::same(7), pal.key.gamma_multiply(hover * 0.5));
     }
     ui.painter().galley(rect.center() - galley.size() / 2.0, galley, color);
     resp.on_hover_cursor(CursorIcon::PointingHand).clicked()
@@ -81,18 +94,29 @@ pub fn segmented(ui: &mut Ui, pal: &Pal, sel: &mut usize, labels: &[&str]) -> bo
             // Keep reading order even inside a right-to-left parent layout.
             let rtl = ui.layout().prefer_right_to_left();
             let order: Vec<usize> = if rtl { (0..labels.len()).rev().collect() } else { (0..labels.len()).collect() };
+            // Lay the labels out first so the highlight can slide between them.
+            let mut cells: Vec<(usize, egui::Rect, Response, std::sync::Arc<egui::Galley>)> = Vec::new();
             for i in order {
-                let label = &labels[i];
                 let selected = *sel == i;
                 let font = if selected { theme::medium(12.5) } else { theme::regular(12.5) };
-                let galley = ui.painter().layout_no_wrap(label.to_string(), font, Color32::PLACEHOLDER);
+                let galley = ui.painter().layout_no_wrap(labels[i].to_string(), font, Color32::PLACEHOLDER);
                 let size = galley.size() + egui::vec2(18.0, 9.0);
                 let (rect, resp) = ui.allocate_exact_size(size, Sense::click());
-                let hover = ui.ctx().animate_bool_with_time(resp.id.with("hover"), resp.hovered(), 0.10);
-                if selected {
-                    ui.painter().rect_filled(rect, CornerRadius::same(6), pal.surface);
-                }
-                let color = if selected { pal.text } else { mix(pal.dim, pal.text, hover) };
+                cells.push((i, rect, resp, galley));
+            }
+            // The highlight pill glides to the selected cell.
+            if let Some((_, target, _, _)) = cells.iter().find(|c| c.0 == *sel) {
+                let group = ui.id().with("seg_pill");
+                let x = anim::value(ui.ctx(), group.with("x"), target.left(), 0.2);
+                let w = anim::value(ui.ctx(), group.with("w"), target.width(), 0.2);
+                let pill = egui::Rect::from_min_size(egui::pos2(x, target.top()), egui::vec2(w, target.height()));
+                ui.painter().rect_filled(pill, CornerRadius::same(6), pal.surface);
+            }
+            for (i, rect, resp, galley) in cells {
+                let selected = *sel == i;
+                let hover = anim::hover(ui.ctx(), resp.id, resp.hovered());
+                let sel_t = anim::toggle(ui.ctx(), resp.id.with("sel"), selected, 0.2);
+                let color = mix(mix(pal.dim, pal.text, hover), pal.text, sel_t);
                 ui.painter().galley(rect.center() - galley.size() / 2.0, galley, color);
                 if resp.on_hover_cursor(CursorIcon::PointingHand).clicked() && !selected {
                     *sel = i;
@@ -109,8 +133,9 @@ pub fn link(ui: &mut Ui, pal: &Pal, label: &str) -> bool {
     let galley = ui.painter().layout_no_wrap(label.to_string(), theme::regular(13.0), Color32::PLACEHOLDER);
     let size = galley.size() + egui::vec2(16.0, 10.0);
     let (rect, resp) = ui.allocate_exact_size(size, Sense::click());
-    let hover = ui.ctx().animate_bool_with_time(resp.id.with("hover"), resp.hovered(), 0.10);
-    ui.painter().rect_filled(rect, CornerRadius::same(7), mix(pal.key, pal.key_hover, hover));
+    let hover = anim::hover(ui.ctx(), resp.id, resp.hovered());
+    let press = anim::press(ui.ctx(), resp.id, resp.is_pointer_button_down_on());
+    ui.painter().rect_filled(rect.shrink(press * 1.5), CornerRadius::same(7), mix(mix(pal.key, pal.key_hover, hover), pal.key_down, press * 0.5));
     ui.painter().galley(rect.center() - galley.size() / 2.0, galley, pal.text);
     resp.on_hover_cursor(CursorIcon::PointingHand).clicked()
 }
@@ -118,7 +143,7 @@ pub fn link(ui: &mut Ui, pal: &Pal, label: &str) -> bool {
 /// Small square icon-like button with a text glyph.
 pub fn glyph(ui: &mut Ui, pal: &Pal, label: &str, size: f32) -> Response {
     let (rect, resp) = ui.allocate_exact_size(Vec2::splat(size), Sense::click());
-    let hover = ui.ctx().animate_bool_with_time(resp.id.with("hover"), resp.hovered(), 0.10);
+    let hover = anim::hover(ui.ctx(), resp.id, resp.hovered());
     if hover > 0.0 {
         ui.painter().rect_filled(rect, CornerRadius::same(6), mix(pal.bg, pal.key_hover, hover));
     }
@@ -271,7 +296,7 @@ pub fn text_width(ui: &Ui, text: &str, font: FontId) -> f32 {
 
 fn icon_button(ui: &mut Ui, pal: &Pal, size: f32, active: bool, draw: impl FnOnce(&egui::Painter, egui::Pos2, f32, Color32)) -> Response {
     let (rect, resp) = ui.allocate_exact_size(Vec2::splat(size), Sense::click());
-    let hover = ui.ctx().animate_bool_with_time(resp.id.with("hover"), resp.hovered(), 0.10);
+    let hover = anim::hover(ui.ctx(), resp.id, resp.hovered());
     if hover > 0.0 {
         ui.painter().rect_filled(rect, CornerRadius::same(6), mix(pal.bg, pal.key_hover, hover));
     }
@@ -314,7 +339,7 @@ pub fn type_picker(ui: &mut Ui, pal: &Pal, sel: &mut usize, names: &[&str], desc
     let galley = ui.painter().layout_no_wrap(label, theme::medium(12.5), Color32::PLACEHOLDER);
     let size = galley.size() + egui::vec2(32.0, 10.0);
     let (rect, resp) = ui.allocate_exact_size(size, Sense::click());
-    let hover = ui.ctx().animate_bool_with_time(resp.id.with("hover"), resp.hovered(), 0.10);
+    let hover = anim::hover(ui.ctx(), resp.id, resp.hovered());
     let fill = mix(pal.accent, pal.text, hover * 0.15);
     ui.painter().rect_filled(rect, CornerRadius::same(8), fill);
     ui.painter().galley(egui::pos2(rect.left() + 10.0, rect.center().y - galley.size().y / 2.0), galley, pal.bg);
@@ -332,6 +357,9 @@ pub fn type_picker(ui: &mut Ui, pal: &Pal, sel: &mut usize, names: &[&str], desc
     }
     let mut changed = false;
     egui::popup::popup_below_widget(ui, id, &resp, egui::popup::PopupCloseBehavior::CloseOnClick, |ui| {
+        let t = anim::appear(ui.ctx(), id.with("fade"), "open", 0.16);
+        ui.set_opacity(t);
+        ui.add_space((1.0 - t) * 6.0);
         ui.set_min_width(300.0);
         ui.spacing_mut().item_spacing.y = 2.0;
         for (i, name) in names.iter().enumerate() {
@@ -339,7 +367,7 @@ pub fn type_picker(ui: &mut Ui, pal: &Pal, sel: &mut usize, names: &[&str], desc
             let desc = descriptions.get(i).map(String::as_str).unwrap_or("");
             let h = 44.0;
             let (r, rr) = ui.allocate_exact_size(egui::vec2(ui.available_width().max(300.0), h), Sense::click());
-            let hov = ui.ctx().animate_bool_with_time(rr.id.with("h"), rr.hovered(), 0.10);
+            let hov = anim::hover(ui.ctx(), rr.id, rr.hovered());
             if selected || hov > 0.0 {
                 ui.painter().rect_filled(r, CornerRadius::same(7), mix(pal.surface, pal.key, if selected { 1.0 } else { hov }));
             }

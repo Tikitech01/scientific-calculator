@@ -6,6 +6,7 @@
 mod engine;
 mod fmt;
 mod about;
+mod anim;
 mod finance;
 mod help;
 mod hypothesis;
@@ -190,6 +191,10 @@ struct Settings {
     start_full: usize,
     /// Mode to return to, saved between launches (index into ALL_MODES).
     last_mode: usize,
+    /// Interface animation: 0 off, 1 on.
+    animate: usize,
+    /// Animation speed: 0 slow, 1 normal, 2 fast.
+    anim_speed: usize,
 }
 
 impl Settings {
@@ -201,7 +206,7 @@ impl Settings {
                 .filter(|v| *v <= max)
                 .unwrap_or(0)
         };
-        Settings { appearance: get("appearance", 2), grouping: get("grouping", 3), decimal: get("decimal", 1), on_top: get("on_top", 1) == 1, calc_type: get("calc_type", TYPES.len() - 1), polar: get("polar", 1), text_size: get("text_size", 2).max(if storage.and_then(|s| s.get_string("text_size")).is_some() { 0 } else { 1 }), start_full: get("start_full", 1), last_mode: get("last_mode", ALL_MODES.len() - 1) }
+        Settings { appearance: get("appearance", 2), grouping: get("grouping", 3), decimal: get("decimal", 1), on_top: get("on_top", 1) == 1, calc_type: get("calc_type", TYPES.len() - 1), polar: get("polar", 1), text_size: get("text_size", 2).max(if storage.and_then(|s| s.get_string("text_size")).is_some() { 0 } else { 1 }), start_full: get("start_full", 1), last_mode: get("last_mode", ALL_MODES.len() - 1), animate: storage.and_then(|s| s.get_string("animate")).and_then(|v| v.parse().ok()).unwrap_or(1), anim_speed: storage.and_then(|s| s.get_string("anim_speed")).and_then(|v| v.parse().ok()).unwrap_or(1) }
     }
 }
 
@@ -420,6 +425,15 @@ impl App {
         widgets::segmented(ui, pal, &mut self.settings.text_size, &["Small", "Normal", "Large"]);
         head(ui, "Open as");
         widgets::segmented(ui, pal, &mut self.settings.start_full, &["Simple calculator", "Full calculator"]);
+        head(ui, "Animation");
+        ui.horizontal(|ui| {
+            widgets::segmented(ui, pal, &mut self.settings.animate, &["Off", "On"]);
+            if self.settings.animate == 1 {
+                ui.add_space(6.0);
+                widgets::segmented(ui, pal, &mut self.settings.anim_speed, &["Slow", "Normal", "Fast"]);
+            }
+        });
+        ui.label(egui::RichText::new("Fades, key presses and sliding tabs. Graphs are never animated.").size(11.5).color(pal.faint));
         head(ui, "Digit grouping");
         widgets::segmented(ui, pal, &mut self.settings.grouping, &["None", "1,234,567", "12,34,567", "1 234 567"]);
         head(ui, "Decimal mark");
@@ -543,6 +557,8 @@ impl eframe::App for App {
         storage.set_string("polar", st.polar.to_string());
         storage.set_string("text_size", st.text_size.to_string());
         storage.set_string("start_full", st.start_full.to_string());
+        storage.set_string("animate", st.animate.to_string());
+        storage.set_string("anim_speed", st.anim_speed.to_string());
         storage.set_string("last_mode", ALL_MODES.iter().position(|m| *m == self.mode).unwrap_or(0).to_string());
         let hist = self.calc.history_exprs();
         let keep = &hist[hist.len().saturating_sub(200)..];
@@ -554,6 +570,20 @@ impl eframe::App for App {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Development aid: NUMERA_PERF=1 prints how long each frame's UI takes.
+        #[cfg(debug_assertions)]
+        let perf_start = std::env::var("NUMERA_PERF").ok().map(|_| std::time::Instant::now());
+        self.frame(ctx);
+        #[cfg(debug_assertions)]
+        if let Some(t) = perf_start {
+            eprintln!("frame {:.2} ms", t.elapsed().as_secs_f64() * 1000.0);
+            ctx.request_repaint();
+        }
+    }
+}
+
+impl App {
+    fn frame(&mut self, ctx: &egui::Context) {
         #[cfg(native_menu)]
         self.menu_commands(ctx);
         #[cfg(debug_assertions)]
@@ -564,6 +594,7 @@ impl eframe::App for App {
         }
         fmt::set_notation(self.settings.grouping as u8, self.settings.decimal == 1);
         fmt::set_complex_form(self.settings.polar == 1, self.angle as u8);
+        anim::configure(ctx, self.settings.animate == 1, self.settings.anim_speed as u8);
         let zoom = [0.9, 1.0, 1.15][self.settings.text_size.min(2)];
         if (ctx.zoom_factor() - zoom).abs() > 0.001 {
             ctx.set_zoom_factor(zoom);
@@ -699,6 +730,9 @@ impl eframe::App for App {
                             ui.memory_mut(|m| m.toggle_popup(pop_id));
                         }
                         egui::popup::popup_below_widget(ui, pop_id, &set_btn, egui::popup::PopupCloseBehavior::CloseOnClickOutside, |ui| {
+                            let t = anim::appear(ui.ctx(), pop_id.with("fade"), "open", 0.16);
+                            ui.set_opacity(t);
+                            ui.add_space((1.0 - t) * 6.0);
                             self.settings_ui(ui, &pal);
                         });
                         let pin_tip = if self.settings.on_top { "Staying above other windows. Click to stop." } else { "Keep the calculator above other windows" };
@@ -741,6 +775,14 @@ impl eframe::App for App {
                         self.show_help = false;
                     }
                     return;
+                }
+                // Switching modes: the new content fades and rises in (the graph is drawn at
+                // full opacity so nothing on it ever animates).
+                let key = (self.mode as u8, self.compact);
+                let t = anim::appear(ctx, egui::Id::new("mode_switch"), key, 0.22);
+                if !matches!(self.mode, Mode::Graph | Mode::Table) {
+                    ui.set_opacity(t);
+                    ui.add_space((1.0 - t) * 8.0);
                 }
                 match self.mode {
                 Mode::Calc => {

@@ -52,6 +52,10 @@ pub fn window(ctx: &egui::Context, pal: &Pal, open: &mut bool, cache: &mut Optio
                 .inner_margin(if narrow { Margin::symmetric(16, 18) } else { Margin::symmetric(28, 24) }),
         )
         .show(ctx, |ui| {
+            // Fade and rise in.
+            let t = crate::anim::appear(ctx, egui::Id::new("about_appear"), "open", 0.22);
+            ui.set_opacity(t);
+            ui.add_space((1.0 - t) * 12.0);
             ui.set_width(width);
             ui.with_layout(Layout::top_down(Align::Center), |ui| {
                 if let Some(t) = &tex {

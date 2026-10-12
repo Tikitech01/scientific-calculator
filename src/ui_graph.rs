@@ -146,6 +146,8 @@ pub struct GraphState {
     pub t_min: String,
     pub t_max: String,
     analysis: Analysis,
+    /// What the analysis was computed for, so it is only redone when something changed.
+    analysis_key: String,
     // Table mode
     pub tb_start: String,
     pub tb_end: String,
@@ -175,6 +177,7 @@ impl Default for GraphState {
             t_min: String::new(),
             t_max: String::new(),
             analysis: Analysis::default(),
+            analysis_key: String::new(),
             tb_start: "-5".into(),
             tb_end: "5".into(),
             tb_step: "1".into(),
@@ -570,7 +573,24 @@ fn plot_ui(ui: &mut Ui, rect: Rect, st: &mut GraphState, env: &mut Env, pal: &Pa
 
     engine::with_var(env, "x", |env| {
         // Shaded integral under the selected curve.
-        st.analysis = analyse(st, env, x0, x1);
+        // Root finding and extrema are the expensive part of a frame: only redo them when the
+        // functions, the view or a slider changed.
+        let key = {
+            use std::fmt::Write;
+            let mut k = String::with_capacity(128);
+            for f in &st.fns {
+                let _ = write!(k, "{}|{}|", f.text, f.visible);
+            }
+            for p in &st.params {
+                let _ = write!(k, "{}={};", p.name, p.value);
+            }
+            let _ = write!(k, "{}|{:.6}|{:.6}|{}|{}|{:?}", st.sel, x0, x1, st.int_a, st.int_b, env.angle);
+            k
+        };
+        if key != st.analysis_key {
+            st.analysis = analyse(st, env, x0, x1);
+            st.analysis_key = key;
+        }
         if let (Some(Ok((lo, hi, _))), Some(expr)) = (&st.analysis.integral, st.fns[st.sel].cart()) {
             let color = pal.series[st.sel % pal.series.len()];
             let fill = Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 44);

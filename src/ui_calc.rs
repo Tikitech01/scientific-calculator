@@ -277,8 +277,15 @@ pub fn ui(ui: &mut Ui, st: &mut CalcState, env: &mut Env, f: Fmt, pal: &Pal, com
                     ui.label(RichText::new("Type an expression and press return").color(pal.faint).size(13.5));
                     ui.add_space(8.0);
                 }
-                for e in &st.history {
+                let count = st.history.len();
+                for (idx, e) in st.history.iter().enumerate() {
                     ui.add_space(10.0);
+                    // The newest line slides up and fades in.
+                    if idx + 1 == count {
+                        let t = crate::anim::appear(ui.ctx(), ui.id().with("newest"), (count, e.expr.as_str()), 0.28);
+                        ui.set_opacity(t);
+                        ui.add_space((1.0 - t) * 10.0);
+                    }
                     let r = ui
                         .add(Label::new(RichText::new(&e.expr).color(pal.dim).size(14.0)).sense(Sense::click()))
                         .on_hover_cursor(CursorIcon::PointingHand);

@@ -29,6 +29,9 @@ pub struct TestsState {
     pub anova_kind: usize,
     pub table2: String,
     pub np_kind: usize,
+    /// Tukey's test integrates the studentized range numerically, so its result is kept until
+    /// the groups or α change.
+    tukey_cache: Option<(String, Vec<h::Pair>)>,
 }
 
 impl Default for TestsState {
@@ -54,6 +57,7 @@ impl Default for TestsState {
             anova_kind: 0,
             table2: String::new(),
             np_kind: 0,
+            tukey_cache: None,
         }
     }
 }
@@ -515,7 +519,13 @@ fn anova(ui: &mut Ui, st: &mut TestsState, x: &[f64], y: &[f64], env: &mut Env, 
     });
     // Which pairs differ: Tukey's HSD.
     if groups.len() > 2 {
-        if let Ok(pairs) = h::tukey_hsd(&groups, alpha) {
+        let key = format!("{:?}|{}", groups, alpha);
+        if st.tukey_cache.as_ref().map(|c| c.0 != key).unwrap_or(true) {
+            if let Ok(pairs) = h::tukey_hsd(&groups, alpha) {
+                st.tukey_cache = Some((key.clone(), pairs));
+            }
+        }
+        if let Some((_, pairs)) = st.tukey_cache.as_ref().filter(|c| c.0 == key) {
             ui.add_space(8.0);
             widgets::caption(ui, pal, "POST-HOC: TUKEY HSD (WHICH PAIRS DIFFER)");
             ui.add_space(4.0);
@@ -525,7 +535,7 @@ fn anova(ui: &mut Ui, st: &mut TestsState, x: &[f64], y: &[f64], env: &mut Env, 
                         ui.label(RichText::new(t).font(theme::medium(12.5)).color(pal.dim));
                     }
                     ui.end_row();
-                    for p in &pairs {
+                    for p in pairs.iter() {
                         let sig = p.p < alpha;
                         ui.label(RichText::new(format!("{} − {}", p.i + 1, p.j + 1)).font(theme::regular(13.5)));
                         ui.label(RichText::new(v(p.diff)).font(theme::regular(13.5)));

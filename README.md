@@ -19,8 +19,8 @@ fast native app that works completely offline.
 | --- | --- | --- |
 | **macOS** (Apple silicon, M1 or later) | [Scientific-Calculator-2.0.0-macOS-AppleSilicon.zip](downloads/Scientific-Calculator-2.0.0-macOS-AppleSilicon.zip) | Unzip, drag **Scientific Calculator** to Applications. The first time, right-click the app and choose **Open** (the app is not notarised yet). |
 | **Windows** 10 / 11 (64-bit) | [Scientific-Calculator-2.0.0-Windows-Setup.exe](downloads/Scientific-Calculator-2.0.0-Windows-Setup.exe) | Run the installer and follow the steps. If SmartScreen appears, choose **More info → Run anyway** (the installer is not code-signed yet). |
-| **Linux** – Debian, Ubuntu, Mint | [scientific-calculator_2.3.0_amd64.deb](downloads/scientific-calculator_2.3.0_amd64.deb) | `sudo apt install ./scientific-calculator_2.3.0_amd64.deb` |
-| **Linux** – any other distribution | [Scientific-Calculator-2.3.0-Linux-x86_64.tar.gz](downloads/Scientific-Calculator-2.3.0-Linux-x86_64.tar.gz) | Extract it and run `./install.sh` (no root needed). |
+| **Linux** – Debian, Ubuntu, Mint | [scientific-calculator_2.4.0_amd64.deb](downloads/scientific-calculator_2.4.0_amd64.deb) | `sudo apt install ./scientific-calculator_2.4.0_amd64.deb` |
+| **Linux** – any other distribution | [Scientific-Calculator-2.4.0-Linux-x86_64.tar.gz](downloads/Scientific-Calculator-2.4.0-Linux-x86_64.tar.gz) | Extract it and run `./install.sh` (no root needed). |
 
 All downloads are in the [`downloads`](downloads) folder: click a file, then the download button.
 Intel Macs and other systems can [build from source](#build-from-source) in a few minutes.
@@ -148,6 +148,8 @@ The type only decides which tabs are shown; ⌘1, ⌘2 … follow the tabs you s
 - **Copy results**: click a result to copy it; right-click for *Copy as shown*, *Copy calculation*
   or *Insert into the input*
 - **History that is remembered**, together with `Ans` and stored variables
+- **Smooth animation** everywhere outside the graph: keys press in, tabs and switches glide,
+  panels and new results fade in — with Off / Slow / Normal / Fast in Settings
 - **Settings**: System, Light or Dark appearance; Small, Normal or Large text; open as the simple or
   the full calculator (the last mode is remembered); digit grouping; decimal point or comma;
   complex numbers as a + bi or r∠θ; keep on top; clear history

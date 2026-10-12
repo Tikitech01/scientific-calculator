@@ -26,6 +26,8 @@ pub struct StatsState {
     /// The paste box: text pasted from a spreadsheet or CSV, split into the columns.
     pub paste_open: bool,
     pub paste_text: String,
+    /// Hash of the rows last published as List1–3, so they are only re-parsed when edited.
+    pushed_hash: u64,
 }
 
 impl Default for StatsState {
@@ -41,6 +43,7 @@ impl Default for StatsState {
             tests: Default::default(),
             paste_open: false,
             paste_text: String::new(),
+            pushed_hash: 0,
         }
     }
 }
@@ -55,7 +58,15 @@ impl StatsState {
     }
 
     /// Publish the columns as List1, List2, List3.
-    pub fn push(&self, env: &mut Env) {
+    pub fn push(&mut self, env: &mut Env) {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        self.rows.hash(&mut h);
+        let hash = h.finish();
+        if hash == self.pushed_hash && (0..3).all(|c| env.vars.contains_key(&format!("List{}", c + 1))) {
+            return;
+        }
+        self.pushed_hash = hash;
         for c in 0..3 {
             let l = self.list(c, env);
             env.vars.insert(format!("List{}", c + 1), Value::List(l));

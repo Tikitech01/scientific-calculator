@@ -83,6 +83,7 @@ const GENERAL: &[(&str, &str)] = &[
     ("Gamma", "gamma(5) is the gamma function. For the letter γ, type gamma followed by anything but a bracket, e.g. 2gamma+1."),
     ("Subscripts", "Not typed. Write log(2, 8) for log₂8, nCr(10, 3), MatA, List1."),
     ("Variables", "5->A stores 5 in A. Then use A anywhere. Ans is the last result."),
+    ("Animation", "Keys sink when pressed, tabs and switches glide, panels and results fade in. Settings ▸ Animation turns this off or sets Slow / Normal / Fast. The graph itself never animates."),
     ("Text size, start-up", "Settings has Small / Normal / Large text, and whether the app opens as the simple or the full calculator. The last mode you used is remembered."),
     ("Calculator type", "The coloured button at the top left (or View ▸ Calculator Type, or Settings) picks Scientific, Financial, Statistics, Programmer or All in one. It only changes which tabs are shown; everything is still there under All in one. ⌘1, ⌘2 … follow the tabs you see."),
     ("Number format", "Digit grouping (1,234,567 or 12,34,567) and the decimal comma are in Settings. They change how results look; always type a point for decimals."),
@@ -227,16 +228,14 @@ pub fn content(ui: &mut egui::Ui, pal: &Pal, current: &str) -> bool {
 
 /// Full view: the guide docks to the right so the work stays visible.
 pub fn side_panel(ctx: &egui::Context, open: &mut bool, pal: &Pal, current: &str) {
-    if !*open {
-        return;
-    }
     let mut close = false;
+    // The panel slides in from the right (and out again when closed).
     egui::SidePanel::right("input_guide")
         .exact_width(360.0)
         .resizable(false)
         .show_separator_line(false)
         .frame(egui::Frame::new().fill(pal.surface).inner_margin(egui::Margin { left: 24, right: 20, top: 18, bottom: 0 }))
-        .show(ctx, |ui| {
+        .show_animated(ctx, *open, |ui| {
             close = content(ui, pal, current);
         });
     if close {

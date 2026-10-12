@@ -274,7 +274,7 @@ pub fn ui(ui: &mut Ui, st: &mut ProgState, env: &mut Env, pal: &Pal) -> Option<S
                 let r = Rect::from_min_size(pos2(x, rect.top()), vec2(cell, cell));
                 let resp = ui.interact(r, ui.id().with(("bit", bit)), Sense::click());
                 let on = st.value >> bit & 1 == 1;
-                let hover = ui.ctx().animate_bool_with_time(resp.id.with("h"), resp.hovered(), 0.1);
+                let hover = crate::anim::hover(ui.ctx(), resp.id, resp.hovered());
                 let fill = if on { pal.accent } else { mix(pal.key, pal.key_hover, hover) };
                 ui.painter().rect_filled(r, CornerRadius::same(6), fill);
                 ui.painter().text(

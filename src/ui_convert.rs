@@ -172,7 +172,7 @@ fn constants_ui(ui: &mut Ui, f: Fmt, pal: &Pal) -> Option<String> {
         ui.spacing_mut().item_spacing.y = 2.0;
         for c in CONSTANTS {
             let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 34.0), Sense::click());
-            let hover = ui.ctx().animate_bool_with_time(resp.id.with("h"), resp.hovered(), 0.10);
+            let hover = crate::anim::hover(ui.ctx(), resp.id, resp.hovered());
             if hover > 0.0 {
                 ui.painter().rect_filled(rect, CornerRadius::same(7), mix(pal.bg, pal.key, hover));
             }
