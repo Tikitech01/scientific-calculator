@@ -45,7 +45,7 @@ impl StatsState {
         self.rows.iter().map(|r| engine::field_value(&r[c], env).ok().flatten()).collect()
     }
 
-    fn list(&self, c: usize, env: &mut Env) -> Vec<f64> {
+    pub fn list(&self, c: usize, env: &mut Env) -> Vec<f64> {
         self.column(c, env).into_iter().flatten().collect()
     }
 

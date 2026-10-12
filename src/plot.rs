@@ -2,7 +2,7 @@
 
 use crate::fmt;
 use crate::theme::{self, mix, Pal};
-use eframe::egui::{pos2, Align2, Color32, Painter, Pos2, Rect, Shape, Stroke};
+use eframe::egui::{self, pos2, Align2, Color32, Painter, Pos2, Rect, Shape, Stroke};
 
 #[derive(Clone, Copy)]
 pub struct View {
@@ -151,6 +151,63 @@ pub fn draw_curve(p: &Painter, r: Rect, v: &View, color: Color32, width: f32, f:
         seg.push(pos2(px, py));
     }
     flush(&mut seg);
+}
+
+/// Draw y = f(x) as a dashed line.
+pub fn draw_curve_dashed(p: &Painter, r: Rect, v: &View, color: Color32, width: f32, f: &mut dyn FnMut(f64) -> f64) {
+    let n = (r.width().max(1.0) * 2.0) as usize;
+    let mut seg: Vec<Pos2> = Vec::new();
+    let flush = |seg: &mut Vec<Pos2>| {
+        if seg.len() > 1 {
+            p.add(Shape::dashed_line(seg, Stroke::new(width, color), 7.0, 5.0));
+        }
+        seg.clear();
+    };
+    let (top, bottom) = (r.top(), r.bottom());
+    for i in 0..=n {
+        let px = r.left() + r.width() * i as f32 / n as f32;
+        let x = v.cx + (px - r.center().x) as f64 * v.sx;
+        let y = f(x);
+        if !y.is_finite() {
+            flush(&mut seg);
+            continue;
+        }
+        let py = (r.center().y as f64 - (y - v.cy) / v.sy).clamp(-1.0e5, 1.0e5) as f32;
+        if let Some(prev) = seg.last() {
+            if (prev.y < top && py > bottom) || (prev.y > bottom && py < top) {
+                flush(&mut seg);
+            }
+        }
+        seg.push(pos2(px, py));
+    }
+    flush(&mut seg);
+}
+
+/// Shade the region above (`above` = true) or below the curve y = f(x).
+pub fn fill_region(p: &Painter, r: Rect, v: &View, fill: Color32, above: bool, f: &mut dyn FnMut(f64) -> f64) {
+    let mut mesh = egui::Mesh::default();
+    let mut joined = false;
+    let edge = if above { r.top() - 2.0 } else { r.bottom() + 2.0 };
+    let mut px = r.left().ceil();
+    while px <= r.right() {
+        let x = v.cx + (px - r.center().x) as f64 * v.sx;
+        let y = f(x);
+        if y.is_finite() {
+            let py = (r.center().y as f64 - (y - v.cy) / v.sy).clamp(r.top() as f64 - 2.0, r.bottom() as f64 + 2.0) as f32;
+            mesh.colored_vertex(pos2(px, edge), fill);
+            mesh.colored_vertex(pos2(px, py), fill);
+            if joined {
+                let n = mesh.vertices.len() as u32;
+                mesh.add_triangle(n - 4, n - 3, n - 2);
+                mesh.add_triangle(n - 3, n - 2, n - 1);
+            }
+            joined = true;
+        } else {
+            joined = false;
+        }
+        px += 1.0;
+    }
+    p.add(Shape::mesh(mesh));
 }
 
 /// Draw a parametric path from sampled points.

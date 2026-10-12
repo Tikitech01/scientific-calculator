@@ -505,6 +505,25 @@ pub fn parse(src: &str) -> PResult {
     Ok(e)
 }
 
+/// Every variable name used in an expression, in order of first appearance.
+pub fn var_names(e: &Expr, out: &mut Vec<String>) {
+    match e {
+        Expr::Num(_) => {}
+        Expr::Var(v) => {
+            if !out.contains(v) {
+                out.push(v.clone());
+            }
+        }
+        Expr::Neg(a) | Expr::Post(_, a) => var_names(a, out),
+        Expr::Bin(_, a, b) => {
+            var_names(a, out);
+            var_names(b, out);
+        }
+        Expr::Call(_, a) | Expr::List(a) => a.iter().for_each(|x| var_names(x, out)),
+        Expr::Mat(rows) => rows.iter().flatten().for_each(|x| var_names(x, out)),
+    }
+}
+
 pub fn uses_var(e: &Expr, name: &str) -> bool {
     match e {
         Expr::Num(_) => false,

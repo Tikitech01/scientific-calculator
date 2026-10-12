@@ -483,6 +483,12 @@ impl App {
                 ui_graph::FnEntry::new("2x + 1"),
                 ui_graph::FnEntry::new("3sin(60x)"),
             ];
+            if std::env::var("NUMERA_GRAPH2").is_ok() {
+                self.graph.fns = vec![ui_graph::FnEntry::new("a·x² + b"), ui_graph::FnEntry::new("y < sin(k·x) + 2")];
+                self.graph.tangent = true;
+                self.graph.show_points = true;
+                self.graph.fns[0].show_deriv = true;
+            }
             self.graph.int_a = "-1".into();
             self.graph.int_b = "3".into();
             self.eq.deg = 1;
@@ -711,7 +717,12 @@ impl eframe::App for App {
                         self.stats.pull(&mut self.env);
                     }
                 }
-                Mode::Graph => ui_graph::graph_ui(ui, &mut self.graph, &mut self.env, &pal),
+                Mode::Graph => {
+                    // The Statistics columns can be shown as points on the graph.
+                    let (x, y) = (self.stats.list(0, &mut self.env), self.stats.list(1, &mut self.env));
+                    self.graph.points = x.iter().zip(&y).map(|(a, b)| (*a, *b)).collect();
+                    ui_graph::graph_ui(ui, &mut self.graph, &mut self.env, &pal)
+                }
                 Mode::Table => ui_graph::table_ui(ui, &mut self.graph, &mut self.env, &pal),
                 Mode::Equation => ui_equation::ui(ui, &mut self.eq, &mut self.env, f, &pal),
                 Mode::Matrix => ui_matrix::ui(ui, &mut self.mat, &mut self.env, f, &pal),

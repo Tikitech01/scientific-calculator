@@ -16,18 +16,31 @@ pub enum Kind {
     Cart(Expr),
     Polar(Expr),
     Param(Expr, Expr),
+    /// y < f(x) / y > f(x): the region is shaded. `strict` draws the boundary dashed.
+    Ineq { expr: Expr, above: bool, strict: bool },
 }
 
 pub struct FnEntry {
     pub text: String,
     pub visible: bool,
+    /// Also draw the derivative f′(x), dashed.
+    pub show_deriv: bool,
     parsed_for: Option<String>,
     pub kind: Option<Result<Kind, String>>,
 }
 
+/// A free letter in a function (a, b, k …) that gets a slider.
+pub struct Param {
+    pub name: String,
+    pub value: f64,
+    pub min: String,
+    pub max: String,
+    pub animate: bool,
+}
+
 impl FnEntry {
     pub fn new(text: &str) -> Self {
-        FnEntry { text: text.into(), visible: true, parsed_for: None, kind: None }
+        FnEntry { text: text.into(), visible: true, show_deriv: false, parsed_for: None, kind: None }
     }
 
     fn refresh(&mut self) {
@@ -45,12 +58,34 @@ impl FnEntry {
             self.kind = None;
             return;
         }
+        // Inequalities: y < f(x), y ≥ f(x) …
+        for (prefix, above, strict) in [
+            ("y<=", false, false), ("y≤", false, false), ("y>=", true, false), ("y≥", true, false),
+            ("y<", false, true), ("y>", true, true),
+        ] {
+            let compact: String = t.chars().filter(|c| !c.is_whitespace()).take(3).collect();
+            if compact.starts_with(prefix) {
+                let rest = t.trim_start_matches('y').trim_start().trim_start_matches(['<', '>', '=', '≤', '≥']).trim();
+                self.kind = Some(engine::parse(rest).map(|expr| Kind::Ineq { expr, above, strict }));
+                return;
+            }
+        }
         self.kind = Some(parse_kind(t));
     }
 
+    /// The y = f(x) expression, for plain curves and the boundary of an inequality.
     pub fn cart(&self) -> Option<&Expr> {
         match &self.kind {
             Some(Ok(Kind::Cart(e))) => Some(e),
+            Some(Ok(Kind::Ineq { expr, .. })) => Some(expr),
+            _ => None,
+        }
+    }
+
+    fn expr(&self) -> Option<&Expr> {
+        match &self.kind {
+            Some(Ok(Kind::Cart(e))) | Some(Ok(Kind::Polar(e))) => Some(e),
+            Some(Ok(Kind::Ineq { expr, .. })) => Some(expr),
             _ => None,
         }
     }
@@ -119,6 +154,13 @@ pub struct GraphState {
     export: u8,
     export_rect: Rect,
     export_msg: Option<(String, f64)>,
+    /// Sliders for the free letters used in the functions.
+    pub params: Vec<Param>,
+    /// Show a tangent line where the mouse traces the selected curve.
+    pub tangent: bool,
+    /// The Statistics X/Y columns, drawn as points when `show_points` is on.
+    pub points: Vec<(f64, f64)>,
+    pub show_points: bool,
 }
 
 impl Default for GraphState {
@@ -139,6 +181,10 @@ impl Default for GraphState {
             export: 0,
             export_rect: Rect::NOTHING,
             export_msg: None,
+            params: Vec::new(),
+            tangent: false,
+            points: Vec::new(),
+            show_points: false,
         }
     }
 }
@@ -176,6 +222,8 @@ fn function_list(ui: &mut Ui, st: &mut GraphState, pal: &Pal) {
             let prefix = match &f.kind {
                 Some(Ok(Kind::Polar(_))) => "r =",
                 Some(Ok(Kind::Param(..))) => "x, y",
+                Some(Ok(Kind::Ineq { above: true, .. })) => "y >",
+                Some(Ok(Kind::Ineq { .. })) => "y <",
                 _ => "y =",
             };
             let (pr, _) = ui.allocate_exact_size(vec2(26.0, 30.0), Sense::hover());
@@ -211,6 +259,87 @@ fn function_list(ui: &mut Ui, st: &mut GraphState, pal: &Pal) {
             st.fns.push(FnEntry::new(""));
             st.sel = st.fns.len() - 1;
         }
+    }
+}
+
+/// Letters that are never parameters: the graph variables and built-in names.
+const RESERVED: [&str; 8] = ["x", "t", "θ", "theta", "e", "i", "pi", "Ans"];
+
+/// Keep the slider list in step with the letters used in the functions.
+fn refresh_params(st: &mut GraphState, env: &Env) {
+    let mut names = Vec::new();
+    for f in &st.fns {
+        match &f.kind {
+            Some(Ok(Kind::Param(a, b))) => {
+                engine::var_names(a, &mut names);
+                engine::var_names(b, &mut names);
+            }
+            _ => {
+                if let Some(e) = f.expr() {
+                    engine::var_names(e, &mut names);
+                }
+            }
+        }
+    }
+    names.retain(|n| !RESERVED.contains(&n.as_str()) && n.chars().count() == 1 && n.chars().all(|c| c.is_alphabetic()));
+    st.params.retain(|p| names.contains(&p.name));
+    for n in names {
+        if !st.params.iter().any(|p| p.name == n) {
+            let value = match env.vars.get(&n) {
+                Some(engine::Value::Num(z)) if z.im == 0.0 && z.re.is_finite() => z.re,
+                _ => 1.0,
+            };
+            st.params.push(Param { name: n, value, min: "-5".into(), max: "5".into(), animate: false });
+        }
+    }
+}
+
+/// Sliders for the parameters, which are stored as variables so Calculate sees them too.
+fn params_panel(ui: &mut Ui, st: &mut GraphState, env: &mut Env, pal: &Pal) {
+    if st.params.is_empty() {
+        return;
+    }
+    ui.add_space(14.0);
+    widgets::caption(ui, pal, "SLIDERS");
+    ui.label(RichText::new("Letters in the functions become sliders. Try a·x² + b.").size(12.0).color(pal.faint));
+    ui.add_space(4.0);
+    let dt = ui.input(|i| i.stable_dt).min(0.1) as f64;
+    for p in st.params.iter_mut() {
+        let lo = engine::field_value(&p.min, env).ok().flatten().unwrap_or(-5.0);
+        let hi = engine::field_value(&p.max, env).ok().flatten().unwrap_or(5.0);
+        let (lo, hi) = if lo < hi { (lo, hi) } else { (hi, lo + 1.0) };
+        if p.animate {
+            let span = hi - lo;
+            p.value += span * dt / 4.0;
+            if p.value > hi {
+                p.value = lo;
+            }
+            ui.ctx().request_repaint();
+        }
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 6.0;
+            let (r, _) = ui.allocate_exact_size(vec2(16.0, 24.0), Sense::hover());
+            ui.painter().text(r.left_center(), Align2::LEFT_CENTER, &p.name, theme::medium(14.0), pal.text);
+            ui.spacing_mut().slider_width = 118.0;
+            ui.add(egui::Slider::new(&mut p.value, lo..=hi).show_value(false).trailing_fill(true));
+            ui.add(
+                egui::Label::new(RichText::new(fmt::short(p.value, 4)).size(13.0)).selectable(true),
+            );
+            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                let glyph = if p.animate { "■" } else { "▶" };
+                if widgets::glyph(ui, pal, glyph, 22.0).on_hover_text(if p.animate { "Stop" } else { "Animate: sweep from min to max" }).clicked() {
+                    p.animate = !p.animate;
+                }
+            });
+        });
+        ui.horizontal(|ui| {
+            ui.add_space(22.0);
+            ui.spacing_mut().item_spacing.x = 6.0;
+            widgets::field(ui, pal, &mut p.min, "min", 50.0).on_hover_text("Smallest slider value");
+            widgets::dim(ui, pal, "to");
+            widgets::field(ui, pal, &mut p.max, "max", 50.0).on_hover_text("Largest slider value");
+        });
+        env.set_real(&p.name, p.value);
     }
 }
 
@@ -373,6 +502,25 @@ fn analysis_panel(ui: &mut Ui, st: &mut GraphState, pal: &Pal) {
     }
 }
 
+fn options_panel(ui: &mut Ui, st: &mut GraphState, pal: &Pal) {
+    ui.add_space(12.0);
+    widgets::caption(ui, pal, "SHOW");
+    ui.spacing_mut().item_spacing.y = 4.0;
+    let toggle = |ui: &mut Ui, on: &mut bool, label: &str, tip: &str| {
+        let r = ui.checkbox(on, RichText::new(label).size(13.0)).on_hover_text(tip);
+        let _ = r;
+    };
+    if let Some(f) = st.fns.get_mut(st.sel) {
+        if f.cart().is_some() {
+            toggle(ui, &mut f.show_deriv, "Derivative f′(x) of the selected function", "Draws the slope of the selected curve as a dashed line in the same colour.");
+        }
+    }
+    toggle(ui, &mut st.tangent, "Tangent line while tracing", "Hover a curve to see the tangent and its slope at that point.");
+    if !st.points.is_empty() {
+        toggle(ui, &mut st.show_points, &format!("Statistics data ({} points)", st.points.len()), "Plots the X and Y columns from Statistics as points, so you can compare them with a function.");
+    }
+}
+
 fn t_range(st: &GraphState, env: &mut Env) -> (f64, f64) {
     let lo = engine::field_value(&st.t_min, env).ok().flatten().unwrap_or(0.0);
     let hi = engine::field_value(&st.t_max, env).ok().flatten().unwrap_or(env.angle.full_turn());
@@ -382,8 +530,9 @@ fn t_range(st: &GraphState, env: &mut Env) -> (f64, f64) {
 fn plot_ui(ui: &mut Ui, rect: Rect, st: &mut GraphState, env: &mut Env, pal: &Pal) {
     let resp = ui.interact(rect, ui.id().with("plot"), Sense::click_and_drag());
     ui.painter().rect_filled(rect, CornerRadius::same(12), pal.surface);
-    if !st.inited {
-        let s = 20.0 / rect.width().max(100.0) as f64;
+    // The window may still be growing on the first frames; wait for a real size.
+    if !st.inited && rect.width() > 150.0 {
+        let s = 20.0 / rect.width() as f64;
         st.view = View { cx: 0.0, cy: 0.0, sx: s, sy: s };
         st.inited = true;
     }
@@ -460,9 +609,25 @@ fn plot_ui(ui: &mut Ui, rect: Rect, st: &mut GraphState, env: &mut Env, pal: &Pa
             }
             let color = pal.series[i % pal.series.len()];
             let width = if i == st.sel { 2.2 } else { 1.8 };
+            if f.show_deriv {
+                if let Some(e) = f.cart() {
+                    plot::draw_curve_dashed(&p, rect, &view, color, 1.5, &mut |x| {
+                        numeric::derivative(&mut |u| engine::eval_at(e, env, "x", u), x)
+                    });
+                }
+            }
             match &f.kind {
                 Some(Ok(Kind::Cart(e))) => {
                     plot::draw_curve(&p, rect, &view, color, width, &mut |x| engine::eval_at(e, env, "x", x));
+                }
+                Some(Ok(Kind::Ineq { expr: e, above, strict })) => {
+                    let fill = Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 40);
+                    plot::fill_region(&p, inner, &view, fill, *above, &mut |x| engine::eval_at(e, env, "x", x));
+                    if *strict {
+                        plot::draw_curve_dashed(&p, rect, &view, color, width, &mut |x| engine::eval_at(e, env, "x", x));
+                    } else {
+                        plot::draw_curve(&p, rect, &view, color, width, &mut |x| engine::eval_at(e, env, "x", x));
+                    }
                 }
                 Some(Ok(Kind::Polar(e))) => {
                     let ang = env.angle;
@@ -490,6 +655,15 @@ fn plot_ui(ui: &mut Ui, rect: Rect, st: &mut GraphState, env: &mut Env, pal: &Pa
                     plot::draw_path(&p, rect, &view, color, width, &pts);
                 }
                 _ => {}
+            }
+        }
+        // Data points from Statistics.
+        if st.show_points {
+            for (x, y) in &st.points {
+                let pos = view.to_screen(rect, *x, *y);
+                if inner.contains(pos) {
+                    p.circle_filled(pos, 3.5, pal.text);
+                }
             }
         }
         // Points of interest on the selected curve.
@@ -537,6 +711,20 @@ fn plot_ui(ui: &mut Ui, rect: Rect, st: &mut GraphState, env: &mut Env, pal: &Pa
                 }
                 if let Some((pos, _, c)) = &tip {
                     p.circle_filled(*pos, 4.5, *c);
+                    // Tangent line at the traced point.
+                    if st.tangent {
+                        if let Some(e) = st.fns.get(st.sel).and_then(|f| f.cart()) {
+                            let m = numeric::derivative(&mut |u| engine::eval_at(e, env, "x", u), wx);
+                            let y = engine::eval_at(e, env, "x", wx);
+                            if m.is_finite() && y.is_finite() {
+                                let dx = (x1 - x0) * 2.0;
+                                let a = view.to_screen(rect, wx - dx, y - m * dx);
+                                let b = view.to_screen(rect, wx + dx, y + m * dx);
+                                p.line_segment([a, b], Stroke::new(1.2_f32, mix(*c, pal.text, 0.3)));
+                                tip = Some((*pos, format!("{}   slope {}", point(wx, y), fmt::short(m, 6)), *c));
+                            }
+                        }
+                    }
                 }
             }
             if let Some((pos, text, _)) = tip {
@@ -611,19 +799,28 @@ pub fn graph_ui(ui: &mut Ui, st: &mut GraphState, env: &mut Env, pal: &Pal) {
         f.refresh();
     }
     st.sel = st.sel.min(st.fns.len() - 1);
+    refresh_params(st, env);
+    for p in &st.params {
+        env.set_real(&p.name, p.value);
+    }
     plot_ui(ui, right, st, env, pal);
     ui.allocate_new_ui(UiBuilder::new().max_rect(left), |ui| {
         ScrollArea::vertical().id_salt("graph_side").auto_shrink([false, false]).show(ui, |ui| {
             ui.set_width(left.width() - 8.0);
             function_list(ui, st, pal);
+            params_panel(ui, st, env, pal);
             ui.add_space(14.0);
             analysis_panel(ui, st, pal);
             intersections_panel(ui, st, pal);
+            options_panel(ui, st, pal);
         });
     });
 }
 
 pub fn table_ui(ui: &mut Ui, st: &mut GraphState, env: &mut Env, pal: &Pal) {
+    for p in &st.params {
+        env.set_real(&p.name, p.value);
+    }
     let (left, right) = split(ui);
     ui.allocate_new_ui(UiBuilder::new().max_rect(left), |ui| {
         ScrollArea::vertical().id_salt("table_side").auto_shrink([false, false]).show(ui, |ui| {

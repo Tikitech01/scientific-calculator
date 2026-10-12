@@ -73,8 +73,12 @@ The type only decides which tabs are shown; ⌘1, ⌘2 … follow the tabs you s
 - Degrees, radians or gradians; Normal, Fix and Sci number formats
 
 ### Graph and Table
-- Up to six functions: y = f(x), polar r = f(θ) and parametric (x(t), y(t))
+- Up to six functions: y = f(x), polar r = f(θ), parametric (x(t), y(t)) and inequalities
+  (`y < x^2`, `y ≥ 2x+1`) with the region shaded
+- **Sliders**: any letter in a function (`a·x² + b`, `sin(k·x)`) becomes a slider you can drag or animate
 - Roots, minimum and maximum, y-intercept and shaded definite integrals
+- Derivative curve f′(x) and a tangent line with its slope wherever you hover
+- Plot the Statistics data as points next to a function
 - Intersections between every pair of curves, marked on the graph
 - Trace the curves with the mouse, drag to pan, scroll or pinch to zoom
 - Export the graph as a PNG (saved to Downloads and copied to the clipboard)
