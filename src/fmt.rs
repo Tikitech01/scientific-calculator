@@ -8,6 +8,15 @@ use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 /// Digit grouping: 0 none, 1 international (1,234,567), 2 Indian (12,34,567), 3 space (1 234 567).
 static GROUPING: AtomicU8 = AtomicU8::new(0);
 static DECIMAL_COMMA: AtomicBool = AtomicBool::new(false);
+/// Show complex numbers as r∠θ instead of a + bi.
+static POLAR: AtomicBool = AtomicBool::new(false);
+/// Angle unit for the polar form: 0 degrees, 1 radians, 2 gradians.
+static POLAR_ANGLE: AtomicU8 = AtomicU8::new(0);
+
+pub fn set_complex_form(polar: bool, angle: u8) {
+    POLAR.store(polar, Ordering::Relaxed);
+    POLAR_ANGLE.store(angle, Ordering::Relaxed);
+}
 
 /// Choose how numbers are written on screen. Typed input and copied text are not affected.
 pub fn set_notation(grouping: u8, decimal_comma: bool) {
@@ -316,6 +325,15 @@ fn short_raw(x: f64, sig: i32) -> String {
 pub fn complex(z: C, f: Fmt) -> String {
     if z.im == 0.0 {
         return real(z.re, f);
+    }
+    if POLAR.load(Ordering::Relaxed) {
+        let r = z.norm();
+        let (k, unit) = match POLAR_ANGLE.load(Ordering::Relaxed) {
+            1 => (1.0, ""),
+            2 => (200.0 / std::f64::consts::PI, "ᵍ"),
+            _ => (180.0 / std::f64::consts::PI, "°"),
+        };
+        return format!("{}∠{}{}", real(r, f), real(z.arg() * k, f), unit);
     }
     let im_abs = real(z.im.abs(), f);
     let im_part = if im_abs == "1" { "i".to_string() } else { format!("{}i", im_abs) };

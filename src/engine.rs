@@ -283,7 +283,7 @@ fn lex(src: &str) -> Result<Vec<Tok>, String> {
             '-' | '−' | '–' => '-',
             '*' | '×' | '·' | '⋅' => '*',
             '/' | '÷' => '/',
-            '^' | '!' | '%' | '(' | ')' | ',' | '[' | ']' | '{' | '}' | ';' | '°' | '√' => c,
+            '^' | '!' | '%' | '(' | ')' | ',' | '[' | ']' | '{' | '}' | ';' | '°' | '√' | '∠' => c,
             '=' => return Err("“=” is not allowed here".into()),
             _ => return Err(format!("Unexpected “{}”", c)),
         };
@@ -381,7 +381,12 @@ impl Parser {
     }
 
     fn power(&mut self) -> PResult {
-        let base = self.postfix()?;
+        let mut base = self.postfix()?;
+        // Polar form r∠θ, with θ in the current angle unit.
+        if self.eat('∠') {
+            let ang = self.postfix()?;
+            base = Expr::Bin('∠', Box::new(base), Box::new(ang));
+        }
         if self.eat('^') {
             let exp = self.unary()?;
             return Ok(Expr::Bin('^', Box::new(base), Box::new(exp)));
@@ -1441,7 +1446,29 @@ pub fn eval(e: &Expr, env: &mut Env) -> R {
             Value::List(l) => Ok(Value::List(l.iter().map(|v| -v).collect())),
         },
         Expr::Bin(op, a, b) => {
+            // r∠θ: a complex number from its modulus and argument.
+            if *op == '∠' {
+                let (r, th) = (eval(a, env)?, eval(b, env)?);
+                return match (r, th) {
+                    (Value::Num(r), Value::Num(t)) if r.im == 0.0 && t.im == 0.0 => {
+                        let rad = env.angle.to_rad(t.re);
+                        Ok(Value::Num(clean(C::new(r.re * rad.cos(), r.re * rad.sin()))))
+                    }
+                    _ => Err("r∠θ needs two real numbers".into()),
+                };
+            }
             let x = eval(a, env)?;
+            // 200 + 10% adds ten percent of 200; 200 − 10% takes it off.
+            if let (true, Expr::Post('%', inner)) = (matches!(op, '+' | '-'), &**b) {
+                if let Value::Num(xv) = &x {
+                    if let Value::Num(pv) = eval(inner, env)? {
+                        if xv.im == 0.0 && pv.im == 0.0 {
+                            let k = 1.0 + if *op == '+' { pv.re } else { -pv.re } / 100.0;
+                            return Ok(Value::real(xv.re * k));
+                        }
+                    }
+                }
+            }
             let y = eval(b, env)?;
             bin(*op, x, y)
         }
@@ -1529,16 +1556,49 @@ pub fn split_store(src: &str) -> (&str, Option<&str>) {
     (src, None)
 }
 
+/// "5 km to m", "98.6 °F in °C", "2.5 hours to minutes": a value with a unit converted to another.
+/// Returns None when the line is not written that way.
+pub fn unit_conversion(src: &str, env: &mut Env) -> Option<R> {
+    let s = src.trim();
+    let (lhs, to_unit) = [" to ", " in "].iter().find_map(|sep| s.rfind(sep).map(|i| (&s[..i], s[i + sep.len()..].trim())))?;
+    let to = crate::units::find(to_unit)?;
+    let lhs = lhs.trim();
+    // The source unit is the last word; everything before it is the value.
+    let (value_src, from_unit) = match lhs.rfind(|c: char| c.is_whitespace()) {
+        Some(i) => (&lhs[..i], lhs[i..].trim()),
+        None => {
+            // "5km to m": peel the longest unit suffix off the number.
+            let digits_end = lhs.char_indices().take_while(|(_, c)| c.is_ascii_digit() || *c == '.' || *c == '-').last().map(|(i, c)| i + c.len_utf8())?;
+            (&lhs[..digits_end], lhs[digits_end..].trim())
+        }
+    };
+    let from = crate::units::find(from_unit)?;
+    if from.0 != to.0 {
+        return Some(Err(format!("Cannot convert {} to {}", from.1.name, to.1.name)));
+    }
+    Some(match evaluate_pure(value_src, env) {
+        Ok(Value::Num(z)) if z.im == 0.0 => Ok(Value::real(crate::units::convert(z.re, from.1, to.1))),
+        Ok(_) => Err("A real number is needed before the unit".into()),
+        Err(e) => Err(e),
+    })
+}
+
 /// Evaluate without touching the environment (used for live previews).
 pub fn evaluate_pure(src: &str, env: &mut Env) -> R {
     let (body, _) = split_store(src);
+    if let Some(r) = unit_conversion(body, env) {
+        return r;
+    }
     check_finite(eval(&parse(body)?, env)?)
 }
 
 /// Evaluate a full input line, applying "→ X" storage and updating Ans.
 pub fn evaluate(src: &str, env: &mut Env) -> R {
     let (body, target) = split_store(src);
-    let v = check_finite(eval(&parse(body)?, env)?)?;
+    let v = match unit_conversion(body, env) {
+        Some(r) => r?,
+        None => check_finite(eval(&parse(body)?, env)?)?,
+    };
     if let Some(t) = target {
         if !store_target(t) {
             return Err(format!("Cannot store into “{}”", t));
@@ -1825,5 +1885,24 @@ mod tests {
         close(r.coef[0], 2.0);
         close(r.coef[1], 1.5);
         close(r.predict(4.0), 16.0);
+    }
+
+    #[test]
+    fn percent_polar_units() {
+        assert!((ev("200 + 10%") - 220.0).abs() < 1e-9);
+        assert!((ev("200 - 10%") - 180.0).abs() < 1e-9);
+        assert!((ev("50%") - 0.5).abs() < 1e-9);
+        assert!((ev("200 * 10%") - 20.0).abs() < 1e-9);
+        let mut env = Env::default();
+        match evaluate("2∠60", &mut env) {
+            Ok(Value::Num(z)) => assert!((z.re - 1.0).abs() < 1e-9 && (z.im - 3f64.sqrt()).abs() < 1e-9),
+            o => panic!("{:?}", o),
+        }
+        assert!((ev("5 km to m") - 5000.0).abs() < 1e-9);
+        assert!((ev("5km to m") - 5000.0).abs() < 1e-9);
+        assert!((ev("2.5 hours in minutes") - 150.0).abs() < 1e-9);
+        assert!((ev("100 °C to °F") - 212.0).abs() < 1e-9);
+        assert!((ev("3*2 km to m") - 6000.0).abs() < 1e-9);
+        assert!(evaluate("5 km to kg", &mut env).is_err());
     }
 }

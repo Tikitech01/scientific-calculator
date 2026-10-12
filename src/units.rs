@@ -17,6 +17,30 @@ const fn u(name: &'static str, symbol: &'static str, factor: f64) -> Unit {
     Unit { name, symbol, factor, offset: 0.0 }
 }
 
+/// Look a unit up by symbol (exact) or name (any case, singular or plural): (category index, unit).
+pub fn find(text: &str) -> Option<(usize, &'static Unit)> {
+    let t = text.trim().trim_end_matches(['.', ',']);
+    if t.is_empty() {
+        return None;
+    }
+    for (ci, c) in CATEGORIES.iter().enumerate() {
+        if let Some(u) = c.units.iter().find(|u| u.symbol == t) {
+            return Some((ci, u));
+        }
+    }
+    let lower = t.to_lowercase();
+    let singular = lower.strip_suffix('s').unwrap_or(&lower);
+    for (ci, c) in CATEGORIES.iter().enumerate() {
+        if let Some(u) = c.units.iter().find(|u| {
+            let n = u.name.to_lowercase();
+            n == lower || n == singular || n.strip_suffix('s').unwrap_or(&n) == singular || u.symbol.to_lowercase() == lower
+        }) {
+            return Some((ci, u));
+        }
+    }
+    None
+}
+
 pub fn convert(value: f64, from: &Unit, to: &Unit) -> f64 {
     (value * from.factor + from.offset - to.offset) / to.factor
 }

@@ -68,7 +68,9 @@ The type only decides which tabs are shown; ⌘1, ⌘2 … follow the tabs you s
 - Type naturally: `2x`, `3(4+1)`, `x^2` shows as x², `sqrt`, `pi` → π, `theta` → θ
 - Live preview of the answer while you type; history you can click to reuse
 - Exact answers: fractions, multiples of π and square-root forms (5/2, 3π/4, √2/2)
-- Complex numbers, variables (`5 → A`), `Ans`, lists, matrices
+- Complex numbers in rectangular or polar form (`5∠30`, results as r∠θ if you like), variables (`5 → A`), `Ans`, lists, matrices
+- Percentages the way a desk calculator does them: `200 + 10%` = 220, `80 × 15%` = 12
+- Unit conversions inline: `5 km to m`, `98.6 °F in °C`, `2.5 hours to minutes`
 - Calculus: derivatives, integrals, sums, products and a solver
 - Degrees, radians or gradians; Normal, Fix and Sci number formats
 
@@ -178,7 +180,8 @@ The type only decides which tabs are shown; ⌘1, ⌘2 … follow the tabs you s
 
 ## Typing maths: quick reference
 
-- Operators: `+ - * / ^ ! %` and implicit multiplication (`2π`, `3(4+1)`, `2sin(30)`)
+- Operators: `+ - * / ^ ! %` and implicit multiplication (`2π`, `3(4+1)`, `2sin(30)`); `r∠θ` for polar complex numbers
+- Percent: `200 + 10%`, `200 − 10%`, `80 × 15%`.  Units: `5 km to m`, `100 °C in °F`
 - Store a value: `5 -> A`, then use `A` anywhere; `Ans` is the last result
 - Functions: `sin cos tan asin acos atan sinh cosh tanh ln log log(b,x) exp sqrt cbrt root(n,x)
   abs arg conj round(x,n) gamma nCr nPr gcd lcm mod min max rand`

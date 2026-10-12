@@ -182,6 +182,8 @@ struct Settings {
     on_top: bool,
     /// Index into TYPES.
     calc_type: usize,
+    /// Complex numbers: 0 = a + bi, 1 = r∠θ.
+    polar: usize,
 }
 
 impl Settings {
@@ -193,7 +195,7 @@ impl Settings {
                 .filter(|v| *v <= max)
                 .unwrap_or(0)
         };
-        Settings { appearance: get("appearance", 2), grouping: get("grouping", 3), decimal: get("decimal", 1), on_top: get("on_top", 1) == 1, calc_type: get("calc_type", TYPES.len() - 1) }
+        Settings { appearance: get("appearance", 2), grouping: get("grouping", 3), decimal: get("decimal", 1), on_top: get("on_top", 1) == 1, calc_type: get("calc_type", TYPES.len() - 1), polar: get("polar", 1) }
     }
 }
 
@@ -405,6 +407,9 @@ impl App {
         head(ui, "Decimal mark");
         widgets::segmented(ui, pal, &mut self.settings.decimal, &["Point  1.5", "Comma  1,5"]);
         ui.label(egui::RichText::new("Changes how results look. Type a point for decimals.").size(11.5).color(pal.faint));
+        head(ui, "Complex numbers");
+        widgets::segmented(ui, pal, &mut self.settings.polar, &["a + bi", "r∠θ  (polar)"]);
+        ui.label(egui::RichText::new("Type polar numbers as 5∠30 in either setting.").size(11.5).color(pal.faint));
         head(ui, "Window");
         let mut top = self.settings.on_top as usize;
         if widgets::segmented(ui, pal, &mut top, &["Normal", "Keep on top"]) {
@@ -517,6 +522,7 @@ impl eframe::App for App {
         storage.set_string("decimal", st.decimal.to_string());
         storage.set_string("on_top", (st.on_top as usize).to_string());
         storage.set_string("calc_type", st.calc_type.to_string());
+        storage.set_string("polar", st.polar.to_string());
         let hist = self.calc.history_exprs();
         let keep = &hist[hist.len().saturating_sub(200)..];
         storage.set_string("history", keep.join("\n"));
@@ -536,6 +542,7 @@ impl eframe::App for App {
             _ => {}
         }
         fmt::set_notation(self.settings.grouping as u8, self.settings.decimal == 1);
+        fmt::set_complex_form(self.settings.polar == 1, self.angle as u8);
         if self.applied_on_top != Some(self.settings.on_top) {
             self.applied_on_top = Some(self.settings.on_top);
             ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(if self.settings.on_top {
