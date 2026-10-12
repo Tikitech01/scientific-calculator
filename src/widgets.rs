@@ -306,3 +306,55 @@ pub fn pin_button(ui: &mut Ui, pal: &Pal, size: f32, active: bool) -> Response {
         }
     })
 }
+
+/// The calculator-type picker: a small accent pill that opens a list of types with a line
+/// describing what each one shows. Returns true when the selection changed.
+pub fn type_picker(ui: &mut Ui, pal: &Pal, sel: &mut usize, names: &[&str], descriptions: &[String]) -> bool {
+    let label = names[(*sel).min(names.len() - 1)].to_string();
+    let galley = ui.painter().layout_no_wrap(label, theme::medium(12.5), Color32::PLACEHOLDER);
+    let size = galley.size() + egui::vec2(32.0, 10.0);
+    let (rect, resp) = ui.allocate_exact_size(size, Sense::click());
+    let hover = ui.ctx().animate_bool_with_time(resp.id.with("hover"), resp.hovered(), 0.10);
+    let fill = mix(pal.accent, pal.text, hover * 0.15);
+    ui.painter().rect_filled(rect, CornerRadius::same(8), fill);
+    ui.painter().galley(egui::pos2(rect.left() + 10.0, rect.center().y - galley.size().y / 2.0), galley, pal.bg);
+    // A small triangle instead of a glyph, which not every font has.
+    let c = egui::pos2(rect.right() - 11.0, rect.center().y + 0.5);
+    ui.painter().add(egui::Shape::convex_polygon(
+        vec![c + egui::vec2(-3.5, -2.0), c + egui::vec2(3.5, -2.0), c + egui::vec2(0.0, 2.5)],
+        pal.bg,
+        Stroke::NONE,
+    ));
+    let resp = resp.on_hover_cursor(CursorIcon::PointingHand).on_hover_text("Calculator type: choose which tools are shown as tabs");
+    let id = Id::new("type_picker_popup");
+    if resp.clicked() {
+        ui.memory_mut(|m| m.toggle_popup(id));
+    }
+    let mut changed = false;
+    egui::popup::popup_below_widget(ui, id, &resp, egui::popup::PopupCloseBehavior::CloseOnClick, |ui| {
+        ui.set_min_width(300.0);
+        ui.spacing_mut().item_spacing.y = 2.0;
+        for (i, name) in names.iter().enumerate() {
+            let selected = i == *sel;
+            let desc = descriptions.get(i).map(String::as_str).unwrap_or("");
+            let h = 44.0;
+            let (r, rr) = ui.allocate_exact_size(egui::vec2(ui.available_width().max(300.0), h), Sense::click());
+            let hov = ui.ctx().animate_bool_with_time(rr.id.with("h"), rr.hovered(), 0.10);
+            if selected || hov > 0.0 {
+                ui.painter().rect_filled(r, CornerRadius::same(7), mix(pal.surface, pal.key, if selected { 1.0 } else { hov }));
+            }
+            let p = ui.painter();
+            let font = if selected { theme::medium(13.5) } else { theme::regular(13.5) };
+            p.text(r.left_top() + egui::vec2(12.0, 7.0), Align2::LEFT_TOP, *name, font, pal.text);
+            p.text(r.left_top() + egui::vec2(12.0, 25.0), Align2::LEFT_TOP, desc, theme::regular(11.0), pal.dim);
+            if selected {
+                p.text(r.right_center() - egui::vec2(12.0, 0.0), Align2::RIGHT_CENTER, "✓", theme::medium(13.0), pal.accent);
+            }
+            if rr.on_hover_cursor(CursorIcon::PointingHand).clicked() && !selected {
+                *sel = i;
+                changed = true;
+            }
+        }
+    });
+    changed
+}

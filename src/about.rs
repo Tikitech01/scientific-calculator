@@ -64,8 +64,8 @@ pub fn window(ctx: &egui::Context, pal: &Pal, open: &mut bool, cache: &mut Optio
                 ui.add(
                     egui::Label::new(
                         RichText::new(
-                            "A clean, minimal scientific and graphing calculator for study, engineering and everyday maths. \
-                             Graphs, equations, matrices, statistics, unit conversion and a programmer mode, \
+                            "A clean, minimal scientific, financial and graphing calculator for study, engineering, business and everyday maths. \
+                             Graphs, equations, matrices, statistics and hypothesis tests, loans and investments, unit conversion and a programmer mode, \
                              in one fast app that works completely offline and collects no data.",
                         )
                         .font(theme::regular(13.5))

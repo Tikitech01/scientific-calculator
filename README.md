@@ -1,9 +1,11 @@
 # Scientific Calculator
 
-**A clean, minimal scientific and graphing calculator for macOS, Windows and Linux.**
-It starts as a small, simple calculator and expands into a full scientific workstation:
-graphs, equation solving, matrices, statistics, unit conversion and a programmer mode,
-all in one fast native app that works completely offline.
+**A clean, minimal scientific, financial and graphing calculator for macOS, Windows and Linux.**
+It starts as a small, simple calculator and expands into a full workstation. Pick the
+**calculator type** you need — Scientific, Financial, Statistics, Programmer or All in one —
+and only those tools are shown: graphs, equation solving, matrices, statistics and hypothesis
+tests, loans, investments and cash flows, unit conversion and a programmer mode, all in one
+fast native app that works completely offline.
 
 <p align="center">
   <img src="docs/screenshots/simple.png" alt="Simple calculator" height="360">
@@ -17,8 +19,8 @@ all in one fast native app that works completely offline.
 | --- | --- | --- |
 | **macOS** (Apple silicon, M1 or later) | [Scientific-Calculator-2.0.0-macOS-AppleSilicon.zip](downloads/Scientific-Calculator-2.0.0-macOS-AppleSilicon.zip) | Unzip, drag **Scientific Calculator** to Applications. The first time, right-click the app and choose **Open** (the app is not notarised yet). |
 | **Windows** 10 / 11 (64-bit) | [Scientific-Calculator-2.0.0-Windows-Setup.exe](downloads/Scientific-Calculator-2.0.0-Windows-Setup.exe) | Run the installer and follow the steps. If SmartScreen appears, choose **More info → Run anyway** (the installer is not code-signed yet). |
-| **Linux** – Debian, Ubuntu, Mint | [scientific-calculator_2.1.0_amd64.deb](downloads/scientific-calculator_2.1.0_amd64.deb) | `sudo apt install ./scientific-calculator_2.1.0_amd64.deb` |
-| **Linux** – any other distribution | [Scientific-Calculator-2.1.0-Linux-x86_64.tar.gz](downloads/Scientific-Calculator-2.1.0-Linux-x86_64.tar.gz) | Extract it and run `./install.sh` (no root needed). |
+| **Linux** – Debian, Ubuntu, Mint | [scientific-calculator_2.2.0_amd64.deb](downloads/scientific-calculator_2.2.0_amd64.deb) | `sudo apt install ./scientific-calculator_2.2.0_amd64.deb` |
+| **Linux** – any other distribution | [Scientific-Calculator-2.2.0-Linux-x86_64.tar.gz](downloads/Scientific-Calculator-2.2.0-Linux-x86_64.tar.gz) | Extract it and run `./install.sh` (no root needed). |
 
 All downloads are in the [`downloads`](downloads) folder: click a file, then the download button.
 Intel Macs and other systems can [build from source](#build-from-source) in a few minutes.
@@ -35,12 +37,30 @@ Intel Macs and other systems can [build from source](#build-from-source) in a fe
   grid, bitwise operations, shifts and rotates for 8, 16, 32 and 64-bit numbers.
 - **Statistics and research students, analysts and researchers**: t, z, F and χ² tests, ANOVA and
   correlation with p-values, critical values and confidence intervals, without opening a spreadsheet.
-- **Finance, business and data work**: percentages, statistics, regression and digit grouping
+- **Finance, business and accounting**: EMI and loan schedules, time value of money, NPV and IRR,
+  compound interest and CAGR, depreciation, break-even, margins and GST, with digit grouping
   in international (1,234,567) or Indian (12,34,567) style.
 - **Anyone** who wants a quick, good-looking desktop calculator that stays out of the way, and
   can stay on top of other windows while you work.
 
 ## Features
+
+### Calculator types
+Choose from the coloured button at the top left (or **View ▸ Calculator Type** on macOS, or Settings):
+
+| Type | Tabs shown |
+| --- | --- |
+| **Scientific** | Calculate, Graph, Table, Equation, Matrix, Convert |
+| **Financial** | Calculate, Finance, Statistics, Convert |
+| **Statistics** | Calculate, Statistics, Graph, Table, Finance |
+| **Programmer** | Calculate, Programmer, Convert |
+| **All in one** | Everything |
+
+The type only decides which tabs are shown; ⌘1, ⌘2 … follow the tabs you see. Your choice is remembered.
+
+<p align="center">
+  <img src="docs/screenshots/finance-picker.png" alt="Calculator type picker" width="700">
+</p>
 
 ### Calculate
 - Scientific keypad with second functions and a Greek-letter layer (α β γ θ λ ω …)
@@ -81,6 +101,25 @@ Intel Macs and other systems can [build from source](#build-from-source) in a fe
   - **One-way ANOVA** with the full ANOVA table (SS, df, MS, F, p), η² and group summaries
   - **Correlation**: Pearson r and Spearman rank ρ with significance tests
 
+### Finance
+- **Time value of money**: solve for any of N, I/Y, PV, PMT or FV, with payments per year,
+  compounding frequency and payments at the beginning or end of the period
+- **Loan / EMI**: monthly instalment, total interest, and the full repayment schedule by month
+  or by year; see how much an extra monthly payment saves
+- **Interest**: compound (yearly to daily, or continuous) and simple interest with a year-by-year
+  table, nominal ↔ effective rate conversion, doubling time and CAGR
+- **Cash flow**: NPV, IRR, modified IRR, profitability index, simple and discounted payback,
+  with the present value of every flow
+- **Depreciation**: straight line, declining balance, double declining and sum of years' digits
+- **Business**: break-even point and margin of safety, margin and markup, GST / VAT (with the
+  CGST + SGST split), percent change and stacked discounts
+
+<p align="center">
+  <img src="docs/screenshots/finance-loan.png" alt="Loan / EMI" width="430">
+  &nbsp;
+  <img src="docs/screenshots/finance-cashflow.png" alt="Cash flow" width="430">
+</p>
+
 ### Convert
 - Units in 13 categories: length, area, volume, mass, temperature, speed, time, pressure, energy, power, force, angle and data
 - Number bases: decimal, hexadecimal, octal and binary
@@ -112,7 +151,7 @@ Intel Macs and other systems can [build from source](#build-from-source) in a fe
 | Return or `=` | Calculate |
 | ↑ / ↓ | Recall earlier calculations |
 | Esc | Clear the line |
-| ⌘1 … ⌘8 (Ctrl on Windows/Linux) | Calculate, Graph, Table, Equation, Matrix, Statistics, Convert, Programmer |
+| ⌘1 … ⌘9 (Ctrl on Windows/Linux) | The tabs of the current calculator type, left to right |
 | ⌘0 | Simple / full calculator (macOS menu) |
 | ⇧⌘C | Copy the last result |
 | ⌘, | Settings (macOS menu) |
@@ -125,6 +164,7 @@ Intel Macs and other systems can [build from source](#build-from-source) in a fe
 | ![Graph](docs/screenshots/graph.png) | ![Equation](docs/screenshots/equation.png) |
 | ![Statistics](docs/screenshots/statistics.png) | ![Programmer](docs/screenshots/programmer.png) |
 | ![t-test](docs/screenshots/t-test.png) | ![ANOVA](docs/screenshots/anova.png) |
+| ![Time value of money](docs/screenshots/finance-tvm.png) | ![Loan](docs/screenshots/finance-loan.png) |
 | ![Convert](docs/screenshots/convert.png) | ![Calculate](docs/screenshots/calculate.png) |
 
 ## Typing maths: quick reference
@@ -189,6 +229,7 @@ notarised by Apple:
 src/engine.rs     parser and evaluator         src/numeric.rs   calculus, roots, linear systems
 src/matrix.rs     matrices                     src/stats.rs     statistics, regression, distributions
 src/fmt.rs        number formatting            src/units.rs     units and constants
+src/finance.rs    loans, TVM, cash flows       src/hypothesis.rs  t, z, F, χ² tests, ANOVA
 src/theme.rs      colours and fonts            src/widgets.rs   shared controls
 src/plot.rs       graph drawing                src/menu.rs      macOS menu bar
 src/ui_*.rs       one file per mode            src/main.rs      window, top bar, settings

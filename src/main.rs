@@ -6,6 +6,7 @@
 mod engine;
 mod fmt;
 mod about;
+mod finance;
 mod help;
 mod hypothesis;
 mod matrix;
@@ -18,6 +19,7 @@ mod theme;
 mod ui_calc;
 mod ui_convert;
 mod ui_equation;
+mod ui_finance;
 mod ui_graph;
 mod ui_matrix;
 mod ui_prog;
@@ -31,7 +33,7 @@ use engine::{Angle, Env};
 use fmt::Fmt;
 use theme::Pal;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 enum Mode {
     Calc,
     Graph,
@@ -41,20 +43,81 @@ enum Mode {
     Stats,
     Convert,
     Prog,
+    Finance,
 }
 
-const MODES: [(Mode, &str, Key); 8] = [
-    (Mode::Calc, "Calculate", Key::Num1),
-    (Mode::Graph, "Graph", Key::Num2),
-    (Mode::Table, "Table", Key::Num3),
-    (Mode::Equation, "Equation", Key::Num4),
-    (Mode::Matrix, "Matrix", Key::Num5),
-    (Mode::Stats, "Statistics", Key::Num6),
-    (Mode::Convert, "Convert", Key::Num7),
-    (Mode::Prog, "Programmer", Key::Num8),
-];
+impl Mode {
+    fn name(self) -> &'static str {
+        match self {
+            Mode::Calc => "Calculate",
+            Mode::Graph => "Graph",
+            Mode::Table => "Table",
+            Mode::Equation => "Equation",
+            Mode::Matrix => "Matrix",
+            Mode::Stats => "Statistics",
+            Mode::Convert => "Convert",
+            Mode::Prog => "Programmer",
+            Mode::Finance => "Finance",
+        }
+    }
 
-const SHORT_NAMES: [&str; 8] = ["Calc", "Graph", "Table", "Equation", "Matrix", "Stats", "Convert", "Prog"];
+    fn short(self) -> &'static str {
+        match self {
+            Mode::Calc => "Calc",
+            Mode::Stats => "Stats",
+            Mode::Prog => "Prog",
+            Mode::Finance => "Finance",
+            m => m.name(),
+        }
+    }
+}
+
+/// Every mode, in menu order.
+const ALL_MODES: [Mode; 9] =
+    [Mode::Calc, Mode::Graph, Mode::Table, Mode::Equation, Mode::Matrix, Mode::Stats, Mode::Finance, Mode::Convert, Mode::Prog];
+
+const NUM_KEYS: [Key; 9] = [Key::Num1, Key::Num2, Key::Num3, Key::Num4, Key::Num5, Key::Num6, Key::Num7, Key::Num8, Key::Num9];
+
+/// The kind of calculator: decides which modes are shown as tabs.
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum CalcType {
+    Scientific,
+    Financial,
+    Statistics,
+    Programmer,
+    All,
+}
+
+const TYPES: [CalcType; 5] = [CalcType::Scientific, CalcType::Financial, CalcType::Statistics, CalcType::Programmer, CalcType::All];
+
+impl CalcType {
+    fn name(self) -> &'static str {
+        match self {
+            CalcType::Scientific => "Scientific",
+            CalcType::Financial => "Financial",
+            CalcType::Statistics => "Statistics",
+            CalcType::Programmer => "Programmer",
+            CalcType::All => "All in one",
+        }
+    }
+
+    fn modes(self) -> &'static [Mode] {
+        match self {
+            CalcType::Scientific => &[Mode::Calc, Mode::Graph, Mode::Table, Mode::Equation, Mode::Matrix, Mode::Convert],
+            CalcType::Financial => &[Mode::Calc, Mode::Finance, Mode::Stats, Mode::Convert],
+            CalcType::Statistics => &[Mode::Calc, Mode::Stats, Mode::Graph, Mode::Table, Mode::Finance],
+            CalcType::Programmer => &[Mode::Calc, Mode::Prog, Mode::Convert],
+            CalcType::All => &ALL_MODES,
+        }
+    }
+
+    fn describe(self) -> String {
+        match self {
+            CalcType::All => "Every tool: scientific, financial, statistics and programmer".into(),
+            _ => self.modes().iter().map(|m| m.name()).collect::<Vec<_>>().join(", "),
+        }
+    }
+}
 
 const COMPACT_SIZE: [f32; 2] = [340.0, 580.0];
 const COMPACT_MIN: [f32; 2] = [300.0, 500.0];
@@ -62,6 +125,8 @@ const FULL_SIZE: [f32; 2] = [1100.0, 700.0];
 /// Narrowest full window: wide enough that the mode tabs never run under the controls on the
 /// right. macOS needs more room because the window buttons sit inside the top bar.
 const FULL_MIN: [f32; 2] = if cfg!(target_os = "macos") { [1060.0, 600.0] } else { [990.0, 600.0] };
+/// The all-in-one type has nine tabs, so its window must be wider still.
+const ALL_MIN_WIDTH: f32 = if cfg!(target_os = "macos") { 1190.0 } else { 1120.0 };
 
 const FORMATS: [(&str, Fmt); 6] = [
     ("Normal", Fmt::Norm),
@@ -87,6 +152,8 @@ struct App {
     /// The simple calculator: basic keys only, in a small window.
     compact: bool,
     size_applied: bool,
+    /// The minimum window size matches the calculator type.
+    min_applied: bool,
     show_about: bool,
     about_icon: Option<egui::TextureHandle>,
     /// Where the window should move when it changes size, so it stays on screen.
@@ -95,6 +162,7 @@ struct App {
     /// so going back to the small one keeps the right edge in place.
     grew_left: bool,
     prog: ui_prog::ProgState,
+    fin: ui_finance::FinState,
     settings: Settings,
     /// The keep-on-top state last sent to the window.
     applied_on_top: Option<bool>,
@@ -112,6 +180,8 @@ struct Settings {
     /// 0 = decimal point, 1 = decimal comma.
     decimal: usize,
     on_top: bool,
+    /// Index into TYPES.
+    calc_type: usize,
 }
 
 impl Settings {
@@ -123,7 +193,7 @@ impl Settings {
                 .filter(|v| *v <= max)
                 .unwrap_or(0)
         };
-        Settings { appearance: get("appearance", 2), grouping: get("grouping", 3), decimal: get("decimal", 1), on_top: get("on_top", 1) == 1 }
+        Settings { appearance: get("appearance", 2), grouping: get("grouping", 3), decimal: get("decimal", 1), on_top: get("on_top", 1) == 1, calc_type: get("calc_type", TYPES.len() - 1) }
     }
 }
 
@@ -143,11 +213,13 @@ impl App {
             show_help: false,
             compact: true,
             size_applied: true,
+            min_applied: true,
             show_about: false,
             about_icon: None,
             pending_pos: None,
             grew_left: false,
             prog: Default::default(),
+            fin: Default::default(),
             settings,
             applied_on_top: None,
             #[cfg(native_menu)]
@@ -202,6 +274,33 @@ impl App {
         })
     }
 
+    fn calc_type(&self) -> CalcType {
+        TYPES[self.settings.calc_type.min(TYPES.len() - 1)]
+    }
+
+    /// The modes shown as tabs for the current calculator type.
+    fn modes(&self) -> &'static [Mode] {
+        self.calc_type().modes()
+    }
+
+    /// Switch calculator type; the current mode stays if the new type has it.
+    fn set_type(&mut self, i: usize) {
+        self.settings.calc_type = i.min(TYPES.len() - 1);
+        if !self.modes().contains(&self.mode) {
+            self.mode = Mode::Calc;
+        }
+        self.min_applied = false;
+    }
+
+    /// Smallest full window for the current type: wide enough for all its tabs.
+    fn full_min(&self) -> [f32; 2] {
+        if self.calc_type() == CalcType::All {
+            [ALL_MIN_WIDTH, FULL_MIN[1]]
+        } else {
+            FULL_MIN
+        }
+    }
+
     fn set_compact(&mut self, ctx: &egui::Context, compact: bool) {
         if self.compact == compact {
             return;
@@ -252,8 +351,13 @@ impl App {
                 Cmd::ToggleFull => self.set_compact(ctx, !self.compact),
                 Cmd::Mode(i) => {
                     self.set_compact(ctx, false);
-                    self.mode = MODES[i.min(MODES.len() - 1)].0;
+                    let mode = ALL_MODES[i.min(ALL_MODES.len() - 1)];
+                    if !self.modes().contains(&mode) {
+                        self.set_type(TYPES.len() - 1);
+                    }
+                    self.mode = mode;
                 }
+                Cmd::Type(i) => self.set_type(i),
                 Cmd::Appearance(i) => self.settings.appearance = i,
                 Cmd::Angle(i) => self.angle = i,
                 Cmd::Format(i) => self.format = i,
@@ -266,7 +370,10 @@ impl App {
         }
         let state = menu::MenuState {
             full: !self.compact,
-            mode: MODES.iter().position(|m| m.0 == self.mode).unwrap_or(0),
+            mode: ALL_MODES.iter().position(|m| *m == self.mode).unwrap_or(0),
+            calc_type: self.settings.calc_type,
+            // Position of each mode among the tabs of the current type, for the ⌘1… shortcuts.
+            shortcuts: ALL_MODES.map(|m| self.modes().iter().position(|x| *x == m)),
             appearance: self.settings.appearance,
             angle: self.angle,
             format: self.format,
@@ -284,6 +391,13 @@ impl App {
             ui.add_space(6.0);
             ui.label(egui::RichText::new(t).font(theme::medium(12.0)).color(pal.dim));
         };
+        head(ui, "Calculator type");
+        let names: Vec<&str> = TYPES.iter().map(|t| t.name()).collect();
+        let mut t = self.settings.calc_type;
+        if widgets::segmented(ui, pal, &mut t, &names) {
+            self.set_type(t);
+        }
+        ui.label(egui::RichText::new(self.calc_type().describe()).size(11.5).color(pal.faint));
         head(ui, "Appearance");
         widgets::segmented(ui, pal, &mut self.settings.appearance, &["System", "Light", "Dark"]);
         head(ui, "Digit grouping");
@@ -321,9 +435,15 @@ impl App {
     /// Development aid: NUMERA_MODE=1..7 opens a mode, NUMERA_DEMO=1 fills in sample content.
     #[cfg(debug_assertions)]
     fn debug_setup(&mut self) {
+        if let Some(n) = std::env::var("NUMERA_TYPE").ok().and_then(|v| v.parse::<usize>().ok()) {
+            self.set_type(n.saturating_sub(1));
+        }
         if let Some(n) = std::env::var("NUMERA_MODE").ok().and_then(|v| v.parse::<usize>().ok()) {
-            if (1..=MODES.len()).contains(&n) {
-                self.mode = MODES[n - 1].0;
+            if (1..=ALL_MODES.len()).contains(&n) {
+                self.mode = ALL_MODES[n - 1];
+                if !self.modes().contains(&self.mode) {
+                    self.settings.calc_type = TYPES.len() - 1;
+                }
             }
         }
         self.show_help = std::env::var("NUMERA_HELP").is_ok();
@@ -338,6 +458,7 @@ impl App {
             self.eq.sub = s;
             self.stats.sub = s;
             self.conv.sub = s;
+            self.fin.sub = s;
         }
         if let Some(k) = std::env::var("NUMERA_TEST").ok().and_then(|v| v.parse().ok()) {
             self.stats.tests.kind = k;
@@ -368,6 +489,7 @@ impl App {
             self.eq.sys[1] = ["1", "-1", "", "", "", "", "1"].map(String::from).to_vec();
             self.eq.equation = "x³ − 2x = 5".into();
             self.stats.load_demo();
+            self.fin.load_demo();
             self.stats.tests.groups = "23 25 21 27 24\n30 28 33 29 31\n18 22 20 19 21".into();
             self.stats.tests.table = "20 30 25\n15 35 40".into();
             self.stats.push(&mut self.env);
@@ -385,6 +507,7 @@ impl eframe::App for App {
         storage.set_string("grouping", st.grouping.to_string());
         storage.set_string("decimal", st.decimal.to_string());
         storage.set_string("on_top", (st.on_top as usize).to_string());
+        storage.set_string("calc_type", st.calc_type.to_string());
         let hist = self.calc.history_exprs();
         let keep = &hist[hist.len().saturating_sub(200)..];
         storage.set_string("history", keep.join("\n"));
@@ -426,13 +549,14 @@ impl eframe::App for App {
         self.env.angle = [Angle::Deg, Angle::Rad, Angle::Grad][self.angle];
         let f = FORMATS[self.format].1;
 
-        // ⌘1 … ⌘7 switch modes.
+        // ⌘1 … ⌘9 switch between the tabs of the current type.
         if !self.compact {
+            let modes = self.modes();
             ctx.input(|i| {
                 if i.modifiers.command {
-                    for (mode, _, key) in MODES {
+                    for (mode, key) in modes.iter().zip(NUM_KEYS) {
                         if i.key_pressed(key) {
-                            self.mode = mode;
+                            self.mode = *mode;
                         }
                     }
                 }
@@ -440,13 +564,32 @@ impl eframe::App for App {
         }
         if !self.size_applied {
             self.size_applied = true;
-            let (size, min) = if self.compact { (COMPACT_SIZE, COMPACT_MIN) } else { (FULL_SIZE, FULL_MIN) };
+            self.min_applied = true;
+            let full_min = self.full_min();
+            let (size, min) = if self.compact { (COMPACT_SIZE, COMPACT_MIN) } else { ([FULL_SIZE[0].max(full_min[0]), FULL_SIZE[1]], full_min) };
             // Lower the minimum first so the window is free to shrink.
             ctx.send_viewport_cmd(egui::ViewportCommand::MinInnerSize(COMPACT_MIN.into()));
             ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(size.into()));
             ctx.send_viewport_cmd(egui::ViewportCommand::MinInnerSize(min.into()));
             if let Some(pos) = self.pending_pos.take() {
                 ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(pos));
+            }
+        } else if !self.min_applied && !self.compact {
+            // A type with more tabs needs a wider window: raise the minimum and widen if needed.
+            self.min_applied = true;
+            let min = self.full_min();
+            let cur = ctx.input(|i| i.viewport().inner_rect.map(|r| r.size()));
+            ctx.send_viewport_cmd(egui::ViewportCommand::MinInnerSize(min.into()));
+            if let Some(cur) = cur {
+                if cur.x < min[0] - 0.5 {
+                    // Keep the window on screen when it grows.
+                    let new = [min[0], cur.y.max(min[1])];
+                    let keep_right = Self::on_right_half(ctx);
+                    if let Some(pos) = Self::position_for(ctx, new, keep_right) {
+                        ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(pos));
+                    }
+                    ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(new.into()));
+                }
             }
         }
 
@@ -483,15 +626,22 @@ impl eframe::App for App {
                         self.set_compact(ctx, !self.compact);
                     }
                     if !self.compact {
-                        ui.add_space(4.0);
+                        ui.add_space(2.0);
+                        // The calculator type: which tabs are shown.
+                        let mut t = self.settings.calc_type;
+                        if widgets::type_picker(ui, &pal, &mut t, &TYPES.map(|t| t.name()), &TYPES.map(|t| t.describe())) {
+                            self.set_type(t);
+                        }
+                        ui.add_space(6.0);
                         // Use shorter labels when the window is too narrow for the full ones,
                         // so the tabs never run under the controls on the right.
                         let font = theme::medium(13.5);
-                        let needed: f32 = MODES.iter().map(|(_, n, _)| widgets::text_width(ui, n, font.clone()) + 18.0).sum();
+                        let modes = self.modes();
+                        let needed: f32 = modes.iter().map(|m| widgets::text_width(ui, m.name(), font.clone()) + 18.0).sum();
                         let short = ui.available_width() - 370.0 < needed;
-                        for (i, (mode, name, _)) in MODES.iter().enumerate() {
-                            let label = if short { SHORT_NAMES[i] } else { name };
-                            if widgets::tab(ui, &pal, label, self.mode == *mode){
+                        for mode in modes {
+                            let label = if short { mode.short() } else { mode.name() };
+                            if widgets::tab(ui, &pal, label, self.mode == *mode) {
                                 self.mode = *mode;
                             }
                         }
@@ -530,7 +680,7 @@ impl eframe::App for App {
                 });
             });
 
-        let current = MODES.iter().find(|m| m.0 == self.mode).map(|m| m.1).unwrap_or("");
+        let current = self.mode.name();
         if !self.compact {
             help::side_panel(ctx, &mut self.show_help, &pal, current);
         }
@@ -569,6 +719,7 @@ impl eframe::App for App {
                         self.mode = Mode::Calc;
                     }
                 }
+                Mode::Finance => ui_finance::ui(ui, &mut self.fin, &mut self.env, &pal),
                 Mode::Convert => {
                     if let Some(text) = ui_convert::ui(ui, &mut self.conv, &mut self.env, f, &pal) {
                         // Focus is handed over on the next frame, once the input field exists.
@@ -643,10 +794,11 @@ fn main() -> eframe::Result {
             let mut app = App::new(settings, history);
             #[cfg(native_menu)]
             {
-                let names: Vec<&str> = MODES.iter().map(|m| m.1).collect();
+                let names: Vec<&str> = ALL_MODES.iter().map(|m| m.name()).collect();
+                let types: Vec<(&str, String)> = TYPES.iter().map(|t| (t.name(), t.describe())).collect();
                 let formats: Vec<&str> = FORMATS.iter().map(|f| f.0).collect();
                 let ctx = cc.egui_ctx.clone();
-                app.menu = menu::AppMenu::install(&names, &formats, move || ctx.request_repaint());
+                app.menu = menu::AppMenu::install(&names, &types, &formats, move || ctx.request_repaint());
             }
             Ok(Box::new(app))
         }),

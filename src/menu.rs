@@ -21,6 +21,7 @@ pub enum Cmd {
     ClearHistory,
     ToggleFull,
     Mode(usize),
+    Type(usize),
     Appearance(usize),
     Angle(usize),
     Format(usize),
@@ -35,6 +36,9 @@ pub enum Cmd {
 pub struct MenuState {
     pub full: bool,
     pub mode: usize,
+    pub calc_type: usize,
+    /// For every mode: its ⌘-number among the tabs of the current type, if it is shown.
+    pub shortcuts: [Option<usize>; 9],
     pub appearance: usize,
     pub angle: usize,
     pub format: usize,
@@ -47,6 +51,7 @@ pub struct AppMenu {
     rx: Receiver<MenuEvent>,
     full: CheckMenuItem,
     modes: Vec<CheckMenuItem>,
+    types: Vec<CheckMenuItem>,
     appearance: Vec<CheckMenuItem>,
     angle: Vec<CheckMenuItem>,
     format: Vec<CheckMenuItem>,
@@ -79,6 +84,7 @@ impl AppMenu {
     /// `wake` is called whenever a menu item is chosen so the app can redraw and handle it.
     pub fn install(
         mode_names: &[&str],
+        type_names: &[(&str, String)],
         format_names: &[&str],
         wake: impl Fn() + Send + Sync + 'static,
     ) -> Option<AppMenu> {
@@ -134,11 +140,11 @@ impl AppMenu {
 
         // ---- View
         let full = check(&mut commands, "Full Calculator", "CmdOrCtrl+0", Cmd::ToggleFull);
-        let modes: Vec<CheckMenuItem> = mode_names
-            .iter()
-            .enumerate()
-            .map(|(i, name)| check(&mut commands, name, &format!("CmdOrCtrl+{}", i + 1), Cmd::Mode(i)))
-            .collect();
+        let types: Vec<CheckMenuItem> =
+            type_names.iter().enumerate().map(|(i, (n, _))| check(&mut commands, n, "", Cmd::Type(i))).collect();
+        // Shortcuts are set in `sync`, since they depend on the calculator type.
+        let modes: Vec<CheckMenuItem> =
+            mode_names.iter().enumerate().map(|(i, name)| check(&mut commands, name, "", Cmd::Mode(i))).collect();
         let appearance: Vec<CheckMenuItem> = ["System", "Light", "Dark"]
             .iter()
             .enumerate()
@@ -154,8 +160,11 @@ impl AppMenu {
         let appearance_menu = Submenu::with_items("Appearance", true, &as_items(&appearance)).ok()?;
         let angle_menu = Submenu::with_items("Angle Unit", true, &as_items(&angle)).ok()?;
         let format_menu = Submenu::with_items("Number Format", true, &as_items(&format)).ok()?;
+        let type_menu = Submenu::with_items("Calculator Type", true, &as_items(&types)).ok()?;
         let view_menu = Submenu::new("View", true);
         view_menu.append(&full).ok()?;
+        view_menu.append(&sep()).ok()?;
+        view_menu.append(&type_menu).ok()?;
         view_menu.append(&sep()).ok()?;
         view_menu.append_items(&as_items(&modes)).ok()?;
         view_menu.append_items(&[&sep(), &appearance_menu, &angle_menu, &format_menu]).ok()?;
@@ -196,6 +205,7 @@ impl AppMenu {
             rx,
             full,
             modes,
+            types,
             appearance,
             angle,
             format,
@@ -227,6 +237,11 @@ impl AppMenu {
         self.full.set_checked(st.full);
         for (i, it) in self.modes.iter().enumerate() {
             it.set_checked(st.full && i == st.mode);
+            let n = st.shortcuts.get(i).copied().flatten();
+            let _ = it.set_accelerator(n.and_then(|n| acc(&format!("CmdOrCtrl+{}", n + 1))));
+        }
+        for (i, it) in self.types.iter().enumerate() {
+            it.set_checked(i == st.calc_type);
         }
         for (i, it) in self.appearance.iter().enumerate() {
             it.set_checked(i == st.appearance);

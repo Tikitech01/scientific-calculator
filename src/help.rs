@@ -83,6 +83,7 @@ const GENERAL: &[(&str, &str)] = &[
     ("Gamma", "gamma(5) is the gamma function. For the letter γ, type gamma followed by anything but a bracket, e.g. 2gamma+1."),
     ("Subscripts", "Not typed. Write log(2, 8) for log₂8, nCr(10, 3), MatA, List1."),
     ("Variables", "5->A stores 5 in A. Then use A anywhere. Ans is the last result."),
+    ("Calculator type", "The coloured button at the top left (or View ▸ Calculator Type, or Settings) picks Scientific, Financial, Statistics, Programmer or All in one. It only changes which tabs are shown; everything is still there under All in one. ⌘1, ⌘2 … follow the tabs you see."),
     ("Number format", "Digit grouping (1,234,567 or 12,34,567) and the decimal comma are in Settings. They change how results look; always type a point for decimals."),
 ];
 
@@ -124,6 +125,16 @@ const SECTIONS: &[(&str, &[(&str, &str)])] = &[
         ("Test data", "Most tests use the X and Y columns. The χ² independence table and ANOVA groups are typed one row or group per line, values separated by spaces or commas."),
         ("Distributions", "Normal, binomial, Poisson, Student t, χ² and F: probabilities between bounds, densities and inverse (critical) values."),
         ("In Calculate", "tcdf(lo, hi, df), invt(p, df), chi2cdf(lo, hi, df), invchi2(p, df), fcdf(lo, hi, d1, d2), invf(p, d1, d2), plus tpdf, chi2pdf, fpdf."),
+    ]),
+    ("Finance", &[
+        ("Signs", "Money you pay out is negative, money you receive is positive. A loan: PV positive, PMT negative, FV 0."),
+        ("Time value", "Fill in four of N, I/Y, PV, PMT, FV and press Solve beside the fifth. P/Y is payments per year, C/Y how often interest compounds."),
+        ("Loan / EMI", "Amount, yearly rate and term give the monthly instalment and the full schedule. An extra monthly payment shows how much sooner the loan ends."),
+        ("Interest", "Compound or simple interest, nominal ↔ effective rate conversion and CAGR between two values."),
+        ("Cash flow", "CF0 is the investment at time 0 (negative); then one flow per line. NPV, IRR, MIRR, profitability index and payback."),
+        ("Depreciation", "Straight line, declining balance, double declining and sum of years' digits, with the year-by-year book value."),
+        ("Business", "Break-even, margin and markup, GST / VAT, percent change and discounts (30+10 stacks two discounts)."),
+        ("Fields", "Every box takes a calculation: 2.5*100000, 15/12."),
     ]),
     ("Programmer", &[
         ("Value", "Type in the HEX, DEC, OCT or BIN row and the others follow. Spaces are ignored."),
