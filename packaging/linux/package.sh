@@ -23,7 +23,7 @@ Priority: optional
 Architecture: amd64
 Depends: libc6, libgl1, libxkbcommon0
 Installed-Size: $SIZE
-Maintainer: Tiki Tech <rakesh@tikitech.in>
+Maintainer: Sope Technology <https://sopetechnology.com>
 Description: Scientific and graphing calculator
  A clean, minimal calculator with graphing, equations, matrices,
  statistics, unit conversion and number bases.

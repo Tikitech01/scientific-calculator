@@ -27,7 +27,8 @@ fn main() {
         res.set_icon("packaging/icon.ico");
         res.set("ProductName", "Scientific Calculator");
         res.set("FileDescription", "Scientific Calculator");
-        res.set("CompanyName", "Tiki Tech");
+        res.set("CompanyName", "Sope Technology");
+        res.set("LegalCopyright", "(c) 2026 Sope Technology");
         if let Err(e) = res.compile() {
             println!("cargo:warning=could not embed the Windows icon: {e}");
         }

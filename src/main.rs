@@ -5,6 +5,7 @@
 
 mod engine;
 mod fmt;
+mod about;
 mod help;
 mod matrix;
 #[cfg(native_menu)]
@@ -84,6 +85,8 @@ struct App {
     /// The simple calculator: basic keys only, in a small window.
     compact: bool,
     size_applied: bool,
+    show_about: bool,
+    about_icon: Option<egui::TextureHandle>,
     /// Where the window should move when it changes size, so it stays on screen.
     pending_pos: Option<egui::Pos2>,
     /// The full calculator grew to the left (the small one sat on the right of the screen),
@@ -138,6 +141,8 @@ impl App {
             show_help: false,
             compact: true,
             size_applied: true,
+            show_about: false,
+            about_icon: None,
             pending_pos: None,
             grew_left: false,
             prog: Default::default(),
@@ -252,7 +257,9 @@ impl App {
                 Cmd::Format(i) => self.format = i,
                 Cmd::KeepOnTop => self.settings.on_top = !self.settings.on_top,
                 Cmd::Guide => self.show_help = !self.show_help,
-                Cmd::Website => ctx.open_url(egui::OpenUrl::new_tab(help::WEBSITE)),
+                Cmd::Website => ctx.open_url(egui::OpenUrl::new_tab(help::SOURCE_URL)),
+                Cmd::DeveloperSite => ctx.open_url(egui::OpenUrl::new_tab(help::DEVELOPER_SITE)),
+                Cmd::About => self.show_about = true,
             }
         }
         let state = menu::MenuState {
@@ -296,11 +303,17 @@ impl App {
             }
         });
         ui.add_space(4.0);
-        ui.label(
-            egui::RichText::new(format!("{} {}  ·  build {}  ·  by {}", help::APP_NAME, help::VERSION, help::BUILD_DATE, help::DEVELOPER))
-                .size(11.5)
-                .color(pal.faint),
-        );
+        ui.horizontal(|ui| {
+            ui.label(
+                egui::RichText::new(format!("{} {}  ·  build {}", help::APP_NAME, help::VERSION, help::BUILD_DATE))
+                    .size(11.5)
+                    .color(pal.faint),
+            );
+            if widgets::link(ui, pal, "About") {
+                self.show_about = true;
+                ui.memory_mut(|m| m.close_popup());
+            }
+        });
     }
 
     /// Development aid: NUMERA_MODE=1..7 opens a mode, NUMERA_DEMO=1 fills in sample content.
@@ -312,6 +325,7 @@ impl App {
             }
         }
         self.show_help = std::env::var("NUMERA_HELP").is_ok();
+        self.show_about = std::env::var("NUMERA_ABOUT").is_ok();
         if std::env::var("NUMERA_MODE").is_ok() || std::env::var("NUMERA_FULL").is_ok() {
             self.compact = false;
             self.size_applied = false;
@@ -508,6 +522,8 @@ impl eframe::App for App {
         if !self.compact {
             help::side_panel(ctx, &mut self.show_help, &pal, current);
         }
+
+        about::window(ctx, &pal, &mut self.show_about, &mut self.about_icon);
 
         egui::CentralPanel::default()
             .frame(Frame::new().fill(pal.bg).inner_margin(if self.compact {

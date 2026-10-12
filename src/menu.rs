@@ -4,11 +4,12 @@
 //! (including Copy and Paste) comes back here as an event and is carried out by the app.
 
 use muda::accelerator::Accelerator;
-use muda::{AboutMetadata, CheckMenuItem, Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem, Submenu};
+use muda::{CheckMenuItem, Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem, Submenu};
 use std::sync::mpsc::{channel, Receiver};
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Cmd {
+    About,
     Settings,
     Undo,
     Redo,
@@ -26,6 +27,7 @@ pub enum Cmd {
     KeepOnTop,
     Guide,
     Website,
+    DeveloperSite,
 }
 
 /// What the check marks in the menus should show.
@@ -93,30 +95,7 @@ impl AppMenu {
         let sep = PredefinedMenuItem::separator;
 
         // ---- App menu
-        let credits = format!(
-            "Developed by {dev}\nMumbai, India\n\n\
-             Scientific, graphing, equation, matrix, statistics, conversion and programmer modes.\n\n\
-             Built with Rust and egui.\n\
-             Interface font: Inter (SIL Open Font License).\n\n\
-             {site}",
-            dev = crate::help::DEVELOPER,
-            site = crate::help::WEBSITE.trim_start_matches("https://"),
-        );
-        let about = PredefinedMenuItem::about(
-            Some("About Scientific Calculator"),
-            Some(AboutMetadata {
-                name: Some(crate::help::APP_NAME.into()),
-                // macOS shows these as "Version 1.4.0 (Build 2026-10-11)".
-                version: Some(crate::help::VERSION.into()),
-                short_version: Some(format!("Build {}", crate::help::BUILD_DATE)),
-                copyright: Some(format!("© {} {}", &crate::help::BUILD_DATE[..4], crate::help::DEVELOPER)),
-                credits: Some(credits),
-                authors: Some(vec![crate::help::DEVELOPER.into()]),
-                comments: Some("A clean, minimal scientific and graphing calculator.".into()),
-                website: Some(crate::help::WEBSITE.into()),
-                ..Default::default()
-            }),
-        );
+        let about = item(&mut commands, "About Scientific Calculator", "", Cmd::About);
         let settings = item(&mut commands, "Settings…", "CmdOrCtrl+Comma", Cmd::Settings);
         let app_menu = Submenu::with_items(
             crate::help::APP_NAME,
@@ -201,7 +180,8 @@ impl AppMenu {
         // ---- Help
         let guide = item(&mut commands, "Input Guide", "CmdOrCtrl+Shift+Slash", Cmd::Guide);
         let website = item(&mut commands, "Scientific Calculator on GitHub", "", Cmd::Website);
-        let help_menu = Submenu::with_items("Help", true, &[&guide, &website]).ok()?;
+        let developer = item(&mut commands, "Sopè Technology Website", "", Cmd::DeveloperSite);
+        let help_menu = Submenu::with_items("Help", true, &[&guide, &sep(), &website, &developer]).ok()?;
 
         let menu = Menu::with_items(&[&app_menu, &edit_menu, &view_menu, &window_menu, &help_menu]).ok()?;
         #[cfg(target_os = "macos")]

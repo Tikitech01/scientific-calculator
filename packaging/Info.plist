@@ -15,11 +15,11 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>2.0.0</string>
+    <string>2.0.1</string>
     <key>NSHumanReadableCopyright</key>
-    <string>© 2026 Tiki Tech</string>
+    <string>© 2026 Sopè Technology. All rights reserved.</string>
     <key>CFBundleVersion</key>
-    <string>7</string>
+    <string>8</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>LSMinimumSystemVersion</key>

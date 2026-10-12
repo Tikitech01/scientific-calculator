@@ -17,8 +17,8 @@ all in one fast native app that works completely offline.
 | --- | --- | --- |
 | **macOS** (Apple silicon, M1 or later) | [Scientific-Calculator-2.0.0-macOS-AppleSilicon.zip](downloads/Scientific-Calculator-2.0.0-macOS-AppleSilicon.zip) | Unzip, drag **Scientific Calculator** to Applications. The first time, right-click the app and choose **Open** (the app is not notarised yet). |
 | **Windows** 10 / 11 (64-bit) | [Scientific-Calculator-2.0.0-Windows-Setup.exe](downloads/Scientific-Calculator-2.0.0-Windows-Setup.exe) | Run the installer and follow the steps. If SmartScreen appears, choose **More info → Run anyway** (the installer is not code-signed yet). |
-| **Linux** – Debian, Ubuntu, Mint | [scientific-calculator_2.0.0_amd64.deb](downloads/scientific-calculator_2.0.0_amd64.deb) | `sudo apt install ./scientific-calculator_2.0.0_amd64.deb` |
-| **Linux** – any other distribution | [Scientific-Calculator-2.0.0-Linux-x86_64.tar.gz](downloads/Scientific-Calculator-2.0.0-Linux-x86_64.tar.gz) | Extract it and run `./install.sh` (no root needed). |
+| **Linux** – Debian, Ubuntu, Mint | [scientific-calculator_2.0.1_amd64.deb](downloads/scientific-calculator_2.0.1_amd64.deb) | `sudo apt install ./scientific-calculator_2.0.1_amd64.deb` |
+| **Linux** – any other distribution | [Scientific-Calculator-2.0.1-Linux-x86_64.tar.gz](downloads/Scientific-Calculator-2.0.1-Linux-x86_64.tar.gz) | Extract it and run `./install.sh` (no root needed). |
 
 All downloads are in the [`downloads`](downloads) folder: click a file, then the download button.
 Intel Macs and other systems can [build from source](#build-from-source) in a few minutes.
@@ -185,5 +185,6 @@ src/ui_*.rs       one file per mode            src/main.rs      window, top bar,
 
 ## Credits
 
-Developed by **Tiki Tech**, Mumbai, India.
+Created by **Sopè Technology** · [sopetechnology.com](https://sopetechnology.com)  
+© 2026 Sopè Technology. All rights reserved.
 The interface font is [Inter](https://rsms.me/inter/) (SIL Open Font License, see `assets/Inter-LICENSE.txt`).
