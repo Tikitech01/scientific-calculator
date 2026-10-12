@@ -19,7 +19,7 @@ fn main() {
     let day = doy - (153 * mp + 2) / 5 + 1;
     let month = if mp < 10 { mp + 3 } else { mp - 9 };
     let year = yoe + era * 400 + if month <= 2 { 1 } else { 0 };
-    println!("cargo:rustc-env=NUMERA_BUILD_DATE={:04}-{:02}-{:02}", year, month, day);
+    println!("cargo:rustc-env=SCICALC_BUILD_DATE={:04}-{:02}-{:02}", year, month, day);
     // Embed the application icon and version info into the Windows executable.
     #[cfg(windows)]
     {

@@ -1,4 +1,5 @@
 target/
+# The app bundle under its old name
 Numera.app/
 Scientific Calculator.app/
 .DS_Store

@@ -469,13 +469,13 @@ impl App {
         });
     }
 
-    /// Development aid: NUMERA_MODE=1..7 opens a mode, NUMERA_DEMO=1 fills in sample content.
+    /// Development aid: SCICALC_MODE=1..7 opens a mode, SCICALC_DEMO=1 fills in sample content.
     #[cfg(debug_assertions)]
     fn debug_setup(&mut self) {
-        if let Some(n) = std::env::var("NUMERA_TYPE").ok().and_then(|v| v.parse::<usize>().ok()) {
+        if let Some(n) = std::env::var("SCICALC_TYPE").ok().and_then(|v| v.parse::<usize>().ok()) {
             self.set_type(n.saturating_sub(1));
         }
-        if let Some(n) = std::env::var("NUMERA_MODE").ok().and_then(|v| v.parse::<usize>().ok()) {
+        if let Some(n) = std::env::var("SCICALC_MODE").ok().and_then(|v| v.parse::<usize>().ok()) {
             if (1..=ALL_MODES.len()).contains(&n) {
                 self.mode = ALL_MODES[n - 1];
                 if !self.modes().contains(&self.mode) {
@@ -483,31 +483,31 @@ impl App {
                 }
             }
         }
-        self.show_help = std::env::var("NUMERA_HELP").is_ok();
-        self.show_about = std::env::var("NUMERA_ABOUT").is_ok();
-        if std::env::var("NUMERA_MODE").is_ok() || std::env::var("NUMERA_FULL").is_ok() {
+        self.show_help = std::env::var("SCICALC_HELP").is_ok();
+        self.show_about = std::env::var("SCICALC_ABOUT").is_ok();
+        if std::env::var("SCICALC_MODE").is_ok() || std::env::var("SCICALC_FULL").is_ok() {
             self.compact = false;
             self.size_applied = false;
         }
-        self.calc.greek = std::env::var("NUMERA_GREEK").is_ok();
-        if let Ok(sub) = std::env::var("NUMERA_SUB") {
+        self.calc.greek = std::env::var("SCICALC_GREEK").is_ok();
+        if let Ok(sub) = std::env::var("SCICALC_SUB") {
             let s = sub.parse().unwrap_or(0);
             self.eq.sub = s;
             self.stats.sub = s;
             self.conv.sub = s;
             self.fin.sub = s;
         }
-        if let Some(k) = std::env::var("NUMERA_TEST").ok().and_then(|v| v.parse().ok()) {
+        if let Some(k) = std::env::var("SCICALC_TEST").ok().and_then(|v| v.parse().ok()) {
             self.stats.tests.kind = k;
         }
-        if let Some(k) = std::env::var("NUMERA_TSUB").ok().and_then(|v| v.parse().ok()) {
+        if let Some(k) = std::env::var("SCICALC_TSUB").ok().and_then(|v| v.parse().ok()) {
             self.stats.tests.t_kind = k;
             self.stats.tests.chi_kind = k;
             self.stats.tests.z_kind = k;
             self.stats.tests.anova_kind = k;
             self.stats.tests.np_kind = k;
         }
-        if std::env::var("NUMERA_DEMO").is_ok() {
+        if std::env::var("SCICALC_DEMO").is_ok() {
             for src in ["sin(30)+√(2)÷2", "√(2)÷2", "(1+2i)(3−i)", "integ(x²,0,3)", "[[1,2],[3,4]]→MatA", "2^64"] {
                 if let Ok(value) = engine::evaluate(src, &mut self.env) {
                     self.calc.history.push(ui_calc::Entry { expr: src.into(), value });
@@ -520,7 +520,7 @@ impl App {
                 ui_graph::FnEntry::new("2x + 1"),
                 ui_graph::FnEntry::new("3sin(60x)"),
             ];
-            if std::env::var("NUMERA_GRAPH2").is_ok() {
+            if std::env::var("SCICALC_GRAPH2").is_ok() {
                 self.graph.fns = vec![ui_graph::FnEntry::new("a·x² + b"), ui_graph::FnEntry::new("y < sin(k·x) + 2")];
                 self.graph.tangent = true;
                 self.graph.show_points = true;
@@ -570,9 +570,9 @@ impl eframe::App for App {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Development aid: NUMERA_PERF=1 prints how long each frame's UI takes.
+        // Development aid: SCICALC_PERF=1 prints how long each frame's UI takes.
         #[cfg(debug_assertions)]
-        let perf_start = std::env::var("NUMERA_PERF").ok().map(|_| std::time::Instant::now());
+        let perf_start = std::env::var("SCICALC_PERF").ok().map(|_| std::time::Instant::now());
         self.frame(ctx);
         #[cfg(debug_assertions)]
         if let Some(t) = perf_start {
@@ -587,7 +587,7 @@ impl App {
         #[cfg(native_menu)]
         self.menu_commands(ctx);
         #[cfg(debug_assertions)]
-        match std::env::var("NUMERA_THEME").as_deref() {
+        match std::env::var("SCICALC_THEME").as_deref() {
             Ok("dark") => self.settings.appearance = 2,
             Ok("light") => self.settings.appearance = 1,
             _ => {}
@@ -823,9 +823,12 @@ impl App {
 /// Name of the folder that holds saved settings and history.
 const STORAGE_NAME: &str = "Scientific Calculator";
 
-/// The app used to be called Numera: carry its saved settings and history over once.
+/// Name of the settings folder from before the app was renamed.
+const OLD_STORAGE_NAME: &str = "Numera";
+
+/// Carry settings and history saved under the old name over once.
 fn migrate_settings() {
-    let (Some(old), Some(new)) = (eframe::storage_dir("Numera"), eframe::storage_dir(STORAGE_NAME)) else {
+    let (Some(old), Some(new)) = (eframe::storage_dir(OLD_STORAGE_NAME), eframe::storage_dir(STORAGE_NAME)) else {
         return;
     };
     let (old_file, new_file) = (old.join("app.ron"), new.join("app.ron"));
@@ -848,9 +851,9 @@ fn main() -> eframe::Result {
     };
     #[cfg(target_os = "linux")]
     let viewport = viewport.with_app_id("scientific-calculator");
-    // Development aid: NUMERA_X=900 opens the window at that x position.
+    // Development aid: SCICALC_X=900 opens the window at that x position.
     #[cfg(debug_assertions)]
-    let viewport = match std::env::var("NUMERA_X").ok().and_then(|v| v.parse::<f32>().ok()) {
+    let viewport = match std::env::var("SCICALC_X").ok().and_then(|v| v.parse::<f32>().ok()) {
         Some(x) => viewport.with_position([x, 40.0]),
         None => viewport,
     };

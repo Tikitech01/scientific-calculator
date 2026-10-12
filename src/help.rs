@@ -164,7 +164,7 @@ const SECTIONS: &[(&str, &[(&str, &str)])] = &[
 
 pub const APP_NAME: &str = "Scientific Calculator";
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-pub const BUILD_DATE: &str = env!("NUMERA_BUILD_DATE");
+pub const BUILD_DATE: &str = env!("SCICALC_BUILD_DATE");
 pub const DEVELOPER: &str = "Sopè Technology";
 pub const DEVELOPER_SITE: &str = "https://sopetechnology.com";
 pub const SOURCE_URL: &str = "https://github.com/Tikitech01/scientific-calculator";
