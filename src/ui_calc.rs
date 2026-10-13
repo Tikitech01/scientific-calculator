@@ -22,6 +22,8 @@ pub struct CalcState {
     pub error: Option<String>,
     pub shift: bool,
     pub greek: bool,
+    /// The physical-constants layer (2nd + αβγ): the scientific keys show c, h, kB, …
+    pub consts: bool,
     pub prefer_exact: bool,
     /// Set from other modes to put the caret at the end of the input on the next Calculate frame.
     pub pending_cursor_end: bool,
@@ -111,6 +113,9 @@ const fn d(label: &'static str) -> K {
 const fn o(label: &'static str, ins: &'static str) -> K {
     K { label, ins, label2: "", ins2: "", kind: KeyKind::Op, act: Act::Ins }
 }
+const fn o2(label: &'static str, ins: &'static str, label2: &'static str, ins2: &'static str) -> K {
+    K { label, ins, label2, ins2, kind: KeyKind::Op, act: Act::Ins }
+}
 const fn a(label: &'static str, kind: KeyKind, act: Act) -> K {
     K { label, ins: "", label2: "", ins2: "", kind, act }
 }
@@ -125,7 +130,7 @@ const KEYS: [[K; 10]; 5] = [
         f(")", ")", "", ""),
         a("AC", KeyKind::Op, Act::Clear),
         a("⌫", KeyKind::Op, Act::Back),
-        o("%", "%"),
+        o2("%", "%", "∥", " ∥ "),
         o("÷", "÷"),
     ],
     [
@@ -170,7 +175,7 @@ const KEYS: [[K; 10]; 5] = [
         f("∫dx", "integ(", "Σ", "sum("),
         f("d/dx", "diff(", "Π", "prod("),
         f("solve", "solve(", "Rand", "rand()"),
-        a("αβγ", KeyKind::Func, Act::Greek),
+        K { label: "αβγ", ins: "", label2: "CONST", ins2: "", kind: KeyKind::Func, act: Act::Greek },
         d("0"),
         d("."),
         o("(−)", "−"),
@@ -186,6 +191,46 @@ const GREEK_UP: [&str; 24] = [
     "Α", "Β", "Γ", "Δ", "Ε", "Ζ", "Η", "Θ", "Ι", "Κ", "Λ", "Μ", "Ν", "Ξ", "Ο", "Π", "Ρ", "Σ", "Τ", "Υ", "Φ", "Χ", "Ψ",
     "Ω",
 ];
+
+/// The constants layer uses the same 24 slots as the Greek layer: (key label, name typed).
+/// Names match engine::CONSTANTS, which also holds the values shown in the key's tooltip.
+const CONST_KEYS: [(&str, &str); 24] = [
+    ("c", "c"), ("g", "g"), ("G", "G"), ("h", "h"), ("ħ", "hbar"), ("qₑ", "qe"),
+    ("eV", "eV"), ("mₑ", "me"), ("mₚ", "mp"), ("mₙ", "mn"), ("u", "amu"), ("Nᴀ", "NA"),
+    ("kB", "kB"), ("R", "Rgas"), ("ε₀", "eps0"), ("μ₀", "mu0"), ("Z₀", "Z0"), ("σ", "kSB"),
+    ("atm", "atm"), ("∞", "inf"), ("∥", " ∥ "), ("dB", "dB("), ("limit", "limit("), ("taylor", "taylor("),
+];
+
+fn const_key(r: usize, c: usize) -> Option<(&'static str, &'static str)> {
+    if c >= 6 || (r == 0 && c == 0) || (r == 4 && c == 5) {
+        return None;
+    }
+    let idx = r * 6 + c - 1;
+    if idx < 24 {
+        return Some(CONST_KEYS[idx]);
+    }
+    Some(match c {
+        1 => ("STO →", "→"),
+        2 => ("(", "("),
+        3 => (")", ")"),
+        _ => (",", ","),
+    })
+}
+
+/// Tooltip for a key of the constants layer.
+fn const_tip(name: &str) -> String {
+    match engine::CONSTANTS.iter().find(|k| k.0 == name) {
+        Some((_, v, unit, what)) if v.is_finite() => format!("{}: {} {}", what, fmt::short(*v, 7), unit),
+        Some((_, _, _, what)) => what.to_string(),
+        None => match name.trim() {
+            "∥" => "Parallel: 10k ∥ 4.7k = 3.197k".into(),
+            "dB(" => "dB(ratio) = 10·log₁₀. Also dBv (20·log), invdB, invdBv".into(),
+            "limit(" => "limit(expression, x, a): a may be inf".into(),
+            "taylor(" => "taylor(expression, x, a, n): the coefficients c₀ … cₙ".into(),
+            _ => String::new(),
+        },
+    }
+}
 
 /// What the scientific key at (row, column) shows while the Greek layer is on: (label, inserted text).
 /// `None` for the keys that keep their normal job (2nd and αβγ).
@@ -446,6 +491,17 @@ pub fn ui(ui: &mut Ui, st: &mut CalcState, env: &mut Env, f: Fmt, pal: &Pal, com
             };
             let y = pad_rect.top() + r as f32 * (key_h + gap);
             let rect = Rect::from_min_size(pos2(x, y), vec2(key_w, key_h));
+            if let Some((label, text)) = if st.consts { const_key(r, c) } else { None } {
+                let resp = widgets::key_at(ui, pal, rect, (r, c), label, KeyKind::Func, false);
+                let tip = const_tip(text);
+                let resp = if tip.is_empty() { resp } else { resp.on_hover_text(tip) };
+                if resp.clicked() {
+                    widgets::insert_at_cursor(&ctx, id, &mut st.input, text);
+                    st.error = None;
+                    st.shift = false;
+                }
+                continue;
+            }
             if let Some((label, text)) = if st.greek { greek_key(r, c, st.shift) } else { None } {
                 let resp = widgets::key_at(ui, pal, rect, (r, c), label, KeyKind::Func, false);
                 let resp = if label.chars().count() == 1 && label != "(" && label != ")" && label != "," {
@@ -464,11 +520,11 @@ pub fn ui(ui: &mut Ui, st: &mut CalcState, env: &mut Env, f: Fmt, pal: &Pal, com
                 }
                 continue;
             }
-            let shifted = st.shift && !k.label2.is_empty() && !st.greek;
+            let shifted = st.shift && !k.label2.is_empty() && !st.greek && !st.consts;
             let label = if shifted { k.label2 } else { k.label };
             let active = (k.act == Act::Shift && st.shift)
                 || (k.act == Act::Exact && st.prefer_exact)
-                || (k.act == Act::Greek && st.greek);
+                || (k.act == Act::Greek && (st.greek || st.consts));
             let resp = widgets::key_at(ui, pal, rect, (r, c), label, k.kind, active);
             let resp = match help::key_tip(label) {
                 Some(tip) => resp.on_hover_text(tip),
@@ -509,7 +565,15 @@ pub fn ui(ui: &mut Ui, st: &mut CalcState, env: &mut Env, f: Fmt, pal: &Pal, com
                 Act::Shift => st.shift = !st.shift,
                 Act::Exact => st.prefer_exact = !st.prefer_exact,
                 Act::Greek => {
-                    st.greek = !st.greek;
+                    // αβγ toggles the Greek layer; 2nd + αβγ (shown as CONST) the constants layer.
+                    if shifted {
+                        st.consts = !st.consts;
+                        st.greek = false;
+                    } else if st.consts {
+                        st.consts = false;
+                    } else {
+                        st.greek = !st.greek;
+                    }
                     st.shift = false;
                 }
             }

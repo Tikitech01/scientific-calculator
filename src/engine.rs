@@ -106,8 +106,64 @@ pub const FUNCS: &[&str] = &[
     "trace", "identity", "dim", "norm", "dot", "cross", "Pol", "Rec", "and", "or", "xor", "not", "shl", "shr",
     "normpdf", "normcdf", "invnorm", "tpdf", "tcdf", "invt", "chi2pdf", "chi2cdf", "invchi2", "fpdf", "fcdf",
     "invf", "binompdf", "binomcdf", "poissonpdf", "poissoncdf", "diff", "integ", "solve",
-    "seq",
+    "seq", "limit", "taylor", "par", "dB", "dBv", "invdB", "invdBv", "eig", "eigvec",
 ];
+
+/// Physical constants (SI 2019 values): name as typed, value, unit, description.
+/// A user variable with the same name takes priority, so nothing here can break a formula.
+pub const CONSTANTS: &[(&str, f64, &str, &str)] = &[
+    ("c", 299_792_458.0, "m/s", "Speed of light"),
+    ("g", 9.806_65, "m/s²", "Standard gravity"),
+    ("G", 6.674_30e-11, "N·m²/kg²", "Gravitational constant"),
+    ("h", 6.626_070_15e-34, "J·s", "Planck constant"),
+    ("hbar", 1.054_571_817e-34, "J·s", "Reduced Planck constant ħ"),
+    ("qe", 1.602_176_634e-19, "C", "Elementary charge"),
+    ("eV", 1.602_176_634e-19, "J", "Electron-volt"),
+    ("me", 9.109_383_7015e-31, "kg", "Electron mass"),
+    ("mp", 1.672_621_923_69e-27, "kg", "Proton mass"),
+    ("mn", 1.674_927_498_04e-27, "kg", "Neutron mass"),
+    ("amu", 1.660_539_066_60e-27, "kg", "Atomic mass unit"),
+    ("NA", 6.022_140_76e23, "1/mol", "Avogadro constant"),
+    ("kB", 1.380_649e-23, "J/K", "Boltzmann constant"),
+    ("Rgas", 8.314_462_618, "J/(mol·K)", "Gas constant"),
+    ("eps0", 8.854_187_8128e-12, "F/m", "Vacuum permittivity ε₀"),
+    ("mu0", 1.256_637_062_12e-6, "H/m", "Vacuum permeability μ₀"),
+    ("Z0", 376.730_313_668, "Ω", "Impedance of free space"),
+    ("kSB", 5.670_374_419e-8, "W/(m²·K⁴)", "Stefan–Boltzmann constant"),
+    ("atm", 101_325.0, "Pa", "Standard atmosphere"),
+    ("inf", f64::INFINITY, "", "Infinity, for limits"),
+];
+
+pub fn constant(name: &str) -> Option<f64> {
+    // Greek spellings of the two field constants.
+    let name = match name {
+        "ε0" | "ε₀" => "eps0",
+        "μ0" | "µ0" | "μ₀" => "mu0",
+        "ħ" => "hbar",
+        "∞" => "inf",
+        n => n,
+    };
+    CONSTANTS.iter().find(|c| c.0 == name).map(|c| c.1)
+}
+
+/// SI prefix letters accepted directly after a number: 4.7k, 220µ, 10n.
+fn si_prefix(c: char) -> Option<f64> {
+    Some(match c {
+        'T' => 1e12,
+        'G' => 1e9,
+        'M' => 1e6,
+        'k' => 1e3,
+        'm' => 1e-3,
+        'µ' | 'μ' | 'u' => 1e-6,
+        'n' => 1e-9,
+        'p' => 1e-12,
+        'f' => 1e-15,
+        _ => return None,
+    })
+}
+
+/// Unit symbols that may follow a prefixed number and are simply dropped: 4.7kΩ, 220µF, 5mA.
+const UNIT_AFTER_PREFIX: &[&str] = &["Ω", "Hz", "F", "H", "V", "A", "W", "J", "N", "s", "Pa", "m", "g", "K"];
 
 const NAMED: &[&str] = &[
     "pi", "theta", "Ans", "MatAns", "MatA", "MatB", "MatC", "MatD", "MatE", "MatF", "List1", "List2", "List3", "List4",
@@ -213,7 +269,25 @@ fn lex(src: &str) -> Result<Vec<Tok>, String> {
                     i = j;
                 }
             }
-            let v: f64 = s.parse().map_err(|_| format!("Bad number “{}”", s))?;
+            let mut v: f64 = s.parse().map_err(|_| format!("Bad number “{}”", s))?;
+            // SI prefix glued to the number: 4.7k, 220µ, 10nF, 5mA, 3.3kV. A space or · before a
+            // letter keeps it a variable (2 k is 2×k). "u" only counts with a unit after it.
+            if i < n {
+                if let Some(mult) = si_prefix(ch[i]) {
+                    let rest: String = ch[i + 1..].iter().take(2).collect();
+                    let unit = UNIT_AFTER_PREFIX.iter().find(|u| rest.starts_with(*u)).copied();
+                    let unit_ok = unit
+                        .map(|u| ch.get(i + 1 + u.chars().count()).map(|c| !c.is_alphanumeric()).unwrap_or(true))
+                        .unwrap_or(false);
+                    let bare = ch.get(i + 1).map(|c| !c.is_alphanumeric() && *c != '(').unwrap_or(true);
+                    if unit_ok || (bare && ch[i] != 'u') {
+                        v *= mult;
+                        i += 1 + if unit_ok { unit.unwrap().chars().count() } else { 0 };
+                    }
+                } else if ch[i] == 'Ω' {
+                    i += 1;
+                }
+            }
             out.push(Tok::Num(v));
             continue;
         }
@@ -223,12 +297,15 @@ fn lex(src: &str) -> Result<Vec<Tok>, String> {
                 i += 1;
                 continue;
             }
-            // Longest known name starting here.
+            // Longest known name starting here. Multi-letter constants join in so that
+            // kB, NA and mu0 are read as one name rather than k·B.
             let mut best: Option<&str> = None;
-            for name in FUNCS.iter().chain(NAMED.iter()) {
+            let consts = CONSTANTS.iter().map(|c| c.0).filter(|n| n.chars().count() > 1);
+            let greek_consts = ["ε0", "μ0", "µ0", "ħ"].into_iter();
+            for name in FUNCS.iter().copied().chain(NAMED.iter().copied()).chain(consts).chain(greek_consts) {
                 let len = name.chars().count();
                 if i + len <= n && name.chars().zip(&ch[i..i + len]).all(|(a, b)| a == *b) {
-                    if NEEDS_PAREN.contains(name) {
+                    if NEEDS_PAREN.contains(&name) {
                         let mut j = i + len;
                         while j < n && ch[j] == ' ' {
                             j += 1;
@@ -237,7 +314,15 @@ fn lex(src: &str) -> Result<Vec<Tok>, String> {
                             continue;
                         }
                     }
-                    if best.map(|b| b.len() < name.len()).unwrap_or(true) {
+                    // A name must end where the word ends: "me" must not match inside "mean".
+                    let next = ch.get(i + len).copied();
+                    let word_continues = next.map(|c| c.is_alphanumeric() && !NEEDS_PAREN.contains(&name)).unwrap_or(false)
+                        && is_function(name) == false
+                        && NAMED.contains(&name) == false;
+                    if word_continues {
+                        continue;
+                    }
+                    if best.map(|b| b.chars().count() < len).unwrap_or(true) {
                         best = Some(name);
                     }
                 }
@@ -257,6 +342,11 @@ fn lex(src: &str) -> Result<Vec<Tok>, String> {
         if c == 'θ' {
             out.push(Tok::Id("θ".into()));
             i += 1;
+            continue;
+        }
+        if c == '|' && i + 1 < n && ch[i + 1] == '|' {
+            out.push(Tok::Sym('∥'));
+            i += 2;
             continue;
         }
         if c == '⁻' || sup_digit(c).is_some() {
@@ -283,7 +373,7 @@ fn lex(src: &str) -> Result<Vec<Tok>, String> {
             '-' | '−' | '–' => '-',
             '*' | '×' | '·' | '⋅' => '*',
             '/' | '÷' => '/',
-            '^' | '!' | '%' | '(' | ')' | ',' | '[' | ']' | '{' | '}' | ';' | '°' | '√' | '∠' => c,
+            '^' | '!' | '%' | '(' | ')' | ',' | '[' | ']' | '{' | '}' | ';' | '°' | '√' | '∠' | '∥' => c,
             '=' => return Err("“=” is not allowed here".into()),
             _ => return Err(format!("Unexpected “{}”", c)),
         };
@@ -340,16 +430,26 @@ impl Parser {
     }
 
     fn term(&mut self) -> PResult {
-        let mut lhs = self.implicit()?;
+        let mut lhs = self.parallel()?;
         loop {
             if self.eat('*') {
-                lhs = Expr::Bin('*', Box::new(lhs), Box::new(self.implicit()?));
+                lhs = Expr::Bin('*', Box::new(lhs), Box::new(self.parallel()?));
             } else if self.eat('/') {
-                lhs = Expr::Bin('/', Box::new(lhs), Box::new(self.implicit()?));
+                lhs = Expr::Bin('/', Box::new(lhs), Box::new(self.parallel()?));
             } else {
                 return Ok(lhs);
             }
         }
+    }
+
+    /// a ∥ b = ab/(a+b), the parallel combination of resistors or impedances.
+    fn parallel(&mut self) -> PResult {
+        let mut lhs = self.implicit()?;
+        while self.eat('∥') {
+            let rhs = self.implicit()?;
+            lhs = Expr::Call("par".into(), vec![lhs, rhs]);
+        }
+        Ok(lhs)
     }
 
     fn starts_operand(&self) -> bool {
@@ -779,6 +879,9 @@ fn trig(name: &str, z: C, ang: Angle) -> Result<C, String> {
         };
         Ok(C::new(r, 0.0))
     } else {
+        // Complex arguments follow the angle unit too, so sin(x) is the same function whether
+        // x is real or complex (taylor() relies on that).
+        let z = z * ang.to_rad(1.0);
         Ok(match name {
             "sin" => z.sin(),
             "cos" => z.cos(),
@@ -928,7 +1031,7 @@ fn split_var<'a>(args: &'a [Expr], k: usize) -> Result<(&'a Expr, String, &'a [E
 
 fn special(name: &str, args: &[Expr], env: &mut Env) -> Option<R> {
     let is_special = match name {
-        "diff" | "integ" | "solve" | "seq" => true,
+        "diff" | "integ" | "solve" | "seq" | "limit" | "taylor" => true,
         "sum" | "prod" => args.len() == 4,
         _ => false,
     };
@@ -984,6 +1087,52 @@ fn special(name: &str, args: &[Expr], env: &mut Env) -> Option<R> {
                     }
                     Ok(Value::Num(acc))
                 })
+            }
+            "limit" => {
+                // limit(expr, x, a): the value both sides settle on as x → a. a may be ±inf.
+                let (body, var, rest) = split_var(args, 1)?;
+                let a = num(&rest[0], env)?;
+                let v = with_var(env, &var, |env| numeric::limit(&mut |x| eval_at(body, env, &var, x), a));
+                v.ok_or_else(|| "The limit does not exist (or the two sides differ)".to_string()).map(Value::real)
+            }
+            "taylor" => {
+                // taylor(expr, x, a, n): coefficients c0..cn of Σ cₖ (x−a)ᵏ, from values of the
+                // expression on a small circle around a in the complex plane (Cauchy's formula).
+                let (body, var, rest) = split_var(args, 2)?;
+                let a = num(&rest[0], env)?;
+                let order = int_of(&eval(&rest[1], env)?)?;
+                if !(0..=20).contains(&order) {
+                    return Err("The order must be between 0 and 20".into());
+                }
+                let samples = 64usize;
+                let radius = 0.5;
+                let mut coef = vec![C::new(0.0, 0.0); order as usize + 1];
+                with_var(env, &var, |env| -> Result<(), String> {
+                    for j in 0..samples {
+                        let th = 2.0 * PI * j as f64 / samples as f64;
+                        let z = C::new(a, 0.0) + C::from_polar(radius, th);
+                        env.vars.insert(var.clone(), Value::Num(z));
+                        let f = match eval(body, env)? {
+                            Value::Num(w) if w.is_finite() => w,
+                            _ => return Err("The expression must be smooth around that point".into()),
+                        };
+                        for (k, c) in coef.iter_mut().enumerate() {
+                            *c += f * C::from_polar(1.0, -(k as f64) * th);
+                        }
+                    }
+                    Ok(())
+                })?;
+                let out: Vec<f64> = coef
+                    .iter()
+                    .enumerate()
+                    .map(|(k, c)| {
+                        let v = (c / samples as f64 / radius.powi(k as i32)).re;
+                        // Round away the sampling noise so 1/6 shows as 0.1666666667, 0 as 0.
+                        let snap = (v * 1e10).round() / 1e10;
+                        if snap.abs() < 1e-9 { 0.0 } else { v }
+                    })
+                    .collect();
+                Ok(Value::List(out))
             }
             "seq" => {
                 if args.len() < 4 || args.len() > 5 {
@@ -1223,6 +1372,66 @@ fn call(name: &str, a: &[Value], ang: Angle) -> R {
                 }
             })
         }
+        "par" => {
+            // Parallel combination: 1 / (1/a + 1/b + …). Works for complex impedances too.
+            need(2, 10)?;
+            let mut acc = C::new(0.0, 0.0);
+            for v in a {
+                let z = match v {
+                    Value::Num(z) => *z,
+                    _ => return Err("∥ works with numbers".into()),
+                };
+                if z == C::new(0.0, 0.0) {
+                    return Ok(Value::real(0.0));
+                }
+                acc += C::new(1.0, 0.0) / z;
+            }
+            Ok(Value::Num(clean(C::new(1.0, 0.0) / acc)))
+        }
+        "dB" | "dBv" => {
+            need(1, 1)?;
+            let x = real_of(&a[0])?;
+            if x <= 0.0 {
+                return Err("dB needs a positive ratio".into());
+            }
+            Ok(Value::real(if name == "dB" { 10.0 } else { 20.0 } * x.log10()))
+        }
+        "invdB" | "invdBv" => {
+            need(1, 1)?;
+            let x = real_of(&a[0])?;
+            Ok(Value::real(10f64.powf(x / if name == "invdB" { 10.0 } else { 20.0 })))
+        }
+        "eig" => {
+            need(1, 1)?;
+            let ev = mat_of(&a[0])?.eigenvalues()?;
+            if ev.iter().all(|z| z.im == 0.0) {
+                Ok(Value::List(ev.iter().map(|z| z.re).collect()))
+            } else if ev.len() == 1 {
+                Ok(Value::Num(ev[0]))
+            } else {
+                let shown: Vec<String> = ev.iter().map(|z| crate::fmt::complex(*z, crate::fmt::Fmt::Norm)).collect();
+                Err(format!("Complex eigenvalues: {}", shown.join(",  ")))
+            }
+        }
+        "eigvec" => {
+            // eigvec(M): one column per real eigenvalue, in the order eig(M) lists them.
+            // eigvec(M, λ): the eigenvector for that eigenvalue.
+            need(1, 2)?;
+            let m = mat_of(&a[0])?;
+            let lambdas: Vec<f64> = if n == 2 {
+                vec![real_of(&a[1])?]
+            } else {
+                let ev = m.eigenvalues()?;
+                let real: Vec<f64> = ev.iter().filter(|z| z.im == 0.0).map(|z| z.re).collect();
+                if real.is_empty() {
+                    return Err("The eigenvalues are complex; use eig() to see them".into());
+                }
+                real
+            };
+            let cols: Vec<Vec<f64>> = lambdas.iter().map(|l| m.eigenvector(*l)).collect::<Result<_, _>>()?;
+            let rows = (0..m.r).map(|i| cols.iter().map(|c| c[i]).collect()).collect();
+            Ok(Value::Mat(Matrix::from_rows(rows)?))
+        }
         "det" => need(1, 1).and_then(|_| mat_of(&a[0])?.det().map(Value::real)),
         "inv" => {
             need(1, 1)?;
@@ -1444,7 +1653,10 @@ pub fn eval(e: &Expr, env: &mut Env) -> R {
             "e" => Ok(Value::real(std::f64::consts::E)),
             "i" => Ok(Value::Num(C::new(0.0, 1.0))),
             "Ans" => Ok(env.ans.clone()),
-            _ => env.vars.get(name).cloned().ok_or_else(|| format!("{} has no value yet", name)),
+            _ => match env.vars.get(name) {
+                Some(v) => Ok(v.clone()),
+                None => constant(name).map(Value::real).ok_or_else(|| format!("{} has no value yet", name)),
+            },
         },
         Expr::Neg(a) => match eval(a, env)? {
             Value::Num(z) => Ok(Value::Num(if z.im == 0.0 { C::new(-z.re, 0.0) } else { -z })),
@@ -1894,6 +2106,82 @@ mod tests {
     }
 
     #[test]
+    fn constants_prefixes_parallel() {
+        close(ev("c"), 299_792_458.0);
+        close(ev("NA*qe"), 96485.33212331);
+        close(ev("1/sqrt(mu0*eps0)"), 299_792_458.0);
+        close(ev("μ0*1E6"), 1.25663706212);
+        close(ev("kB*300"), 4.141947e-21);
+        close(ev("mean({1,2,3})"), 2.0); // "me" must not match inside "mean"
+        // A stored variable beats a constant.
+        let mut env = Env::default();
+        env.set_real("c", 3.0);
+        assert_eq!(real_of(&evaluate("2c", &mut env).unwrap()).unwrap(), 6.0);
+        // SI prefixes, with and without a unit.
+        close(ev("4.7k"), 4700.0);
+        close(ev("220µF"), 220e-6);
+        close(ev("10nF"), 1e-8);
+        close(ev("5mA*2kΩ"), 10.0);
+        close(ev("1MHz/1k"), 1000.0);
+        close(ev("2pi"), 2.0 * PI); // p is not a prefix here
+        assert!(evaluate("2 k", &mut Env::default()).is_err()); // a space keeps k a variable
+        close(ev("10k ∥ 4.7k"), 3197.2789115646);
+        close(ev("10k || 4.7k"), 3197.2789115646);
+        close(ev("1k + 1k ∥ 1k"), 1500.0);
+        close(ev("par(1,1,1)"), 1.0 / 3.0);
+        close(ev("dB(2)"), 3.0102999566398);
+        close(ev("dBv(10)"), 20.0);
+        close(ev("invdB(3)"), 1.9952623149689);
+        close(ev("invdBv(20)"), 10.0);
+    }
+
+    #[test]
+    fn limits_series_eigen() {
+        let mut env = Env::default();
+        env.angle = Angle::Rad;
+        let mut e = |s: &str| real_of(&evaluate(s, &mut env).unwrap()).unwrap();
+        close(e("limit(sin(x)/x, x, 0)"), 1.0);
+        close(e("limit((x^2-1)/(x-1), x, 1)"), 2.0);
+        assert!((e("limit((1+1/x)^x, x, inf)") - std::f64::consts::E).abs() < 1e-7);
+        close(e("limit((2x+1)/(x-3), x, inf)"), 2.0);
+        assert!(evaluate("limit(1/x, x, 0)", &mut Env::default()).is_err());
+        assert!(evaluate("limit(abs(x)/x, x, 0)", &mut Env::default()).is_err());
+        match evaluate("taylor(sin(x), x, 0, 5)", &mut env).unwrap() {
+            Value::List(c) => {
+                let want = [0.0, 1.0, 0.0, -1.0 / 6.0, 0.0, 1.0 / 120.0];
+                for (a, b) in c.iter().zip(want) {
+                    close(*a, b);
+                }
+            }
+            _ => panic!("taylor should give a list"),
+        }
+        match evaluate("eig([[4,1],[2,3]])", &mut env).unwrap() {
+            Value::List(l) => {
+                close(l[0], 2.0);
+                close(l[1], 5.0);
+            }
+            _ => panic!(),
+        }
+        match evaluate("eig([[1,2,3],[4,5,6],[7,8,10]])", &mut env).unwrap() {
+            Value::List(l) => close(l[2], 16.7074933161),
+            _ => panic!(),
+        }
+        assert!(evaluate("eig([[0,-1],[1,0]])", &mut env).unwrap_err().contains("Complex"));
+        match evaluate("eigvec([[2,0],[0,3]], 3)", &mut env).unwrap() {
+            Value::Mat(m) => {
+                close(m.get(0, 0), 0.0);
+                close(m.get(1, 0), 1.0);
+            }
+            _ => panic!(),
+        }
+        // A·v = λ·v for the second column of eigvec([[4,1],[2,3]]) (λ = 5).
+        match evaluate("[[4,1],[2,3]]*eigvec([[4,1],[2,3]]) - eigvec([[4,1],[2,3]])*[[2,0],[0,5]]", &mut env).unwrap() {
+            Value::Mat(m) => assert!(m.d.iter().all(|x| x.abs() < 1e-6)),
+            _ => panic!(),
+        }
+    }
+
+    #[test]
     fn percent_polar_units() {
         assert!((ev("200 + 10%") - 220.0).abs() < 1e-9);
         assert!((ev("200 - 10%") - 180.0).abs() < 1e-9);
@@ -1916,3 +2204,4 @@ mod tests {
         assert!(evaluate("5 km to kg", &mut env).is_err());
     }
 }
+

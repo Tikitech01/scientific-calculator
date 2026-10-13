@@ -15,7 +15,7 @@ pub const NUMBER: &str = "A number or a calculation, e.g. 2.5, 1/3, sqrt(2), 2^1
 pub const EQUATION: &str = "An equation in x, e.g. x^3 - 2x = 5 or sin(x) = 0.5.\n\
 Powers: type ^.  Without “=” the expression is solved for 0.";
 pub const MATRIX_EXPR: &str = "Use MatA … MatF with + - * ^, e.g. MatA*MatB, MatA^2, 2MatA.\n\
-Functions: det( ) inv( ) trn( ) rref( ) rank( ) trace( ) identity(n).\n\
+Functions: det( ) inv( ) trn( ) rref( ) rank( ) trace( ) eig( ) eigvec( ) identity(n).\n\
 Inverse: MatA^-1.  Press return to calculate.";
 pub const DATA: &str = "One value per row. Press tab to move to the next cell.\n\
 Each cell accepts a number or a calculation.";
@@ -68,6 +68,8 @@ pub fn key_tip(label: &str) -> Option<&'static str> {
         "AC" => "Clear the line. Press again to clear the history",
         "(−)" => "Negative sign",
         "%" => "Percent: 50% = 0.5",
+        "∥" => "Parallel: 10k ∥ 4.7k = 3.197k (also for impedances)",
+        "CONST" => "Physical constants: c, h, kB, NA, ε₀, μ₀ … and ∥, dB, limit, taylor",
         _ => return None,
     })
 }
@@ -76,7 +78,9 @@ const GENERAL: &[(&str, &str)] = &[
     ("Powers", "x^2, 2^10, x^-1. They turn into x², 2¹⁰, x⁻¹ as you type. Use brackets for anything longer: 2^(n+1), x^(1/3)."),
     ("Roots", "sqrt(2) or √(2).  cbrt(27).  root(4, 81) is the 4th root."),
     ("Multiply, divide", "* and /. The × may be left out: 2x, 3(4+1), 2sin(30), 2π."),
-    ("Constants", "pi or π,  e,  i (imaginary unit)."),
+    ("Constants", "pi or π,  e,  i (imaginary unit).  Physical constants by name: c, g, G, h, hbar, qe, eV, me, mp, mn, amu, NA, kB, Rgas, eps0 (ε0), mu0 (μ0), Z0, kSB, atm — or 2nd + αβγ for the CONST keys. kB·300, NA·qe, 1/√(μ0·ε0). A variable you store with the same name wins."),
+    ("SI prefixes", "Glued to a number: 4.7k, 220µ, 10n, 2.2M, 3p (T G M k m µ u n p f). A unit may follow and is ignored: 4.7kΩ, 220µF, 5mA, 3.3kV, 1MHz. To multiply by a variable instead, put a space or · first: 2 k, 2·m."),
+    ("Engineering display", "Choose Eng in the Normal ▾ menu: results show with an SI prefix, 3.197k, 2.2m, 4.7µ."),
     ("Functions", "Always with brackets: sin(30), ln(2), log(100), log(2, 8), abs(-3)."),
     ("Scientific notation", "1.5E3 means 1.5 × 10³. Negative powers: 2E-3."),
     ("Greek letters", "Type the name: alpha, beta, theta, lambda, omega … becomes α, β, θ, λ, ω. Capital first letter gives the capital: Delta → Δ. Or use the αβγ key. They work as variables: 5->α."),
@@ -98,7 +102,9 @@ const SECTIONS: &[(&str, &[(&str, &str)])] = &[
         ("Complex numbers", "(1+2i)(3-i),  sqrt(-4),  abs(3+4i).  Polar form: 5∠30 (angle in the current unit). Settings can show results as r∠θ."),
         ("Percent", "200 + 10% = 220,  200 − 10% = 180,  50% = 0.5,  80 × 15% = 12."),
         ("Units", "5 km to m,  98.6 °F in °C,  2.5 hours to minutes,  3*2 kg in lb. Any unit from Convert works, by symbol or name."),
-        ("Calculus", "diff(x^3, 2)   integ(x^2, 0, 3)   sum(k^2, k, 1, 10)   solve(x^2-2, 1)."),
+        ("Calculus", "diff(x^3, 2)   integ(x^2, 0, 3)   sum(k^2, k, 1, 10)   prod(k, k, 1, 5)   solve(x^2-2, 1).  They use the current angle unit."),
+        ("Limits, series", "limit(sin(x)/x, x, 0)   limit((1+1/x)^x, x, inf).  taylor(e^x, x, 0, 4) gives the coefficients c₀ … c₄ of c₀ + c₁(x−a) + c₂(x−a)² + … Use RAD for the textbook series of sin and cos."),
+        ("Circuits", "Parallel: 10k ∥ 4.7k (2nd + %, or type ||), works for complex impedances too.  dB(2) = 3.01 (power, 10·log₁₀), dBv(10) = 20 (amplitude, 20·log₁₀), invdB(3), invdBv(20)."),
         ("Lists", "{1,2,3}.  mean( ) median( ) stdev( ) sum( ) sort( )."),
         ("Number bases", "0xFF, 0b1010, 0o17.  and( ) or( ) xor( ) not( )."),
     ]),
@@ -128,6 +134,7 @@ const SECTIONS: &[(&str, &[(&str, &str)])] = &[
         ("Entries", "Each cell takes a number or a calculation. Empty means 0."),
         ("Expressions", "MatA*MatB,  MatA^2,  MatA^-1,  det(MatA),  trn(MatA),  2MatA + identity(2)."),
         ("By hand", "[[1,2],[3,4]] or [1,2;3,4]. In Calculate, [[1,2],[3,4]]->MatA stores it."),
+        ("Eigenvalues", "eig(MatA) lists the eigenvalues (complex ones are shown as a message). eigvec(MatA) gives one unit eigenvector per column, in the same order; eigvec(MatA, 3) the eigenvector for λ = 3."),
     ]),
     ("Statistics", &[
         ("Data", "X and Y columns, one value per row. Freq is optional and repeats the X value."),

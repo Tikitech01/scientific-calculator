@@ -174,6 +174,8 @@ pub fn ui(ui: &mut Ui, st: &mut MatState, env: &mut Env, f: Fmt, pal: &Pal) {
                 ("Rank", format!("rank({})", name)),
                 ("Trace", format!("trace({})", name)),
                 ("Square", format!("{}²", name)),
+                ("Eigenvalues", format!("eig({})", name)),
+                ("Eigenvectors", format!("eigvec({})", name)),
             ] {
                 if widgets::link(ui, pal, label) {
                     st.expr = expr;

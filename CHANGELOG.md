@@ -3,6 +3,22 @@
 All notable changes to Scientific Calculator. Downloads for the latest version are in the
 [README](README.md#download).
 
+## 2.5.0 — 14 October 2026
+
+**Engineering**
+- Physical constants by name: c, g, G, h, hbar, qe, eV, me, mp, mn, amu, NA, kB, Rgas, eps0 (ε0),
+  mu0 (μ0), Z0, kSB, atm. 2nd + αβγ shows them on the keys (CONST).
+- SI prefixes glued to numbers: 4.7k, 220µF, 10nF, 5mA, 3.3kV, 1MHz
+- Eng display format: 3.197k, 2.2m, 4.7µ
+- Parallel operator: 10k ∥ 4.7k (2nd + %, or type ||); works for complex impedances
+- dB(x), dBv(x), invdB(x), invdBv(x)
+
+**Maths**
+- limit(sin(x)/x, x, 0), limit((1+1/x)^x, x, inf)
+- taylor(e^x, x, 0, 4): the coefficients of the Taylor series
+- Matrices: eig(MatA) eigenvalues, eigvec(MatA) eigenvectors, with buttons in Matrix mode
+- Complex arguments to sin, cos and tan now follow the angle unit like real ones
+
 ## 2.4.0 — 13 October 2026
 
 **Feel**

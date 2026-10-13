@@ -129,13 +129,14 @@ const FULL_MIN: [f32; 2] = if cfg!(target_os = "macos") { [1060.0, 600.0] } else
 /// The all-in-one type has nine tabs, so its window must be wider still.
 const ALL_MIN_WIDTH: f32 = if cfg!(target_os = "macos") { 1190.0 } else { 1120.0 };
 
-const FORMATS: [(&str, Fmt); 6] = [
+const FORMATS: [(&str, Fmt); 7] = [
     ("Normal", Fmt::Norm),
     ("Fix 2", Fmt::Fix(2)),
     ("Fix 4", Fmt::Fix(4)),
     ("Fix 6", Fmt::Fix(6)),
     ("Sci 4", Fmt::Sci(4)),
     ("Sci 8", Fmt::Sci(8)),
+    ("Eng", Fmt::Eng),
 ];
 
 struct App {
@@ -340,6 +341,7 @@ impl App {
         self.size_applied = false;
         self.mode = Mode::Calc;
         self.calc.greek = false;
+        self.calc.consts = false;
         self.calc.shift = false;
     }
 
@@ -552,6 +554,7 @@ impl App {
             self.size_applied = false;
         }
         self.calc.greek = std::env::var("SCICALC_GREEK").is_ok();
+        self.calc.consts = std::env::var("SCICALC_CONST").is_ok();
         if let Ok(sub) = std::env::var("SCICALC_SUB") {
             let s = sub.parse().unwrap_or(0);
             self.eq.sub = s;
@@ -572,7 +575,7 @@ impl App {
         if std::env::var("SCICALC_DEMO").is_ok() {
             let eng = std::env::var("SCICALC_ENG").is_ok();
             let demo: &[&str] = if eng {
-                &["[[1,2],[3,4]]→MatA", "25 °C to °F", "integ(x²,0,3)", "solve(x³−2x−5,2)", "230÷(40+30i)", "(10∠30)×(5∠−45)"]
+                &["10k ∥ 4.7k", "1/(2π·1kHz·100nF)", "kB·300/qe", "limit(sin(x)/x, x, 0)", "eig([[4,1],[2,3]])", "230÷(40+30i)", "(10∠30)×(5∠−45)"]
             } else {
                 &["sin(30)+√(2)÷2", "√(2)÷2", "(1+2i)(3−i)", "integ(x²,0,3)", "[[1,2],[3,4]]→MatA", "2^64"]
             };

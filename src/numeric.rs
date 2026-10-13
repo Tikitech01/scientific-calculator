@@ -13,6 +13,62 @@ pub fn derivative(f: F, x: f64) -> f64 {
     (16.0 * d2 - d1) / 15.0
 }
 
+/// Two-sided limit of f as x → a (a may be ±∞). Samples ever closer to a from both sides,
+/// extrapolates the remaining error away (Richardson) and returns the value the samples settle
+/// on; None when a side blows up or the two sides disagree.
+pub fn limit(f: F, a: f64) -> Option<f64> {
+    let mut probe = |x: f64| -> Option<f64> {
+        let v = f(x);
+        v.is_finite().then_some(v)
+    };
+    // Round to 10 significant digits: the extrapolation leaves noise below that.
+    let tidy = |v: f64| {
+        if v == 0.0 || v.abs() < 1e-300 {
+            return 0.0;
+        }
+        let mag = 10f64.powi(9 - v.abs().log10().floor() as i32);
+        (v * mag).round() / mag
+    };
+    if a.is_infinite() {
+        // Error typically shrinks like 1/x, so each step (x × 10) leaves a tenth of it.
+        let sign = a.signum();
+        let mut last: Option<f64> = None;
+        for k in 2..=12 {
+            let v = probe(sign * 10f64.powi(k))?;
+            if let Some(prev) = last {
+                let extrap = (10.0 * v - prev) / 9.0;
+                if (v - prev).abs() <= 1e-6 * (1.0 + v.abs()) {
+                    return Some(tidy(extrap));
+                }
+            }
+            last = Some(v);
+        }
+        return None;
+    }
+    // The average of f(a−h) and f(a+h) is off by O(h²): one step (h ÷ 10) leaves a hundredth.
+    let scale = 1.0 + a.abs();
+    let mut last: Option<f64> = None;
+    let mut sides = f64::INFINITY;
+    let mut best = 0.0;
+    for k in 2..=8 {
+        let h = scale * 10f64.powi(-k);
+        let (l, r) = (probe(a - h)?, probe(a + h)?);
+        sides = (l - r).abs() / (1.0 + l.abs().max(r.abs()));
+        let mid = 0.5 * (l + r);
+        if let Some(prev) = last {
+            best = (100.0 * mid - prev) / 99.0;
+            if (mid - prev).abs() <= 1e-6 * (1.0 + mid.abs()) && sides <= 1e-5 {
+                break;
+            }
+        } else {
+            best = mid;
+        }
+        last = Some(mid);
+    }
+    // The two sides must have met: for 1/x or |x|/x they never do.
+    (sides <= 1e-5).then(|| tidy(best))
+}
+
 pub fn integrate(f: F, a: f64, b: f64) -> f64 {
     if a == b {
         return 0.0;

@@ -85,6 +85,40 @@ pub enum Fmt {
     Norm,
     Fix(u8),
     Sci(u8),
+    /// Engineering: the exponent is a multiple of 3, shown as an SI prefix (3.197k, 2.2m, 4.7µ)
+    /// or as ×10ⁿ outside the femto–tera range.
+    Eng,
+}
+
+fn eng(x: f64) -> String {
+    if x == 0.0 {
+        return "0".into();
+    }
+    let e3 = (x.abs().log10().floor() as i32).div_euclid(3) * 3;
+    let mut mant = x / 10f64.powi(e3);
+    // Rounding can carry 999.99… up to 1000.
+    let mut e3 = e3;
+    if mant.abs() >= 999.9995 {
+        mant /= 1000.0;
+        e3 += 3;
+    }
+    let mut m = format!("{:.*}", 6 - (mant.abs().log10().floor() as i32 + 1).max(1) as usize, mant);
+    trim_zeros(&mut m);
+    let m = m.replace('-', "−");
+    let prefix = match e3 {
+        0 => "",
+        3 => "k",
+        6 => "M",
+        9 => "G",
+        12 => "T",
+        -3 => "m",
+        -6 => "µ",
+        -9 => "n",
+        -12 => "p",
+        -15 => "f",
+        _ => return format!("{}×10{}", m, superscript(&e3.to_string())),
+    };
+    format!("{}{}", m, prefix)
 }
 
 fn superscript(s: &str) -> String {
@@ -304,6 +338,7 @@ fn real_raw(x: f64, f: Fmt) -> String {
             }
         }
         Fmt::Sci(n) => sci(x, n as usize, false, true),
+        Fmt::Eng => eng(x),
     }
 }
 
@@ -526,6 +561,18 @@ mod tests {
     use super::*;
 
     #[test]
+    fn engineering() {
+        assert_eq!(eng(3197.278911), "3.19728k");
+        assert_eq!(eng(0.0022), "2.2m");
+        assert_eq!(eng(4.7e-6), "4.7µ");
+        assert_eq!(eng(1e-8), "10n");
+        assert_eq!(eng(999.9999), "1k");
+        assert_eq!(eng(42.0), "42");
+        assert_eq!(eng(-2.5e-3), "−2.5m");
+        assert_eq!(eng(1e18), "1×10¹⁸");
+    }
+
+    #[test]
     fn notation() {
         assert_eq!(localize_with("1234567.891", 1, false), "1,234,567.891");
         assert_eq!(localize_with("1234567.891", 2, false), "12,34,567.891");
@@ -604,5 +651,15 @@ mod tests {
         assert_eq!(to_base(-1, 16), "FFFFFFFFFFFFFFFF");
         assert_eq!(from_base("ff", 16), Some(255));
         assert_eq!(from_base("1010", 2), Some(10));
+    }
+}
+
+#[cfg(test)]
+mod pretty_scratch {
+    #[test]
+    fn scratch() {
+        for s in ["kB*300", "NA*qe", "mu0", "eps0", "me", "mp", "mn", "amu", "atm", "inf", "hbar", "Rgas", "kSB", "Z0", "eV", "10k ∥ 4.7k", "limit(sin(x)/x,x,0)", "taylor(e^x,x,0,4)", "5mA*2kΩ", "220µF", "eig(MatA)", "4.7kΩ || 10kΩ"] {
+            println!("{:24} -> {}", s, super::prettify(s, true));
+        }
     }
 }

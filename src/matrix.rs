@@ -268,6 +268,74 @@ impl Matrix {
         Ok(acc)
     }
 
+    /// Coefficients of the characteristic polynomial det(λI − A), highest power first
+    /// (Faddeev–LeVerrier). Fine for the small matrices the calculator works with.
+    pub fn char_poly(&self) -> Result<Vec<f64>, String> {
+        if !self.is_square() {
+            return Err("Eigenvalues need a square matrix".into());
+        }
+        let n = self.r;
+        let mut coef = vec![1.0];
+        let mut m = Matrix::zeros(n, n);
+        for k in 1..=n {
+            // M_k = A·M_{k−1} + c_{n−k+1}·I,  c_{n−k} = −tr(A·M_k)/k
+            let am = self.mul(&m).unwrap();
+            m = am.add(&Matrix::identity(n).scale(*coef.last().unwrap())).unwrap();
+            let c = -self.mul(&m).unwrap().trace().unwrap() / k as f64;
+            coef.push(c);
+        }
+        Ok(coef)
+    }
+
+    /// Eigenvalues as complex numbers, sorted by real part then imaginary part.
+    pub fn eigenvalues(&self) -> Result<Vec<num_complex::Complex64>, String> {
+        let coef = self.char_poly()?;
+        let mut v = crate::numeric::poly_roots(&coef)?;
+        // Tidy tiny imaginary parts left by the root finder.
+        let scale = coef.iter().fold(1.0f64, |m, c| m.max(c.abs()));
+        for z in v.iter_mut() {
+            if z.im.abs() < 1e-9 * scale.max(1.0) {
+                z.im = 0.0;
+            }
+        }
+        v.sort_by(|a, b| (a.re, a.im).partial_cmp(&(b.re, b.im)).unwrap_or(std::cmp::Ordering::Equal));
+        Ok(v)
+    }
+
+    /// Eigenvector for a real eigenvalue by inverse iteration; unit length, first non-zero
+    /// component positive.
+    pub fn eigenvector(&self, lambda: f64) -> Result<Vec<f64>, String> {
+        let n = self.r;
+        // (A − λI) shifted slightly off the eigenvalue so it stays invertible.
+        let shift = lambda + 1e-7 * (1.0 + lambda.abs());
+        let shifted = self.sub(&Matrix::identity(n).scale(shift))?;
+        let inv = match shifted.inverse() {
+            Ok(m) => m,
+            Err(_) => self.sub(&Matrix::identity(n).scale(shift * (1.0 + 1e-6) + 1e-6))?.inverse()?,
+        };
+        let mut v = Matrix::from_rows((0..n).map(|i| vec![1.0 / (i as f64 + 1.5)]).collect())?;
+        for _ in 0..40 {
+            v = inv.mul(&v)?;
+            let norm = v.norm();
+            if norm == 0.0 || !norm.is_finite() {
+                return Err("Could not find an eigenvector".into());
+            }
+            v = v.scale(1.0 / norm);
+        }
+        let mut out: Vec<f64> = v.d.clone();
+        if let Some(first) = out.iter().find(|x| x.abs() > 1e-9) {
+            if *first < 0.0 {
+                out.iter_mut().for_each(|x| *x = -*x);
+            }
+        }
+        out.iter_mut().for_each(|x| {
+            if x.abs() < 1e-10 {
+                *x = 0.0;
+            }
+        });
+        Ok(out)
+    }
+
     pub fn norm(&self) -> f64 {
         self.d.iter().map(|v| v * v).sum::<f64>().sqrt()
     }
