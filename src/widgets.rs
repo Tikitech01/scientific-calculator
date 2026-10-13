@@ -412,3 +412,127 @@ pub fn copy_table(ui: &mut Ui, pal: &Pal, head: &[&str], rows: impl Fn() -> Vec<
     }
     clicked
 }
+
+// ---------------------------------------------------------------- settings and guide building blocks
+
+/// A rounded group with a small caption above it, used by the Settings and guide pages.
+pub fn group<R>(ui: &mut Ui, pal: &Pal, caption_text: &str, add: impl FnOnce(&mut Ui) -> R) -> R {
+    ui.add_space(14.0);
+    ui.horizontal(|ui| {
+        ui.add_space(4.0);
+        ui.label(RichText::new(caption_text.to_uppercase()).font(theme::medium(11.0)).color(pal.dim));
+    });
+    ui.add_space(6.0);
+    Frame::new()
+        .fill(pal.surface)
+        .stroke(Stroke::new(1.0_f32, pal.line))
+        .corner_radius(CornerRadius::same(12))
+        .inner_margin(Margin::symmetric(16, 4))
+        .show(ui, |ui| {
+            ui.spacing_mut().item_spacing.y = 0.0;
+            ui.set_width(ui.available_width());
+            add(ui)
+        })
+        .inner
+}
+
+/// Thin line between rows inside a group.
+pub fn hairline(ui: &mut Ui, pal: &Pal) {
+    let (r, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 1.0), Sense::hover());
+    ui.painter().rect_filled(r, 0.0, pal.line);
+}
+
+/// One setting: a label with an optional description, and its control. The control sits on
+/// the right when it fits beside the label (`control_width` is its estimated width),
+/// otherwise under it. Returns whatever the control closure returns.
+pub fn setting_row<R>(
+    ui: &mut Ui,
+    pal: &Pal,
+    label: &str,
+    description: &str,
+    control_width: f32,
+    control: impl FnOnce(&mut Ui) -> R,
+) -> R {
+    let side_by_side = ui.available_width() >= 150.0 + control_width + 12.0;
+    let pad = 12.0;
+    let result = if side_by_side {
+        ui.add_space(pad);
+        let r = ui
+            .horizontal(|ui| {
+                ui.vertical(|ui| {
+                    ui.set_width(ui.available_width() - control_width - 12.0);
+                    ui.label(RichText::new(label).font(theme::medium(13.5)).color(pal.text));
+                    if !description.is_empty() {
+                        ui.add_space(2.0);
+                        ui.add(egui::Label::new(RichText::new(description).font(theme::regular(12.0)).color(pal.dim)).wrap());
+                    }
+                });
+                ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| control(ui)).inner
+            })
+            .inner;
+        ui.add_space(pad);
+        r
+    } else {
+        ui.add_space(pad);
+        ui.label(RichText::new(label).font(theme::medium(13.5)).color(pal.text));
+        ui.add_space(8.0);
+        let r = control(ui);
+        if !description.is_empty() {
+            ui.add_space(6.0);
+            ui.add(egui::Label::new(RichText::new(description).font(theme::regular(12.0)).color(pal.dim)).wrap());
+        }
+        ui.add_space(pad);
+        r
+    };
+    result
+}
+
+/// Estimated width of a segmented control with these labels, for `setting_row`.
+pub fn segmented_width(ui: &Ui, labels: &[&str]) -> f32 {
+    labels.iter().map(|l| text_width(ui, l, theme::medium(12.5)) + 20.0).sum::<f32>() + 4.0
+}
+
+/// An on/off switch with a sliding knob. Returns true when toggled.
+pub fn toggle(ui: &mut Ui, pal: &Pal, on: &mut bool) -> bool {
+    let size = egui::vec2(42.0, 24.0);
+    let (rect, resp) = ui.allocate_exact_size(size, Sense::click());
+    let mut changed = false;
+    if resp.clicked() {
+        *on = !*on;
+        changed = true;
+    }
+    let t = anim::toggle(ui.ctx(), resp.id.with("on"), *on, 0.18);
+    let hover = anim::hover(ui.ctx(), resp.id, resp.hovered());
+    let off_fill = mix(pal.key_hover, pal.key_down, hover);
+    let fill = mix(off_fill, pal.accent, t);
+    let p = ui.painter();
+    p.rect_filled(rect, CornerRadius::same(12), fill);
+    let r = rect.height() / 2.0 - 3.0;
+    let x = rect.left() + 3.0 + r + t * (rect.width() - 6.0 - 2.0 * r);
+    p.circle_filled(egui::pos2(x, rect.center().y), r, Color32::WHITE);
+    resp.on_hover_cursor(CursorIcon::PointingHand);
+    changed
+}
+
+/// Page header used by Settings and the guide: a light title, a quiet subtitle and a close button.
+pub fn page_header(ui: &mut Ui, pal: &Pal, title: &str, subtitle: &str, closable: bool) -> bool {
+    let mut close = false;
+    ui.horizontal(|ui| {
+        ui.vertical(|ui| {
+            ui.spacing_mut().item_spacing.y = 2.0;
+            ui.label(RichText::new(title).font(theme::light(24.0)).color(pal.text));
+            if !subtitle.is_empty() {
+                ui.label(RichText::new(subtitle).font(theme::regular(12.5)).color(pal.dim));
+            }
+        });
+        if closable {
+            ui.with_layout(egui::Layout::right_to_left(Align::Min), |ui| {
+                ui.add_space(2.0);
+                if glyph(ui, pal, "×", 28.0).on_hover_text("Close").clicked() {
+                    close = true;
+                }
+            });
+        }
+    });
+    close
+}

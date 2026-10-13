@@ -418,72 +418,104 @@ impl App {
 
     fn settings_ui(&mut self, ui: &mut egui::Ui, pal: &Pal) {
         if !self.compact {
-            // Wide enough for the longest row (the calculator types) in the popup.
-            ui.set_min_width(400.0);
+            ui.set_min_width(440.0);
+            ui.set_max_width(440.0);
         } else {
-            // Long option rows wrap onto a second line in the small window.
             ui.set_max_width(ui.available_width().max(200.0));
         }
-        ui.spacing_mut().item_spacing.y = 4.0;
-        let head = |ui: &mut egui::Ui, t: &str| {
-            ui.add_space(6.0);
-            ui.label(egui::RichText::new(t).font(theme::medium(12.0)).color(pal.dim));
-        };
-        head(ui, "Calculator type");
-        let names: Vec<&str> = TYPES.iter().map(|t| t.name()).collect();
-        let mut t = self.settings.calc_type;
-        if widgets::segmented(ui, pal, &mut t, &names) {
-            self.set_type(t);
-        }
-        ui.label(egui::RichText::new(self.calc_type().describe()).size(11.5).color(pal.faint));
-        head(ui, "Appearance");
-        widgets::segmented(ui, pal, &mut self.settings.appearance, &["System", "Light", "Dark"]);
-        head(ui, "Text size");
-        widgets::segmented(ui, pal, &mut self.settings.text_size, &["Small", "Normal", "Large"]);
-        head(ui, "Open as");
-        widgets::segmented(ui, pal, &mut self.settings.start_full, &["Simple calculator", "Full calculator"]);
-        head(ui, "Animation");
-        ui.horizontal(|ui| {
-            widgets::segmented(ui, pal, &mut self.settings.animate, &["Off", "On"]);
-            if self.settings.animate == 1 {
-                ui.add_space(6.0);
-                widgets::segmented(ui, pal, &mut self.settings.anim_speed, &["Slow", "Normal", "Fast"]);
+        let seg = |ui: &egui::Ui, l: &[&str]| widgets::segmented_width(ui, l);
+
+        widgets::group(ui, pal, "General", |ui| {
+            let names: Vec<&str> = TYPES.iter().map(|t| t.name()).collect();
+            let mut t = self.settings.calc_type;
+            let desc = self.calc_type().describe();
+            widgets::setting_row(ui, pal, "Calculator type", &desc, seg(ui, &names), |ui| {
+                if widgets::segmented(ui, pal, &mut t, &names) {
+                    self.set_type(t);
+                }
+            });
+            widgets::hairline(ui, pal);
+            let l = ["Simple", "Full"];
+            widgets::setting_row(ui, pal, "Open as", "What the app shows when it starts.", seg(ui, &l), |ui| {
+                widgets::segmented(ui, pal, &mut self.settings.start_full, &l);
+            });
+            widgets::hairline(ui, pal);
+            let l = ["Small", "Normal", "Large"];
+            widgets::setting_row(ui, pal, "Text size", "", seg(ui, &l), |ui| {
+                widgets::segmented(ui, pal, &mut self.settings.text_size, &l);
+            });
+        });
+
+        widgets::group(ui, pal, "Appearance", |ui| {
+            let l = ["System", "Light", "Dark"];
+            widgets::setting_row(ui, pal, "Theme", "", seg(ui, &l), |ui| {
+                widgets::segmented(ui, pal, &mut self.settings.appearance, &l);
+            });
+            widgets::hairline(ui, pal);
+            let mut on = self.settings.animate == 1;
+            widgets::setting_row(ui, pal, "Animation", "Fades, key presses and sliding tabs. Graphs never animate.", 42.0, |ui| {
+                if widgets::toggle(ui, pal, &mut on) {
+                    self.settings.animate = on as usize;
+                }
+            });
+            if on {
+                widgets::hairline(ui, pal);
+                let l = ["Slow", "Normal", "Fast"];
+                widgets::setting_row(ui, pal, "Animation speed", "", seg(ui, &l), |ui| {
+                    widgets::segmented(ui, pal, &mut self.settings.anim_speed, &l);
+                });
             }
         });
-        ui.label(egui::RichText::new("Fades, key presses and sliding tabs. Graphs are never animated.").size(11.5).color(pal.faint));
-        head(ui, "Digit grouping");
-        widgets::segmented(ui, pal, &mut self.settings.grouping, &["None", "1,234,567", "12,34,567", "1 234 567"]);
-        head(ui, "Decimal mark");
-        widgets::segmented(ui, pal, &mut self.settings.decimal, &["Point  1.5", "Comma  1,5"]);
-        ui.label(egui::RichText::new("Changes how results look. Type a point for decimals.").size(11.5).color(pal.faint));
-        head(ui, "Complex numbers");
-        widgets::segmented(ui, pal, &mut self.settings.polar, &["a + bi", "r∠θ  (polar)"]);
-        ui.label(egui::RichText::new("Type polar numbers as 5∠30 in either setting.").size(11.5).color(pal.faint));
-        head(ui, "Window");
-        let mut top = self.settings.on_top as usize;
-        if widgets::segmented(ui, pal, &mut top, &["Normal", "Keep on top"]) {
-            self.settings.on_top = top == 1;
-        }
-        head(ui, "History");
-        ui.horizontal(|ui| {
+
+        widgets::group(ui, pal, "Numbers", |ui| {
+            let l = ["None", "1,234,567", "12,34,567", "1 234 567"];
+            widgets::setting_row(ui, pal, "Digit grouping", "", seg(ui, &l), |ui| {
+                widgets::segmented(ui, pal, &mut self.settings.grouping, &l);
+            });
+            widgets::hairline(ui, pal);
+            let l = ["Point  1.5", "Comma  1,5"];
+            widgets::setting_row(ui, pal, "Decimal mark", "Changes how results look. Always type a point.", seg(ui, &l), |ui| {
+                widgets::segmented(ui, pal, &mut self.settings.decimal, &l);
+            });
+            widgets::hairline(ui, pal);
+            let l = ["a + bi", "r∠θ"];
+            widgets::setting_row(ui, pal, "Complex numbers", "Type polar numbers as 5∠30 in either form.", seg(ui, &l), |ui| {
+                widgets::segmented(ui, pal, &mut self.settings.polar, &l);
+            });
+        });
+
+        widgets::group(ui, pal, "Window & data", |ui| {
+            widgets::setting_row(ui, pal, "Keep on top", "Stay above other windows.", 42.0, |ui| {
+                widgets::toggle(ui, pal, &mut self.settings.on_top);
+            });
+            widgets::hairline(ui, pal);
             let n = self.calc.history.len();
-            ui.label(egui::RichText::new(format!("{} saved line{}", n, if n == 1 { "" } else { "s" })).size(12.5).color(pal.dim));
-            if n > 0 && widgets::link(ui, pal, "Clear history") {
-                self.calc.clear_history();
-            }
+            let desc = format!("{} saved line{}, kept between launches.", n, if n == 1 { "" } else { "s" });
+            widgets::setting_row(ui, pal, "History", &desc, 110.0, |ui| {
+                ui.add_enabled_ui(n > 0, |ui| {
+                    if widgets::link(ui, pal, "Clear history") {
+                        self.calc.clear_history();
+                    }
+                });
+            });
         });
-        ui.add_space(4.0);
+
+        ui.add_space(16.0);
         ui.horizontal(|ui| {
+            ui.add_space(4.0);
             ui.label(
                 egui::RichText::new(format!("{} {}  ·  build {}", help::APP_NAME, help::VERSION, help::BUILD_DATE))
-                    .size(11.5)
+                    .font(theme::regular(12.0))
                     .color(pal.faint),
             );
-            if widgets::link(ui, pal, "About") {
-                self.show_about = true;
-                ui.memory_mut(|m| m.close_popup());
-            }
+            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                if widgets::link(ui, pal, "About") {
+                    self.show_about = true;
+                    ui.memory_mut(|m| m.close_popup());
+                }
+            });
         });
+        ui.add_space(6.0);
     }
 
     /// Development aid: SCICALC_MODE=1..7 opens a mode, SCICALC_DEMO=1 fills in sample content.
@@ -758,7 +790,17 @@ impl App {
                                 let t = anim::appear(ui.ctx(), pop_id.with("fade"), "open", 0.16);
                                 ui.set_opacity(t);
                                 ui.add_space((1.0 - t) * 6.0);
-                                self.settings_ui(ui, &pal);
+                                ui.set_max_height(ctx.screen_rect().height() - 90.0);
+                                egui::ScrollArea::vertical().id_salt("settings_scroll").show(ui, |ui| {
+                                    Frame::new().inner_margin(Margin { left: 10, right: 10, top: 8, bottom: 8 }).show(ui, |ui| {
+                                        ui.horizontal(|ui| {
+                                            ui.add_space(4.0);
+                                            ui.label(egui::RichText::new("Settings").font(theme::light(22.0)).color(pal.text));
+                                        });
+                                        ui.add_space(2.0);
+                                        self.settings_ui(ui, &pal);
+                                    });
+                                });
                             });
                         }
                         let pin_tip = if self.settings.on_top { "Staying above other windows. Click to stop." } else { "Keep the calculator above other windows" };
@@ -806,15 +848,10 @@ impl App {
                     let t = anim::appear(ctx, egui::Id::new("settings_page"), "open", 0.18);
                     ui.set_opacity(t);
                     ui.add_space((1.0 - t) * 8.0);
-                    ui.horizontal(|ui| {
-                        ui.label(egui::RichText::new("Settings").font(theme::light(24.0)).color(pal.text));
-                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                            if widgets::glyph(ui, &pal, "×", 26.0).on_hover_text("Back to the calculator").clicked() {
-                                self.show_settings = false;
-                            }
-                        });
-                    });
                     ui.add_space(4.0);
+                    if widgets::page_header(ui, &pal, "Settings", "", true) {
+                        self.show_settings = false;
+                    }
                     egui::ScrollArea::vertical().id_salt("settings_page").auto_shrink([false, false]).show(ui, |ui| {
                         self.settings_ui(ui, &pal);
                         ui.add_space(12.0);

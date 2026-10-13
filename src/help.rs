@@ -169,59 +169,49 @@ pub const DEVELOPER: &str = "Sopè Technology";
 pub const DEVELOPER_SITE: &str = "https://sopetechnology.com";
 pub const SOURCE_URL: &str = "https://github.com/Tikitech01/scientific-calculator";
 
-fn heading(ui: &mut egui::Ui, pal: &Pal, title: &str) {
-    ui.add_space(18.0);
-    ui.label(RichText::new(title).font(theme::medium(15.5)).color(pal.text));
-    ui.add_space(4.0);
-    let (r, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 1.0), egui::Sense::hover());
-    ui.painter().rect_filled(r, 0.0, pal.line);
-    ui.add_space(4.0);
+/// One term and its explanation, as a row inside a group.
+fn entry(ui: &mut egui::Ui, pal: &Pal, what: &str, how: &str, first: bool) {
+    if !first {
+        crate::widgets::hairline(ui, pal);
+    }
+    ui.add_space(10.0);
+    ui.label(RichText::new(what).font(theme::medium(13.0)).color(pal.text));
+    ui.add_space(3.0);
+    ui.add(egui::Label::new(RichText::new(how).font(theme::regular(13.0)).color(pal.dim)).wrap().selectable(true));
+    ui.add_space(10.0);
 }
 
-fn entry(ui: &mut egui::Ui, pal: &Pal, what: &str, how: &str) {
-    ui.add_space(7.0);
-    ui.label(RichText::new(what).font(theme::medium(13.0)).color(pal.accent));
-    ui.add_space(1.0);
-    ui.add(egui::Label::new(RichText::new(how).font(theme::regular(14.0)).color(pal.text)).wrap().selectable(true));
+fn section(ui: &mut egui::Ui, pal: &Pal, title: &str, rows: &[(&str, &str)]) {
+    crate::widgets::group(ui, pal, title, |ui| {
+        for (i, (what, how)) in rows.iter().enumerate() {
+            entry(ui, pal, what, how, i == 0);
+        }
+    });
 }
 
 /// Contents of the input guide. Returns true when the close button was pressed.
 pub fn content(ui: &mut egui::Ui, pal: &Pal, current: &str) -> bool {
-    let mut close = false;
-    ui.horizontal(|ui| {
-        ui.label(RichText::new("Input guide").font(theme::light(24.0)).color(pal.text));
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if crate::widgets::glyph(ui, pal, "×", 26.0).on_hover_text("Close the guide").clicked() {
-                close = true;
-            }
-        });
-    });
-    ui.add_space(2.0);
-    ui.label(RichText::new("How to type maths, and what each mode accepts.").font(theme::regular(13.0)).color(pal.dim));
+    ui.add_space(4.0);
+    let close = crate::widgets::page_header(ui, pal, "Input guide", "How to type maths, and what each mode accepts.", true);
     ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
         ui.set_max_width(ui.available_width());
+        ui.add_space(2.0);
         // The mode in use first, then the general rules, then the other modes.
         for (title, rows) in SECTIONS.iter().filter(|s| s.0 == current) {
-            heading(ui, pal, &format!("{}  ·  this mode", title));
-            for (what, how) in *rows {
-                entry(ui, pal, what, how);
-            }
+            section(ui, pal, &format!("{}  ·  this mode", title), rows);
         }
-        heading(ui, pal, "Typing maths");
-        for (what, how) in GENERAL {
-            entry(ui, pal, what, how);
-        }
+        section(ui, pal, "Typing maths", GENERAL);
         for (title, rows) in SECTIONS.iter().filter(|s| s.0 != current) {
-            heading(ui, pal, title);
-            for (what, how) in *rows {
-                entry(ui, pal, what, how);
-            }
+            section(ui, pal, title, rows);
         }
         ui.add_space(22.0);
-        ui.label(RichText::new("Hover any field or key for a short tip.").font(theme::regular(12.5)).color(pal.dim));
-        ui.label(RichText::new(format!("{} {}  ·  build {}", APP_NAME, VERSION, BUILD_DATE)).font(theme::medium(12.5)).color(pal.faint));
-        ui.label(RichText::new(format!("Created by {}  ·  {}", DEVELOPER, DEVELOPER_SITE.trim_start_matches("https://"))).font(theme::regular(12.5)).color(pal.faint));
-        ui.add_space(16.0);
+        ui.vertical_centered(|ui| {
+            ui.spacing_mut().item_spacing.y = 3.0;
+            ui.label(RichText::new("Hover any field or key for a short tip.").font(theme::regular(12.0)).color(pal.dim));
+            ui.label(RichText::new(format!("{} {}  ·  build {}", APP_NAME, VERSION, BUILD_DATE)).font(theme::regular(11.5)).color(pal.faint));
+            ui.label(RichText::new(format!("{}  ·  {}", DEVELOPER, DEVELOPER_SITE.trim_start_matches("https://"))).font(theme::regular(11.5)).color(pal.faint));
+        });
+        ui.add_space(20.0);
     });
     close
 }
@@ -231,10 +221,10 @@ pub fn side_panel(ctx: &egui::Context, open: &mut bool, pal: &Pal, current: &str
     let mut close = false;
     // The panel slides in from the right (and out again when closed).
     egui::SidePanel::right("input_guide")
-        .exact_width(360.0)
+        .exact_width(390.0)
         .resizable(false)
-        .show_separator_line(false)
-        .frame(egui::Frame::new().fill(pal.surface).inner_margin(egui::Margin { left: 24, right: 20, top: 18, bottom: 0 }))
+        .show_separator_line(true)
+        .frame(egui::Frame::new().fill(pal.bg).inner_margin(egui::Margin { left: 22, right: 22, top: 14, bottom: 0 }))
         .show_animated(ctx, *open, |ui| {
             close = content(ui, pal, current);
         });
