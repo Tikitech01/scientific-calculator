@@ -233,6 +233,14 @@ pub fn prettify(s: &str, finalize: bool) -> String {
     } else {
         s
     };
+    // The parallel operator typed as ||.
+    let parallel;
+    let s = if s.contains("||") {
+        parallel = s.replace("||", "∥");
+        parallel.as_str()
+    } else {
+        s
+    };
     if !s.contains('^') {
         return s.to_string();
     }

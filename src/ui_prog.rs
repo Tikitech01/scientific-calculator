@@ -251,6 +251,9 @@ pub fn ui(ui: &mut Ui, st: &mut ProgState, env: &mut Env, pal: &Pal) -> Option<S
         if st.focus.is_none() {
             st.error = None;
         }
+        // The row being typed in is left alone above. If a bit click or an operation below
+        // changes the value, give up that focus so every row shows the new value next frame.
+        let typed_value = st.value;
 
         ui.add_space(16.0);
         // Bits on the left and operations on the right, so everything fits without scrolling.
@@ -374,6 +377,12 @@ pub fn ui(ui: &mut Ui, st: &mut ProgState, env: &mut Env, pal: &Pal) -> Option<S
         ui.add_space(8.0);
         widgets::dim(ui, pal, help::PROG_NOTE);
         let _ = RichText::new("");
+        if st.value != typed_value {
+            st.focus = None;
+            for i in 0..ROWS.len() {
+                ui.memory_mut(|m| m.surrender_focus(egui::Id::new(("prog_row", i))));
+            }
+        }
     });
     send
 }

@@ -20,6 +20,10 @@ All notable changes to Scientific Calculator. Downloads for the latest version a
 **Polynomials** as coefficient lists
 - `polymul polydiv polyrem polyeval polyroots polyder polyint`
 
+**Fixes**
+- Programmer: the row being typed in now updates after a bit click or an operation
+- Typing `||` shows as ∥; the About window names the MIT licence
+
 ## 2.5.0 — 14 October 2026
 
 **Engineering**
