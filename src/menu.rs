@@ -29,6 +29,8 @@ pub enum Cmd {
     Guide,
     Website,
     DeveloperSite,
+    Updates,
+    Feedback,
 }
 
 /// What the check marks in the menus should show.
@@ -190,7 +192,9 @@ impl AppMenu {
         let guide = item(&mut commands, "Input Guide", "CmdOrCtrl+Shift+Slash", Cmd::Guide);
         let website = item(&mut commands, "Scientific Calculator on GitHub", "", Cmd::Website);
         let developer = item(&mut commands, "Sopè Technology Website", "", Cmd::DeveloperSite);
-        let help_menu = Submenu::with_items("Help", true, &[&guide, &sep(), &website, &developer]).ok()?;
+        let updates = item(&mut commands, "Check for Updates…", "", Cmd::Updates);
+        let feedback = item(&mut commands, "Send Feedback or Report a Problem…", "", Cmd::Feedback);
+        let help_menu = Submenu::with_items("Help", true, &[&guide, &sep(), &updates, &feedback, &sep(), &website, &developer]).ok()?;
 
         let menu = Menu::with_items(&[&app_menu, &edit_menu, &view_menu, &window_menu, &help_menu]).ok()?;
         #[cfg(target_os = "macos")]

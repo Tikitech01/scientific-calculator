@@ -168,6 +168,10 @@ pub const BUILD_DATE: &str = env!("SCICALC_BUILD_DATE");
 pub const DEVELOPER: &str = "Sopè Technology";
 pub const DEVELOPER_SITE: &str = "https://sopetechnology.com";
 pub const SOURCE_URL: &str = "https://github.com/Tikitech01/scientific-calculator";
+/// Where the newest downloads are listed.
+pub const DOWNLOADS_URL: &str = "https://github.com/Tikitech01/scientific-calculator#download";
+/// Bug reports and feature requests.
+pub const FEEDBACK_URL: &str = "https://github.com/Tikitech01/scientific-calculator/issues/new";
 
 /// One term and its explanation, as a row inside a group.
 fn entry(ui: &mut egui::Ui, pal: &Pal, what: &str, how: &str, first: bool) {

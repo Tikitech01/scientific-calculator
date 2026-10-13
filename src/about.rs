@@ -1,6 +1,6 @@
 //! The About window: what the app is, who made it, version and copyright.
 
-use crate::help::{APP_NAME, BUILD_DATE, DEVELOPER, DEVELOPER_SITE, SOURCE_URL, VERSION};
+use crate::help::{APP_NAME, BUILD_DATE, DEVELOPER, DEVELOPER_SITE, DOWNLOADS_URL, FEEDBACK_URL, SOURCE_URL, VERSION};
 use crate::theme::{self, Pal};
 use eframe::egui::{self, Align, Color32, CornerRadius, Frame, Layout, Margin, RichText, Stroke, TextureHandle};
 
@@ -86,7 +86,9 @@ pub fn window(ctx: &egui::Context, pal: &Pal, open: &mut bool, cache: &mut Optio
                 ui.label(RichText::new(DEVELOPER).font(theme::medium(13.5)).color(pal.text));
             });
             row(ui, pal, "Website", |ui| link(ui, pal, DEVELOPER_SITE.trim_start_matches("https://"), DEVELOPER_SITE));
-            row(ui, pal, "Source code", |ui| link(ui, pal, "GitHub", SOURCE_URL));
+            row(ui, pal, "Source code", |ui| link(ui, pal, "GitHub  ·  ★ Star if you like it", SOURCE_URL));
+            row(ui, pal, "Updates", |ui| link(ui, pal, "Get the latest version", DOWNLOADS_URL));
+            row(ui, pal, "Feedback", |ui| link(ui, pal, "Report a problem or suggest a feature", FEEDBACK_URL));
             row(ui, pal, "Version", |ui| {
                 ui.label(RichText::new(format!("{} ({}, {})", VERSION, std::env::consts::OS, std::env::consts::ARCH)).font(theme::regular(13.5)));
             });

@@ -397,6 +397,8 @@ impl App {
                 Cmd::Guide => self.show_help = !self.show_help,
                 Cmd::Website => ctx.open_url(egui::OpenUrl::new_tab(help::SOURCE_URL)),
                 Cmd::DeveloperSite => ctx.open_url(egui::OpenUrl::new_tab(help::DEVELOPER_SITE)),
+                Cmd::Updates => ctx.open_url(egui::OpenUrl::new_tab(help::DOWNLOADS_URL)),
+                Cmd::Feedback => ctx.open_url(egui::OpenUrl::new_tab(help::FEEDBACK_URL)),
                 Cmd::About => self.show_about = true,
             }
         }
@@ -500,7 +502,21 @@ impl App {
             });
         });
 
-        ui.add_space(16.0);
+        ui.add_space(14.0);
+        ui.horizontal(|ui| {
+            ui.add_space(4.0);
+            if widgets::link(ui, pal, "About") {
+                self.show_about = true;
+                ui.memory_mut(|m| m.close_popup());
+            }
+            if widgets::link(ui, pal, "Send feedback") {
+                ui.ctx().open_url(egui::OpenUrl::new_tab(help::FEEDBACK_URL));
+            }
+            if widgets::link(ui, pal, "Updates") {
+                ui.ctx().open_url(egui::OpenUrl::new_tab(help::DOWNLOADS_URL));
+            }
+        });
+        ui.add_space(8.0);
         ui.horizontal(|ui| {
             ui.add_space(4.0);
             ui.label(
@@ -508,12 +524,6 @@ impl App {
                     .font(theme::regular(12.0))
                     .color(pal.faint),
             );
-            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if widgets::link(ui, pal, "About") {
-                    self.show_about = true;
-                    ui.memory_mut(|m| m.close_popup());
-                }
-            });
         });
         ui.add_space(6.0);
     }
@@ -533,6 +543,9 @@ impl App {
             }
         }
         self.show_help = std::env::var("SCICALC_HELP").is_ok();
+        if std::env::var("SCICALC_POLAR").is_ok() {
+            self.settings.polar = 1;
+        }
         self.show_about = std::env::var("SCICALC_ABOUT").is_ok();
         if std::env::var("SCICALC_MODE").is_ok() || std::env::var("SCICALC_FULL").is_ok() {
             self.compact = false;
@@ -557,12 +570,18 @@ impl App {
             self.stats.tests.np_kind = k;
         }
         if std::env::var("SCICALC_DEMO").is_ok() {
-            for src in ["sin(30)+√(2)÷2", "√(2)÷2", "(1+2i)(3−i)", "integ(x²,0,3)", "[[1,2],[3,4]]→MatA", "2^64"] {
+            let eng = std::env::var("SCICALC_ENG").is_ok();
+            let demo: &[&str] = if eng {
+                &["[[1,2],[3,4]]→MatA", "25 °C to °F", "integ(x²,0,3)", "solve(x³−2x−5,2)", "230÷(40+30i)", "(10∠30)×(5∠−45)"]
+            } else {
+                &["sin(30)+√(2)÷2", "√(2)÷2", "(1+2i)(3−i)", "integ(x²,0,3)", "[[1,2],[3,4]]→MatA", "2^64"]
+            };
+            for src in demo.iter().copied() {
                 if let Ok(value) = engine::evaluate(src, &mut self.env) {
                     self.calc.history.push(ui_calc::Entry { expr: src.into(), value });
                 }
             }
-            self.calc.input = "nCr(10,3)×5!".into();
+            self.calc.input = if eng { "√(3)×400×cos(36.87)".into() } else { "nCr(10,3)×5!".into() };
             self.mat.pull(&mut self.env);
             self.graph.fns = vec![
                 ui_graph::FnEntry::new("x² − 2x − 3"),
@@ -584,6 +603,7 @@ impl App {
             self.eq.equation = "x³ − 2x = 5".into();
             self.stats.load_demo();
             self.fin.load_demo();
+            self.prog.value = 0xBEEF;
             self.stats.tests.groups = "23 25 21 27 24\n30 28 33 29 31\n18 22 20 19 21".into();
             self.stats.tests.table = "20 30 25\n15 35 40".into();
             self.stats.tests.table2 = "4 5 6 | 6 7 8\n8 9 10 | 14 15 16".into();

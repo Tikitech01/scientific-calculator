@@ -1,17 +1,33 @@
 # Scientific Calculator
 
-**A clean, minimal scientific, financial and graphing calculator for macOS, Windows and Linux.**
-It starts as a small, simple calculator and expands into a full workstation. Pick the
-**calculator type** you need — Scientific, Financial, Statistics, Programmer or All in one —
-and only those tools are shown: graphs, equation solving, matrices, statistics and hypothesis
-tests, loans, investments and cash flows, unit conversion and a programmer mode, all in one
-fast native app that works completely offline.
+**The free, offline scientific calculator for engineering students — on macOS, Windows and Linux.**
+
+Phasors and complex numbers, matrices, simultaneous equations, a numeric solver, integrals and
+derivatives, graphing with sliders, unit conversion, lab statistics and a programmer mode, in one
+fast native app. No account, no ads, no internet needed. It opens as a small everyday calculator
+and expands into a full workstation when you need it.
 
 <p align="center">
-  <img src="docs/screenshots/simple.png" alt="Simple calculator" height="360">
-  &nbsp;
-  <img src="docs/screenshots/calculate.png" alt="Full scientific calculator" height="360">
+  <a href="#download"><img alt="Download" src="https://img.shields.io/badge/download-v2.4.0-E2542B?style=for-the-badge"></a>
+  <img alt="macOS" src="https://img.shields.io/badge/macOS-Apple%20silicon-1B1B1A?style=for-the-badge&logo=apple">
+  <img alt="Windows" src="https://img.shields.io/badge/Windows-10%20%7C%2011-1B1B1A?style=for-the-badge&logo=windows">
+  <img alt="Linux" src="https://img.shields.io/badge/Linux-deb%20%7C%20tar.gz-1B1B1A?style=for-the-badge&logo=linux">
+  <img alt="Offline" src="https://img.shields.io/badge/works-offline-2F6FDE?style=for-the-badge">
 </p>
+
+<p align="center">
+  <img src="docs/demo.gif" alt="A tour: calculate with phasors, graph with sliders, solve equations, matrices, ANOVA, programmer and loan schedule" width="880">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/simple.png" alt="Simple calculator" height="300">
+  &nbsp;
+  <img src="docs/screenshots/calculate.png" alt="Full scientific calculator" height="300">
+</p>
+
+**Like it?** A ⭐ on this repository helps other students find it.
+**Found a problem or have an idea?** [Open an issue](https://github.com/Tikitech01/scientific-calculator/issues/new).
+What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 
 ## Download
 
@@ -27,22 +43,22 @@ Intel Macs and other systems can [build from source](#build-from-source) in a fe
 
 ## Who it is for
 
-- **School and college students**: algebra, trigonometry, logarithms, calculus, statistics and
-  graphs, with a calculator that shows answers as fractions, multiples of π and square roots.
-- **Engineers and scientists**: complex numbers, matrices, simultaneous equations, a numeric
-  solver, integrals and derivatives, unit conversion and physical constants.
-- **Teachers**: a clear, uncluttered display that is easy to show on a projector, in light or
-  dark mode.
+- **Engineering students** (electrical, electronics, mechanical, civil, computer science):
+  phasors as `10∠30`, complex impedances, matrices up to 6 × 6, simultaneous equations, polynomial
+  roots, a numeric solver, integrals and derivatives, graphs with sliders and tangents, unit
+  conversion with physical constants, statistics for lab reports and a HEX/BIN programmer mode.
+  A free alternative to carrying a Casio fx-991 or TI-84 next to your laptop.
+- **School and college students**: algebra, trigonometry, logarithms, calculus and graphs, with
+  answers shown as fractions, multiples of π and square roots.
+- **Statistics, research and science students**: t, z, F and χ² tests, one- and two-way ANOVA with
+  Tukey post-hoc, non-parametric tests and correlation, with p-values, critical values and
+  confidence intervals, without opening a spreadsheet.
 - **Programmers and electronics hobbyists**: hexadecimal, binary and octal side by side, a bit
-  grid, bitwise operations, shifts and rotates for 8, 16, 32 and 64-bit numbers.
-- **Statistics and research students, analysts and researchers**: t, z, F and χ² tests, one- and
-  two-way ANOVA with Tukey post-hoc, non-parametric tests and correlation, with p-values, critical
-  values and confidence intervals, without opening a spreadsheet.
-- **Finance, business and accounting**: EMI and loan schedules, time value of money, NPV and IRR,
-  compound interest and CAGR, depreciation, break-even, margins and GST, with digit grouping
-  in international (1,234,567) or Indian (12,34,567) style.
-- **Anyone** who wants a quick, good-looking desktop calculator that stays out of the way, and
-  can stay on top of other windows while you work.
+  grid, bitwise operations, shifts and rotates for 8 to 64-bit words.
+- **Finance, business and MBA students**: EMI and loan schedules, time value of money, NPV and
+  IRR, compound interest, depreciation, break-even and GST, with Indian (12,34,567) or
+  international digit grouping.
+- **Teachers**: an uncluttered display that reads well on a projector, in light or dark mode.
 
 ## Features
 
@@ -177,8 +193,9 @@ The type only decides which tabs are shown; ⌘1, ⌘2 … follow the tabs you s
 
 | | |
 | --- | --- |
-| ![Graph](docs/screenshots/graph.png) | ![Equation](docs/screenshots/equation.png) |
-| ![Statistics](docs/screenshots/statistics.png) | ![Programmer](docs/screenshots/programmer.png) |
+| ![Graph with sliders and tangent](docs/screenshots/graph-sliders.png) | ![Equation](docs/screenshots/equation.png) |
+| ![Matrix](docs/screenshots/matrix.png) | ![Programmer](docs/screenshots/programmer.png) |
+| ![Regression](docs/screenshots/statistics.png) | ![Graph](docs/screenshots/graph.png) |
 | ![t-test](docs/screenshots/t-test.png) | ![ANOVA](docs/screenshots/anova.png) |
 | ![Time value of money](docs/screenshots/finance-tvm.png) | ![Loan](docs/screenshots/finance-loan.png) |
 | ![Convert](docs/screenshots/convert.png) | ![Calculate](docs/screenshots/calculate.png) |

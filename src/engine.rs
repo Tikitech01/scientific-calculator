@@ -384,7 +384,13 @@ impl Parser {
         let mut base = self.postfix()?;
         // Polar form r∠θ, with θ in the current angle unit.
         if self.eat('∠') {
+            // The angle may carry a sign: 5∠−45.
+            let neg = self.eat('-');
+            if !neg {
+                self.eat('+');
+            }
             let ang = self.postfix()?;
+            let ang = if neg { Expr::Neg(Box::new(ang)) } else { ang };
             base = Expr::Bin('∠', Box::new(base), Box::new(ang));
         }
         if self.eat('^') {
@@ -1896,6 +1902,10 @@ mod tests {
         let mut env = Env::default();
         match evaluate("2∠60", &mut env) {
             Ok(Value::Num(z)) => assert!((z.re - 1.0).abs() < 1e-9 && (z.im - 3f64.sqrt()).abs() < 1e-9),
+            o => panic!("{:?}", o),
+        }
+        match evaluate("(10∠30)×(5∠−45)", &mut env) {
+            Ok(Value::Num(z)) => assert!((z.norm() - 50.0).abs() < 1e-9 && (z.arg().to_degrees() + 15.0).abs() < 1e-9),
             o => panic!("{:?}", o),
         }
         assert!((ev("5 km to m") - 5000.0).abs() < 1e-9);
