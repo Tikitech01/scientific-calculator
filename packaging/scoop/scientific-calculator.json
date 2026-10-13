@@ -2,7 +2,7 @@
     "version": "2.4.0",
     "description": "Scientific, graphing, statistics and financial calculator for engineering students",
     "homepage": "https://github.com/Tikitech01/scientific-calculator",
-    "license": "Proprietary",
+    "license": "MIT",
     "architecture": {
         "64bit": {
             "url": "https://github.com/Tikitech01/scientific-calculator/raw/3ba2249b13ceed471b3ea33875da3c6915266fbe/downloads/Scientific-Calculator-2.4.0-Windows-Setup.exe",

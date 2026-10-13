@@ -13,6 +13,7 @@ and expands into a full workstation when you need it.
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10%20%7C%2011-1B1B1A?style=for-the-badge&logo=windows">
   <img alt="Linux" src="https://img.shields.io/badge/Linux-deb%20%7C%20tar.gz-1B1B1A?style=for-the-badge&logo=linux">
   <img alt="Offline" src="https://img.shields.io/badge/works-offline-2F6FDE?style=for-the-badge">
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-1B1B1A?style=for-the-badge"></a>
 </p>
 
 <p align="center"><a href="https://claude.ai/artifact/DBMYUQcnU2SvSn1FyHFvcB"><b>Website</b></a> · <a href="https://github.com/Tikitech01/scientific-calculator/releases/latest"><b>Latest release</b></a> · <a href="CHANGELOG.md">What's new</a> · <a href="https://github.com/Tikitech01/scientific-calculator/issues/new">Feedback</a></p>
@@ -274,6 +275,6 @@ src/ui_*.rs       one file per mode            src/main.rs      window, top bar,
 ## Credits
 
 Created by **Sopè Technology** · [sopetechnology.com](https://sopetechnology.com)  
-© 2026 Sopè Technology. All rights reserved.
+© 2026 Sopè Technology. Released under the [MIT License](LICENSE).
 The interface font is [Inter](https://rsms.me/inter/) (SIL Open Font License, see `assets/Inter-LICENSE.txt`);
 mathematical symbols come from [DejaVu Sans](https://dejavu-fonts.github.io/) (see `assets/DejaVu-LICENSE.txt`).

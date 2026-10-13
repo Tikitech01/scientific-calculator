@@ -7,9 +7,9 @@
 AppId={{6B1D2C5E-7A44-4F0B-9C3E-4E5A1B7D0A21}
 AppName=Scientific Calculator
 AppVersion={#AppVersion}
-AppPublisher=Sope Technology
+AppPublisher=Sopè Technology
 AppPublisherURL=https://sopetechnology.com
-AppCopyright=(c) 2026 Sope Technology
+AppCopyright=(c) 2026 Sopè Technology
 DefaultDirName={autopf}\Scientific Calculator
 DefaultGroupName=Scientific Calculator
 DisableProgramGroupPage=yes

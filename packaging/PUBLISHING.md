@@ -69,11 +69,9 @@ Arch users then run `yay -S scientific-calculator-bin`.
   Store installs.
 - **Snap Store**: a `snapcraft.yaml` that repackages the Linux binary; reaches Ubuntu users
   through Ubuntu Software.
-- **Flathub** expects a build from source or a clearly licensed binary; decide the licence first.
+- **Flathub**: the MIT licence allows a build from source; needs a Flatpak manifest.
 
-## 7. A licence
+## 7. Licence
 
-There is no licence file in the repository yet. Directories, package repositories and some
-universities check for one. Either add an open-source licence (MIT or GPL-3.0 are the common
-choices for apps like this) or keep it proprietary-but-free and say so in a LICENSE file.
-The manifests currently say "Proprietary"; change them in `make_manifests.py` if you pick one.
+The app is released under the MIT License (`LICENSE`, copyright Sopè Technology). The
+manifests declare MIT, and the AUR package installs the licence file.

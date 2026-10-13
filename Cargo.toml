@@ -3,6 +3,7 @@ name = "scientific-calculator"
 version = "2.4.0"
 edition = "2021"
 description = "A clean, minimal scientific and graphing calculator"
+license = "MIT"
 
 [dependencies]
 eframe = { version = "0.31", features = ["persistence"] }

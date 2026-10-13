@@ -4,7 +4,7 @@ pkgbase = scientific-calculator-bin
 	pkgrel = 1
 	url = https://github.com/Tikitech01/scientific-calculator
 	arch = x86_64
-	license = LicenseRef-proprietary
+	license = MIT
 	depends = libgl
 	depends = libxkbcommon
 	depends = wayland
@@ -15,6 +15,8 @@ pkgbase = scientific-calculator-bin
 	provides = scientific-calculator
 	conflicts = scientific-calculator
 	source = Scientific-Calculator-2.4.0-Linux-x86_64.tar.gz::https://github.com/Tikitech01/scientific-calculator/raw/72180f021702712b74807955c1248a86026ea4b4/downloads/Scientific-Calculator-2.4.0-Linux-x86_64.tar.gz
+	source = LICENSE::https://github.com/Tikitech01/scientific-calculator/raw/a599080c2c8f85163585dbfb1546ccd1ab07bbcb/LICENSE
 	sha256sums = 1e96f2dbe5ceb25aa6af7b638544b34a4ec3aa76b5db9d787e8ae5617104755d
+	sha256sums = 6f1c0438c0b0618ff820cd2218d84bd5e50ebe1fd7533401b7d25709b9db2b13
 
 pkgname = scientific-calculator-bin

@@ -2,12 +2,13 @@
 PackageIdentifier: SopeTechnology.ScientificCalculator
 PackageVersion: 2.4.0
 PackageLocale: en-US
-Publisher: Sope Technology
+Publisher: Sopè Technology
 PublisherUrl: https://sopetechnology.com
 PackageName: Scientific Calculator
 PackageUrl: https://github.com/Tikitech01/scientific-calculator
-License: Proprietary
-Copyright: "(c) 2026 Sope Technology"
+License: MIT
+LicenseUrl: https://github.com/Tikitech01/scientific-calculator/blob/main/LICENSE
+Copyright: "(c) 2026 Sopè Technology"
 ShortDescription: "Scientific, graphing, statistics and financial calculator for engineering students"
 Description: "A free, offline scientific calculator: complex numbers and phasors, matrices, equation solving, calculus, graphing with sliders, unit conversion, hypothesis tests and ANOVA, finance (EMI, NPV, IRR) and a programmer mode."
 Moniker: scicalc

@@ -30,7 +30,7 @@ LONG = (
     "solving, calculus, graphing with sliders, unit conversion, hypothesis tests and ANOVA, "
     "finance (EMI, NPV, IRR) and a programmer mode."
 )
-PUBLISHER = "Sope Technology"
+PUBLISHER = "Sopè Technology"
 
 
 def sha256(p: pathlib.Path) -> str:
@@ -104,7 +104,7 @@ if win:
     "version": "{win_v}",
     "description": "{DESC}",
     "homepage": "{HOME}",
-    "license": "Proprietary",
+    "license": "MIT",
     "architecture": {{
         "64bit": {{
             "url": "{win_url}",
@@ -149,7 +149,8 @@ Publisher: {PUBLISHER}
 PublisherUrl: https://sopetechnology.com
 PackageName: Scientific Calculator
 PackageUrl: {HOME}
-License: Proprietary
+License: MIT
+LicenseUrl: {HOME}/blob/main/LICENSE
 Copyright: "(c) 2026 {PUBLISHER}"
 ShortDescription: {json.dumps(DESC)}
 Description: {json.dumps(LONG)}
@@ -172,6 +173,9 @@ tar, tar_v = find("Scientific-Calculator-*-Linux-x86_64.tar.gz")
 if tar:
     tsha = sha256(tar)
     turl = url(tar)
+    lic = ROOT / "LICENSE"
+    lsha = sha256(lic)
+    lurl = f"{HOME}/raw/{commit_of(lic)}/LICENSE"
     write("aur/PKGBUILD", f'''# Maintainer: {PUBLISHER} <https://sopetechnology.com>
 pkgname=scientific-calculator-bin
 pkgver={tar_v}
@@ -179,18 +183,21 @@ pkgrel=1
 pkgdesc="{DESC}"
 arch=('x86_64')
 url="{HOME}"
-license=('LicenseRef-proprietary')
+license=('MIT')
 depends=('libgl' 'libxkbcommon' 'wayland' 'libx11' 'libxcursor' 'libxrandr' 'libxi')
 provides=('scientific-calculator')
 conflicts=('scientific-calculator')
-source=("Scientific-Calculator-$pkgver-Linux-x86_64.tar.gz::{turl}")
-sha256sums=('{tsha}')
+source=("Scientific-Calculator-$pkgver-Linux-x86_64.tar.gz::{turl}"
+        "LICENSE::{lurl}")
+sha256sums=('{tsha}'
+            '{lsha}')
 
 package() {{
   cd "Scientific-Calculator-$pkgver"
   install -Dm755 scientific-calculator "$pkgdir/usr/bin/scientific-calculator"
   install -Dm644 scientific-calculator.desktop "$pkgdir/usr/share/applications/scientific-calculator.desktop"
   install -Dm644 icon-256.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/scientific-calculator.png"
+  install -Dm644 "$srcdir/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }}
 ''')
     write("aur/.SRCINFO", f'''pkgbase = scientific-calculator-bin
@@ -199,7 +206,7 @@ package() {{
 \tpkgrel = 1
 \turl = {HOME}
 \tarch = x86_64
-\tlicense = LicenseRef-proprietary
+\tlicense = MIT
 \tdepends = libgl
 \tdepends = libxkbcommon
 \tdepends = wayland
@@ -210,7 +217,9 @@ package() {{
 \tprovides = scientific-calculator
 \tconflicts = scientific-calculator
 \tsource = Scientific-Calculator-{tar_v}-Linux-x86_64.tar.gz::{turl}
+\tsource = LICENSE::{lurl}
 \tsha256sums = {tsha}
+\tsha256sums = {lsha}
 
 pkgname = scientific-calculator-bin
 ''')
