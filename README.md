@@ -2,10 +2,11 @@
 
 **The free, offline scientific calculator for engineering students — on macOS, Windows and Linux.**
 
-Phasors and complex numbers, matrices, simultaneous equations, a numeric solver, integrals and
-derivatives, graphing with sliders, unit conversion, lab statistics and a programmer mode, in one
-fast native app. No account, no ads, no internet needed. It opens as a small everyday calculator
-and expands into a full workstation when you need it.
+Phasors and complex numbers, matrices with eigenvalues, equation solving, calculus with limits and
+series, **differential equations drawn on the graph**, sliders, physical constants and SI prefixes
+(`4.7kΩ ∥ 10kΩ`), unit conversion, lab statistics, finance and a programmer mode, in one fast
+native app. No account, no ads, no internet needed. It opens as a small everyday calculator and
+expands into a full workstation when you need it.
 
 <p align="center">
   <a href="#download"><img alt="Download" src="https://img.shields.io/badge/download-v2.4.0-E2542B?style=for-the-badge"></a>
@@ -90,13 +91,21 @@ The type only decides which tabs are shown; ⌘1, ⌘2 … follow the tabs you s
 - Complex numbers in rectangular or polar form (`5∠30`, results as r∠θ if you like), variables (`5 → A`), `Ans`, lists, matrices
 - Percentages the way a desk calculator does them: `200 + 10%` = 220, `80 × 15%` = 12
 - Unit conversions inline: `5 km to m`, `98.6 °F in °C`, `2.5 hours to minutes`
-- Calculus: derivatives, integrals, sums, products and a solver
-- Degrees, radians or gradians; Normal, Fix and Sci number formats
+- **Engineering input**: SI prefixes glued to numbers (`4.7kΩ`, `220µF`, `5mA`, `1MHz`), the parallel
+  operator `10k ∥ 4.7k` (also for complex impedances), `dB( )` and `dBv( )`, physical constants by name
+  (`kB·300/qe`, `NA·qe`, `1/√(μ0·ε0)`) with a CONST key layer, and an Eng display format (`3.197k`, `2.2m`)
+- Calculus: derivatives up to order 4 and partial derivatives, definite and improper integrals
+  (`integ(e^(-x), 0, inf)`), limits, Taylor coefficients, sums and products, arc length, volumes of
+  revolution, double integrals, and a solver
+- Polynomials as coefficient lists: `polymul polydiv polyrem polyeval polyroots polyder polyint`
+- Degrees, radians or gradians; Normal, Fix, Sci and Eng number formats
 
 ### Graph and Table
 - Up to six functions: y = f(x), polar r = f(θ), parametric (x(t), y(t)) and inequalities
   (`y < x^2`, `y ≥ 2x+1`) with the region shaded
 - **Sliders**: any letter in a function (`a·x² + b`, `sin(k·x)`) becomes a slider you can drag or animate
+- **Differential equations**: `y' = x − y, y(0) = 1` draws the solution; second order
+  `y'' = −4y − 0.4y', y(0) = 2, y'(0) = 0`; optional slope field; the Table tab lists the values
 - Roots, minimum and maximum, y-intercept and shaded definite integrals
 - Derivative curve f′(x) and a tangent line with its slope wherever you hover
 - Plot the Statistics data as points next to a function
@@ -113,6 +122,8 @@ The type only decides which tabs are shown; ⌘1, ⌘2 … follow the tabs you s
 ### Matrix
 - Six matrices (A–F) up to 6 × 6
 - Determinant, inverse, transpose, row-reduce, rank, trace and free expressions such as `MatA*MatB + 2MatC`
+- Eigenvalues and eigenvectors, null space, LU and QR decompositions (Gram–Schmidt), matrix
+  exponential and condition number
 
 ### Statistics
 - One-variable statistics with frequencies: mean, standard deviations, quartiles, median, mode
@@ -196,12 +207,13 @@ The type only decides which tabs are shown; ⌘1, ⌘2 … follow the tabs you s
 
 | | |
 | --- | --- |
-| ![Graph with sliders and tangent](docs/screenshots/graph-sliders.png) | ![Equation](docs/screenshots/equation.png) |
+| ![Differential equation with slope field](docs/screenshots/ode.png) | ![Graph with sliders and tangent](docs/screenshots/graph-sliders.png) |
+| ![Equation](docs/screenshots/equation.png) | ![Calculate](docs/screenshots/calculate.png) |
 | ![Matrix](docs/screenshots/matrix.png) | ![Programmer](docs/screenshots/programmer.png) |
 | ![Regression](docs/screenshots/statistics.png) | ![Graph](docs/screenshots/graph.png) |
 | ![t-test](docs/screenshots/t-test.png) | ![ANOVA](docs/screenshots/anova.png) |
 | ![Time value of money](docs/screenshots/finance-tvm.png) | ![Loan](docs/screenshots/finance-loan.png) |
-| ![Convert](docs/screenshots/convert.png) | ![Calculate](docs/screenshots/calculate.png) |
+| ![Convert](docs/screenshots/convert.png) | ![Constants](docs/screenshots/constants.png) |
 
 ## Typing maths: quick reference
 
@@ -210,7 +222,11 @@ The type only decides which tabs are shown; ⌘1, ⌘2 … follow the tabs you s
 - Store a value: `5 -> A`, then use `A` anywhere; `Ans` is the last result
 - Functions: `sin cos tan asin acos atan sinh cosh tanh ln log log(b,x) exp sqrt cbrt root(n,x)
   abs arg conj round(x,n) gamma nCr nPr gcd lcm mod min max rand`
-- Calculus: `diff(x^3, 2)`, `integ(x^2, 0, 3)`, `sum(k^2, k, 1, 10)`, `prod(k, k, 1, 5)`, `solve(x^2-2, 1)`
+- Calculus: `diff(x^3, 2)`, `diff(x^3, x, 2, 2)`, `integ(x^2, 0, 3)`, `integ(e^(-x), 0, inf)`, `limit(sin(x)/x, x, 0)`,
+  `taylor(e^x, x, 0, 4)`, `sum(k^2, k, 1, 10)`, `prod(k, k, 1, 5)`, `arclen(x^2, x, 0, 1)`, `volume(√x, x, 0, 4)`,
+  `integ2(x·y, x, 0, 1, y, 0, 2)`, `solve(x^2-2, 1)`
+- Engineering: `4.7kΩ ∥ 10kΩ` (or `||`), `220µF`, `5mA`, `dB(2)`, `dBv(10)`, constants `c g G h hbar qe eV me mp mn amu NA kB Rgas eps0 mu0 Z0 kSB atm`
+- Matrices: `det inv trn rref rank trace eig eigvec nullspace lu qr expm cond`; polynomials `polymul polydiv polyrem polyeval polyroots polyder polyint`
 - Lists `{1,2,3}`, matrices `[[1,2],[3,4]]`, number bases `0xFF`, `0b1010`, `0o17`
 - Distributions: `normpdf normcdf invnorm binompdf binomcdf poissonpdf poissoncdf tpdf tcdf invt chi2pdf chi2cdf invchi2 fpdf fcdf invf`
 
