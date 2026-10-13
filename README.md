@@ -16,7 +16,7 @@ and expands into a full workstation when you need it.
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-1B1B1A?style=for-the-badge"></a>
 </p>
 
-<p align="center"><a href="https://claude.ai/artifact/DBMYUQcnU2SvSn1FyHFvcB"><b>Website</b></a> · <a href="https://github.com/Tikitech01/scientific-calculator/releases/latest"><b>Latest release</b></a> · <a href="CHANGELOG.md">What's new</a> · <a href="https://github.com/Tikitech01/scientific-calculator/issues/new">Feedback</a></p>
+<p align="center"><a href="https://s4w.in/Scientific-Calculator"><b>Website</b></a> · <a href="https://github.com/Tikitech01/scientific-calculator/releases/latest"><b>Latest release</b></a> · <a href="CHANGELOG.md">What's new</a> · <a href="https://github.com/Tikitech01/scientific-calculator/issues/new">Feedback</a></p>
 
 <p align="center">
   <img src="docs/demo.gif" alt="A tour: calculate with phasors, graph with sliders, solve equations, matrices, ANOVA, programmer and loan schedule" width="880">
