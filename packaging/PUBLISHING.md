@@ -33,8 +33,8 @@ Windows users can then run `winget install SopeTechnology.ScientificCalculator`.
 
 ## 3. Windows: Scoop
 
-Create a public repo `Tikitech01/scoop-bucket`, put `packaging/scoop/scientific-calculator.json`
-in its root. Users run:
+Live at https://github.com/Tikitech01/scoop-bucket (`bucket/scientific-calculator.json`). After a
+new Windows build: run the script, copy the JSON there, commit, push. Users run:
 
 ```
 scoop bucket add tikitech https://github.com/Tikitech01/scoop-bucket
@@ -46,9 +46,9 @@ scoop install scientific-calculator
 The main Homebrew catalogue stopped accepting apps that are not notarised by Apple on
 1 September 2026, so use your own tap until the app is notarised:
 
-1. Create a public repo named exactly `Tikitech01/homebrew-tap`.
-2. Copy `packaging/homebrew/Casks/` into it.
-3. Users run `brew install --cask tikitech01/tap/scientific-calculator`.
+Live at https://github.com/Tikitech01/homebrew-tap. After a new macOS build: run the script, copy
+`packaging/homebrew/Casks/scientific-calculator.rb` there, commit, push.
+Users run `brew install --cask tikitech01/tap/scientific-calculator`.
 
 Once notarised (Apple Developer Program, USD 99 a year; the release workflow already signs and
 notarises when the secrets in the README are set), submit to homebrew/cask for far more reach.

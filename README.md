@@ -42,6 +42,13 @@ What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 | **Linux** – Debian, Ubuntu, Mint | [scientific-calculator_3.0.0_amd64.deb](https://github.com/Tikitech01/scientific-calculator/releases/download/v3.0.0/scientific-calculator_3.0.0_amd64.deb) | `sudo apt install ./scientific-calculator_3.0.0_amd64.deb` |
 | **Linux** – any other distribution | [Scientific-Calculator-3.0.0-Linux-x86_64.tar.gz](https://github.com/Tikitech01/scientific-calculator/releases/download/v3.0.0/Scientific-Calculator-3.0.0-Linux-x86_64.tar.gz) | Extract it and run `./install.sh` (no root needed). |
 
+Or with a package manager:
+
+```
+brew install --cask tikitech01/tap/scientific-calculator        # macOS (Homebrew)
+scoop bucket add tikitech https://github.com/Tikitech01/scoop-bucket && scoop install scientific-calculator   # Windows (Scoop)
+```
+
 All downloads are in the [`downloads`](downloads) folder: click a file, then the download button.
 Intel Macs and other systems can [build from source](#build-from-source) in a few minutes.
 
