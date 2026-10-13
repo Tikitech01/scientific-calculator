@@ -1,12 +1,12 @@
 {
-    "version": "2.0.0",
+    "version": "2.4.0",
     "description": "Scientific, graphing, statistics and financial calculator for engineering students",
     "homepage": "https://github.com/Tikitech01/scientific-calculator",
     "license": "Proprietary",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/Tikitech01/scientific-calculator/raw/b6c035158028d848635b648041d0a35e5b04c723/downloads/Scientific-Calculator-2.0.0-Windows-Setup.exe",
-            "hash": "fe3813bd4e55f80cc8b1df758e3cf614fa3872e6ab205680e143da01642471ea"
+            "url": "https://github.com/Tikitech01/scientific-calculator/raw/3ba2249b13ceed471b3ea33875da3c6915266fbe/downloads/Scientific-Calculator-2.4.0-Windows-Setup.exe",
+            "hash": "b951425bb93f8c12e457dbbcf1ac77234398f9ba11599a621cc235f4738223c3"
         }
     },
     "innosetup": true,

@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
 PackageIdentifier: SopeTechnology.ScientificCalculator
-PackageVersion: 2.0.0
+PackageVersion: 2.4.0
 InstallerType: inno
 Scope: user
 InstallModes:
@@ -9,7 +9,7 @@ InstallModes:
 UpgradeBehavior: install
 Installers:
   - Architecture: x64
-    InstallerUrl: https://github.com/Tikitech01/scientific-calculator/raw/b6c035158028d848635b648041d0a35e5b04c723/downloads/Scientific-Calculator-2.0.0-Windows-Setup.exe
-    InstallerSha256: FE3813BD4E55F80CC8B1DF758E3CF614FA3872E6AB205680E143DA01642471EA
+    InstallerUrl: https://github.com/Tikitech01/scientific-calculator/raw/3ba2249b13ceed471b3ea33875da3c6915266fbe/downloads/Scientific-Calculator-2.4.0-Windows-Setup.exe
+    InstallerSha256: B951425BB93F8C12E457DBBCF1AC77234398F9BA11599A621CC235F4738223C3
 ManifestType: installer
 ManifestVersion: 1.12.0
