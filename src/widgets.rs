@@ -114,20 +114,27 @@ pub fn segmented(ui: &mut Ui, pal: &Pal, sel: &mut usize, labels: &[&str]) -> bo
                 let (rect, resp) = ui.allocate_exact_size(size, Sense::click());
                 cells.push((i, rect, resp, galley));
             }
-            // The highlight pill glides to the selected cell.
-            if let Some((_, target, _, _)) = cells.iter().find(|c| c.0 == *sel) {
-                // Key the pill to this control's own first cell: `ui.id()` is shared by sibling
-                // controls in some containers, which made pills jump to another row's position.
-                let group = cells[0].2.id.with("seg_pill");
-                let x = anim::value(ui.ctx(), group.with("x"), target.left(), 0.2);
-                let w = anim::value(ui.ctx(), group.with("w"), target.width(), 0.2);
-                let pill = egui::Rect::from_min_size(egui::pos2(x, target.top()), egui::vec2(w, target.height()));
-                ui.painter().rect_filled(pill, CornerRadius::same(6), pal.surface);
+            // The highlight pill glides to the selected cell: it is the blend of every cell's
+            // rectangle weighted by that cell's selection fade, so it always sits exactly on
+            // the selected label once the fade is done.
+            let fades: Vec<f32> = cells
+                .iter()
+                .map(|(i, _, resp, _)| anim::toggle(ui.ctx(), resp.id.with("sel"), *i == *sel, 0.2))
+                .collect();
+            let total: f32 = fades.iter().sum();
+            if total > 0.0 {
+                let mut min = egui::Vec2::ZERO;
+                let mut max = egui::Vec2::ZERO;
+                for ((_, rect, _, _), f) in cells.iter().zip(&fades) {
+                    min += rect.min.to_vec2() * (f / total);
+                    max += rect.max.to_vec2() * (f / total);
+                }
+                let pill = egui::Rect::from_min_max(min.to_pos2(), max.to_pos2());
+                ui.painter().rect_filled(pill, CornerRadius::same(6), pal.surface.gamma_multiply(total.min(1.0)));
             }
-            for (i, rect, resp, galley) in cells {
+            for ((i, rect, resp, galley), sel_t) in cells.into_iter().zip(fades) {
                 let selected = *sel == i;
                 let hover = anim::hover(ui.ctx(), resp.id, resp.hovered());
-                let sel_t = anim::toggle(ui.ctx(), resp.id.with("sel"), selected, 0.2);
                 let color = mix(mix(pal.dim, pal.text, hover), pal.text, sel_t);
                 ui.painter().galley(rect.center() - galley.size() / 2.0, galley, color);
                 if resp.on_hover_cursor(CursorIcon::PointingHand).clicked() && !selected {
