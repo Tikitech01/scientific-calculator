@@ -116,7 +116,9 @@ pub fn segmented(ui: &mut Ui, pal: &Pal, sel: &mut usize, labels: &[&str]) -> bo
             }
             // The highlight pill glides to the selected cell.
             if let Some((_, target, _, _)) = cells.iter().find(|c| c.0 == *sel) {
-                let group = ui.id().with("seg_pill");
+                // Key the pill to this control's own first cell: `ui.id()` is shared by sibling
+                // controls in some containers, which made pills jump to another row's position.
+                let group = cells[0].2.id.with("seg_pill");
                 let x = anim::value(ui.ctx(), group.with("x"), target.left(), 0.2);
                 let w = anim::value(ui.ctx(), group.with("w"), target.width(), 0.2);
                 let pill = egui::Rect::from_min_size(egui::pos2(x, target.top()), egui::vec2(w, target.height()));
