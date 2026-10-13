@@ -107,6 +107,8 @@ pub const FUNCS: &[&str] = &[
     "normpdf", "normcdf", "invnorm", "tpdf", "tcdf", "invt", "chi2pdf", "chi2cdf", "invchi2", "fpdf", "fcdf",
     "invf", "binompdf", "binomcdf", "poissonpdf", "poissoncdf", "diff", "integ", "solve",
     "seq", "limit", "taylor", "par", "dB", "dBv", "invdB", "invdBv", "eig", "eigvec",
+    "arclen", "volume", "integ2", "nullspace", "lu", "qr", "expm", "cond",
+    "polymul", "polydiv", "polyrem", "polyeval", "polyroots", "polyder", "polyint",
 ];
 
 /// Physical constants (SI 2019 values): name as typed, value, unit, description.
@@ -1031,7 +1033,7 @@ fn split_var<'a>(args: &'a [Expr], k: usize) -> Result<(&'a Expr, String, &'a [E
 
 fn special(name: &str, args: &[Expr], env: &mut Env) -> Option<R> {
     let is_special = match name {
-        "diff" | "integ" | "solve" | "seq" | "limit" | "taylor" => true,
+        "diff" | "integ" | "solve" | "seq" | "limit" | "taylor" | "arclen" | "volume" | "integ2" => true,
         "sum" | "prod" => args.len() == 4,
         _ => false,
     };
@@ -1042,17 +1044,76 @@ fn special(name: &str, args: &[Expr], env: &mut Env) -> Option<R> {
         let num = |e: &Expr, env: &mut Env| -> Result<f64, String> { real_of(&eval(e, env)?) };
         match name {
             "diff" => {
-                let (body, var, rest) = split_var(args, 1)?;
+                // diff(f, a), diff(f, x, a), diff(f, a, n), diff(f, x, a, n): the n-th derivative at a.
+                let has_var = matches!(args.get(1), Some(Expr::Var(_))) && args.len() >= 3;
+                let (body, var, rest) = if has_var { split_var(args, args.len() - 2)? } else { (&args[0], "x".to_string(), &args[1..]) };
+                if rest.is_empty() || rest.len() > 2 {
+                    return Err("diff(expression, x, point) or diff(expression, x, point, order)".into());
+                }
                 let a = num(&rest[0], env)?;
-                let v = with_var(env, &var, |env| numeric::derivative(&mut |x| eval_at(body, env, &var, x), a));
+                let order = if rest.len() == 2 { int_of(&eval(&rest[1], env)?)? } else { 1 };
+                if !(1..=4).contains(&order) {
+                    return Err("The order must be between 1 and 4".into());
+                }
+                let v = with_var(env, &var, |env| numeric::derivative_n(&mut |x| eval_at(body, env, &var, x), a, order as u32));
                 finite(v, "Cannot differentiate here")
             }
             "integ" => {
+                // Either limit may be inf or −inf.
                 let (body, var, rest) = split_var(args, 2)?;
                 let a = num(&rest[0], env)?;
                 let b = num(&rest[1], env)?;
-                let v = with_var(env, &var, |env| numeric::integrate(&mut |x| eval_at(body, env, &var, x), a, b));
+                let v = with_var(env, &var, |env| numeric::integrate_any(&mut |x| eval_at(body, env, &var, x), a, b));
                 finite(v, "The integral does not converge")
+            }
+            "arclen" | "volume" => {
+                // arclen(f, x, a, b): length of the curve; volume(f, x, a, b): revolved about the x axis.
+                let (body, var, rest) = split_var(args, 2)?;
+                let a = num(&rest[0], env)?;
+                let b = num(&rest[1], env)?;
+                let v = with_var(env, &var, |env| {
+                    if name == "arclen" {
+                        numeric::integrate(
+                            &mut |x| {
+                                let m = numeric::derivative(&mut |u| eval_at(body, env, &var, u), x);
+                                (1.0 + m * m).sqrt()
+                            },
+                            a,
+                            b,
+                        )
+                    } else {
+                        PI * numeric::integrate(&mut |x| eval_at(body, env, &var, x).powi(2), a, b)
+                    }
+                });
+                finite(v, "Could not integrate here")
+            }
+            "integ2" => {
+                // integ2(f, x, a, b, y, c, d): ∫ᵃᵇ ∫ᶜᵈ f dy dx
+                if args.len() != 7 {
+                    return Err("integ2(expression, x, a, b, y, c, d)".into());
+                }
+                let (vx, vy) = match (&args[1], &args[4]) {
+                    (Expr::Var(x), Expr::Var(y)) => (x.clone(), y.clone()),
+                    _ => return Err("integ2(expression, x, a, b, y, c, d)".into()),
+                };
+                let a = num(&args[2], env)?;
+                let b = num(&args[3], env)?;
+                let c = num(&args[5], env)?;
+                let d = num(&args[6], env)?;
+                let body = &args[0];
+                let v = with_var(env, &vx, |env| {
+                    with_var(env, &vy, |env| {
+                        numeric::integrate(
+                            &mut |x| {
+                                env.set_real(&vx, x);
+                                numeric::integrate(&mut |y| eval_at(body, env, &vy, y), c, d)
+                            },
+                            a,
+                            b,
+                        )
+                    })
+                });
+                finite(v, "Could not integrate here")
             }
             "solve" => {
                 let (body, var, guess) = if args.len() == 1 {
@@ -1431,6 +1492,99 @@ fn call(name: &str, a: &[Value], ang: Angle) -> R {
             let cols: Vec<Vec<f64>> = lambdas.iter().map(|l| m.eigenvector(*l)).collect::<Result<_, _>>()?;
             let rows = (0..m.r).map(|i| cols.iter().map(|c| c[i]).collect()).collect();
             Ok(Value::Mat(Matrix::from_rows(rows)?))
+        }
+        "nullspace" => need(1, 1).and_then(|_| mat_of(&a[0])?.nullspace().map(Value::Mat)),
+        "lu" | "qr" => {
+            // lu(M) gives L stacked over U (P·M = L·U); lu(M, 1) = L, lu(M, 2) = U, lu(M, 0) = P.
+            // qr(M) gives Q over R; qr(M, 1) = Q (Gram–Schmidt of the columns), qr(M, 2) = R.
+            need(1, 2)?;
+            let m = mat_of(&a[0])?;
+            let which = if n == 2 { int_of(&a[1])? } else { -1 };
+            let (first, second, perm) = if name == "lu" {
+                let (p, l, u) = m.lu()?;
+                (l, u, Some(p))
+            } else {
+                let (q, r) = m.qr()?;
+                (q, r, None)
+            };
+            match which {
+                -1 => Matrix::stack(&first, &second).map(Value::Mat),
+                0 => perm.map(Value::Mat).ok_or_else(|| "qr has no permutation; use 1 or 2".into()),
+                1 => Ok(Value::Mat(first)),
+                2 => Ok(Value::Mat(second)),
+                _ => Err(format!("{}(M, 1) or {}(M, 2)", name, name)),
+            }
+        }
+        "expm" => need(1, 1).and_then(|_| mat_of(&a[0])?.expm().map(Value::Mat)),
+        "cond" => {
+            need(1, 1)?;
+            let c = mat_of(&a[0])?.cond()?;
+            if c.is_finite() { Ok(Value::real(c)) } else { Err("The matrix is singular: the condition number is infinite".into()) }
+        }
+        "polymul" | "polydiv" | "polyrem" => {
+            // Coefficient lists, highest power first: {1, -3, 2} is x² − 3x + 2.
+            need(2, 2)?;
+            let p = list_of(&a[0])?;
+            let q = list_of(&a[1])?;
+            if name == "polymul" {
+                let mut out = vec![0.0; p.len() + q.len() - 1];
+                for (i, x) in p.iter().enumerate() {
+                    for (j, y) in q.iter().enumerate() {
+                        out[i + j] += x * y;
+                    }
+                }
+                return Ok(Value::List(out));
+            }
+            let q: Vec<f64> = q.into_iter().skip_while(|v| *v == 0.0).collect();
+            if q.is_empty() {
+                return Err("Division by the zero polynomial".into());
+            }
+            let mut rem = p.clone();
+            let mut quot = vec![0.0; p.len().saturating_sub(q.len()) + 1];
+            if p.len() >= q.len() {
+                for i in 0..=p.len() - q.len() {
+                    let f = rem[i] / q[0];
+                    quot[i] = f;
+                    for (j, y) in q.iter().enumerate() {
+                        rem[i + j] -= f * y;
+                    }
+                }
+            }
+            let rem: Vec<f64> = rem.into_iter().skip_while(|v| v.abs() < 1e-12).collect();
+            Ok(Value::List(if name == "polydiv" { quot } else if rem.is_empty() { vec![0.0] } else { rem }))
+        }
+        "polyeval" => {
+            need(2, 2)?;
+            let p = list_of(&a[0])?;
+            let z = match &a[1] {
+                Value::Num(z) => *z,
+                _ => return Err("polyeval(coefficients, x)".into()),
+            };
+            Ok(Value::Num(clean(p.iter().fold(C::new(0.0, 0.0), |acc, c| acc * z + c))))
+        }
+        "polyder" | "polyint" => {
+            need(1, 1)?;
+            let p = list_of(&a[0])?;
+            let n = p.len();
+            Ok(Value::List(if name == "polyder" {
+                if n <= 1 { vec![0.0] } else { p.iter().take(n - 1).enumerate().map(|(i, c)| c * (n - 1 - i) as f64).collect() }
+            } else {
+                let mut out: Vec<f64> = p.iter().enumerate().map(|(i, c)| c / (n - i) as f64).collect();
+                out.push(0.0);
+                out
+            }))
+        }
+        "polyroots" => {
+            need(1, 1)?;
+            let roots = numeric::poly_roots(&list_of(&a[0])?)?;
+            let mut roots = roots;
+            roots.sort_by(|a, b| (a.re, a.im).partial_cmp(&(b.re, b.im)).unwrap_or(std::cmp::Ordering::Equal));
+            if roots.iter().all(|z| z.im.abs() < 1e-9) {
+                Ok(Value::List(roots.iter().map(|z| z.re).collect()))
+            } else {
+                let shown: Vec<String> = roots.iter().map(|z| crate::fmt::complex(clean(*z), crate::fmt::Fmt::Norm)).collect();
+                Err(format!("Roots: {}", shown.join(",  ")))
+            }
         }
         "det" => need(1, 1).and_then(|_| mat_of(&a[0])?.det().map(Value::real)),
         "inv" => {
@@ -2182,6 +2336,64 @@ mod tests {
     }
 
     #[test]
+    fn calculus_linear_algebra_polynomials() {
+        let mut env = Env::default();
+        env.angle = Angle::Rad;
+        let mut e = |s: &str| real_of(&evaluate(s, &mut env).unwrap()).unwrap();
+        let near = |a: f64, b: f64| assert!((a - b).abs() < 1e-7 * b.abs().max(1.0), "{} vs {}", a, b);
+        near(e("diff(x^3, x, 2, 2)"), 12.0);
+        near(e("diff(x^3, 2, 2)"), 12.0);
+        near(e("diff(x^3, x, 2, 3)"), 6.0);
+        near(e("diff(x^4, x, 1, 4)"), 24.0);
+        e("3→x");
+        near(e("diff(x²y³, y, 2)"), 108.0);
+        near(e("integ(e^(−x), 0, inf)"), 1.0);
+        near(e("integ(1/(1+x²), −inf, inf)"), PI);
+        near(e("integ(1/x², 1, inf)"), 1.0);
+        near(e("arclen(x², x, 0, 1)"), 1.4789428575);
+        near(e("volume(√x, x, 0, 4)"), 8.0 * PI);
+        near(e("integ2(x·y, x, 0, 1, y, 0, 2)"), 1.0);
+        near(e("cond([[1,0],[0,10]])"), 10.0);
+        near(e("polyeval({1,−6,11,−6}, 2)"), 0.0);
+        let list = |s: &str, env: &mut Env| match evaluate(s, env).unwrap() {
+            Value::List(l) => l,
+            other => panic!("{:?}", other),
+        };
+        let mat = |s: &str, env: &mut Env| match evaluate(s, env).unwrap() {
+            Value::Mat(m) => m,
+            other => panic!("{:?}", other),
+        };
+        assert_eq!(list("polymul({1,2},{1,3})", &mut env), vec![1.0, 5.0, 6.0]);
+        assert_eq!(list("polydiv({1,−6,11,−6},{1,−1})", &mut env), vec![1.0, -5.0, 6.0]);
+        assert_eq!(list("polyrem({1,0,0},{1,−2})", &mut env), vec![4.0]);
+        assert_eq!(list("polyder({1,−6,11,−6})", &mut env), vec![3.0, -12.0, 11.0]);
+        assert_eq!(list("polyint({3,2,1})", &mut env), vec![1.0, 1.0, 1.0, 0.0]);
+        let r = list("polyroots({1,−6,11,−6})", &mut env);
+        near(r[0], 1.0);
+        near(r[2], 3.0);
+        assert_eq!(mat("nullspace([[1,2,3],[2,4,6]])", &mut env).d, vec![-2.0, -3.0, 1.0, 0.0, 0.0, 1.0]);
+        // P·A = L·U
+        let lhs = mat("lu([[4,3],[6,3]],0)*[[4,3],[6,3]]", &mut env);
+        let rhs = mat("lu([[4,3],[6,3]],1)*lu([[4,3],[6,3]],2)", &mut env);
+        for (a, b) in lhs.d.iter().zip(&rhs.d) {
+            near(*a, *b);
+        }
+        // Q·R = A and QᵀQ = I
+        let a = mat("qr([[1,1],[1,0],[0,1]],1)*qr([[1,1],[1,0],[0,1]],2)", &mut env);
+        for (x, y) in a.d.iter().zip([1.0, 1.0, 1.0, 0.0, 0.0, 1.0]) {
+            near(*x, y);
+        }
+        let qtq = mat("trn(qr([[1,1],[1,0],[0,1]],1))*qr([[1,1],[1,0],[0,1]],1)", &mut env);
+        for (x, y) in qtq.d.iter().zip([1.0, 0.0, 0.0, 1.0]) {
+            near(*x, y);
+        }
+        // expm of a rotation generator is a rotation by 1 radian.
+        let r = mat("expm([[0,1],[−1,0]])", &mut env);
+        near(r.get(0, 0), 1f64.cos());
+        near(r.get(0, 1), 1f64.sin());
+    }
+
+    #[test]
     fn percent_polar_units() {
         assert!((ev("200 + 10%") - 220.0).abs() < 1e-9);
         assert!((ev("200 - 10%") - 180.0).abs() < 1e-9);
@@ -2204,4 +2416,5 @@ mod tests {
         assert!(evaluate("5 km to kg", &mut env).is_err());
     }
 }
+
 

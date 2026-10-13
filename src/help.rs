@@ -10,12 +10,13 @@ Store: 5->A   Last answer: Ans   ↑ recalls earlier lines";
 pub const FUNCTION: &str = "A function of x, for example x^2 - 2x - 3 or sin(x).\n\
 Powers: type ^ (x^3).  Multiply: 2x or 2*x.\n\
 Polar: use θ or write theta, e.g. 4cos(3theta).\n\
-Parametric: (cos(t), sin(t)).";
+Parametric: (cos(t), sin(t)).\n\
+Differential equation: y' = x - y, y(0) = 1  or  y'' = -4y - 0.4y', y(0) = 2, y'(0) = 0.";
 pub const NUMBER: &str = "A number or a calculation, e.g. 2.5, 1/3, sqrt(2), 2^10, pi.";
 pub const EQUATION: &str = "An equation in x, e.g. x^3 - 2x = 5 or sin(x) = 0.5.\n\
 Powers: type ^.  Without “=” the expression is solved for 0.";
 pub const MATRIX_EXPR: &str = "Use MatA … MatF with + - * ^, e.g. MatA*MatB, MatA^2, 2MatA.\n\
-Functions: det( ) inv( ) trn( ) rref( ) rank( ) trace( ) eig( ) eigvec( ) identity(n).\n\
+Functions: det( ) inv( ) trn( ) rref( ) rank( ) trace( ) eig( ) eigvec( ) nullspace( ) lu( ) qr( ) expm( ) cond( ) identity(n).\n\
 Inverse: MatA^-1.  Press return to calculate.";
 pub const DATA: &str = "One value per row. Press tab to move to the next cell.\n\
 Each cell accepts a number or a calculation.";
@@ -103,6 +104,8 @@ const SECTIONS: &[(&str, &[(&str, &str)])] = &[
         ("Percent", "200 + 10% = 220,  200 − 10% = 180,  50% = 0.5,  80 × 15% = 12."),
         ("Units", "5 km to m,  98.6 °F in °C,  2.5 hours to minutes,  3*2 kg in lb. Any unit from Convert works, by symbol or name."),
         ("Calculus", "diff(x^3, 2)   integ(x^2, 0, 3)   sum(k^2, k, 1, 10)   prod(k, k, 1, 5)   solve(x^2-2, 1).  They use the current angle unit."),
+        ("More calculus", "Higher derivatives: diff(x^3, x, 2, 2) is f″(2); up to order 4. Partial: 3->x then diff(x²y³, y, 2). Improper: integ(e^(-x), 0, inf), integ(1/(1+x²), -inf, inf). Arc length arclen(x², x, 0, 1), volume of revolution about the x axis volume(√x, x, 0, 4), double integral integ2(x·y, x, 0, 1, y, 0, 2)."),
+        ("Polynomials", "Coefficient lists, highest power first: {1,-6,11,-6} is x³−6x²+11x−6. polymul( ) polydiv( ) polyrem( ) polyeval(p, 2) polyroots( ) polyder( ) polyint( )."),
         ("Limits, series", "limit(sin(x)/x, x, 0)   limit((1+1/x)^x, x, inf).  taylor(e^x, x, 0, 4) gives the coefficients c₀ … c₄ of c₀ + c₁(x−a) + c₂(x−a)² + … Use RAD for the textbook series of sin and cos."),
         ("Circuits", "Parallel: 10k ∥ 4.7k (2nd + %, or type ||), works for complex impedances too.  dB(2) = 3.01 (power, 10·log₁₀), dBv(10) = 20 (amplitude, 20·log₁₀), invdB(3), invdBv(20)."),
         ("Lists", "{1,2,3}.  mean( ) median( ) stdev( ) sum( ) sort( )."),
@@ -112,6 +115,7 @@ const SECTIONS: &[(&str, &[(&str, &str)])] = &[
         ("y = f(x)", "x^2 - 2x - 3,  sin(x),  1/x."),
         ("Polar", "Use θ (or type theta): 4cos(3theta)."),
         ("Parametric", "Two expressions in t inside brackets: (cos(t), sin(t))."),
+        ("Differential equations", "y' = x − y, y(0) = 1  draws the solution through (0, 1). Second order: y'' = −4y − 0.4y', y(0) = 2, y'(0) = 0. Missing values default to y(0) = 1, y'(0) = 0. Solved numerically (Runge–Kutta); the Table tab lists its values. Show ▸ Slope field draws the slope y' = f(x, y) everywhere."),
         ("Inequalities", "y < x^2, y >= 2x + 1: the region is shaded; a strict inequality has a dashed edge."),
         ("Sliders", "Any other letter in a function (a·x² + b, sin(k·x)) gets a slider on the left. Press ▶ to animate it. The letters are ordinary variables, so Calculate sees them too."),
         ("Derivative, tangent", "Under Show: draw f′(x) of the selected function as a dashed line, and a tangent line with its slope wherever you hover."),
@@ -135,6 +139,7 @@ const SECTIONS: &[(&str, &[(&str, &str)])] = &[
         ("Expressions", "MatA*MatB,  MatA^2,  MatA^-1,  det(MatA),  trn(MatA),  2MatA + identity(2)."),
         ("By hand", "[[1,2],[3,4]] or [1,2;3,4]. In Calculate, [[1,2],[3,4]]->MatA stores it."),
         ("Eigenvalues", "eig(MatA) lists the eigenvalues (complex ones are shown as a message). eigvec(MatA) gives one unit eigenvector per column, in the same order; eigvec(MatA, 3) the eigenvector for λ = 3."),
+        ("Decompositions", "lu(MatA) shows L stacked over U (P·A = L·U); lu(MatA, 1) is L, lu(MatA, 2) is U, lu(MatA, 0) is P. qr(MatA) shows Q over R; qr(MatA, 1) is Q, the Gram–Schmidt orthonormal basis of the columns. nullspace(MatA) has one basis vector per column. expm(MatA) is the matrix exponential, cond(MatA) the condition number."),
     ]),
     ("Statistics", &[
         ("Data", "X and Y columns, one value per row. Freq is optional and repeats the X value."),

@@ -591,6 +591,13 @@ impl App {
                 ui_graph::FnEntry::new("2x + 1"),
                 ui_graph::FnEntry::new("3sin(60x)"),
             ];
+            if std::env::var("SCICALC_ODE").is_ok() {
+                self.graph.fns = vec![
+                    ui_graph::FnEntry::new("y' = x − y, y(0) = 1"),
+                    ui_graph::FnEntry::new("y'' = −4y − 0.4y', y(0) = 2, y'(0) = 0"),
+                ];
+                self.graph.slope_field = true;
+            }
             if std::env::var("SCICALC_GRAPH2").is_ok() {
                 self.graph.fns = vec![ui_graph::FnEntry::new("a·x² + b"), ui_graph::FnEntry::new("y < sin(k·x) + 2")];
                 self.graph.tangent = true;

@@ -69,6 +69,60 @@ pub fn limit(f: F, a: f64) -> Option<f64> {
     (sides <= 1e-5).then(|| tidy(best))
 }
 
+/// The n-th derivative at x (n = 1 … 4): 5-point stencils with Richardson extrapolation.
+pub fn derivative_n(f: F, x: f64, n: u32) -> f64 {
+    if n <= 1 {
+        return if n == 0 { f(x) } else { derivative(f, x) };
+    }
+    let h0 = [0.0, 0.0, 3e-2, 5e-2, 1e-1][n.min(4) as usize] * x.abs().max(1.0);
+    let mut d = |h: f64| {
+        let (m2, m1, p1, p2) = (f(x - 2.0 * h), f(x - h), f(x + h), f(x + 2.0 * h));
+        match n {
+            2 => (-p2 + 16.0 * p1 - 30.0 * f(x) + 16.0 * m1 - m2) / (12.0 * h * h),
+            3 => (-m2 + 2.0 * m1 - 2.0 * p1 + p2) / (2.0 * h * h * h),
+            _ => (m2 - 4.0 * m1 + 6.0 * f(x) - 4.0 * p1 + p2) / (h * h * h * h),
+        }
+    };
+    let (d1, d2) = (d(h0), d(h0 / 2.0));
+    // Error orders: h⁴ for the second derivative, h² for the third and fourth.
+    if n == 2 { (16.0 * d2 - d1) / 15.0 } else { (4.0 * d2 - d1) / 3.0 }
+}
+
+/// ∫ₐᵇ f with either end allowed to be ±∞ (mapped onto a finite interval).
+pub fn integrate_any(f: F, a: f64, b: f64) -> f64 {
+    if a.is_finite() && b.is_finite() {
+        return integrate(f, a, b);
+    }
+    if a.is_infinite() && b.is_infinite() {
+        if a.signum() == b.signum() {
+            return 0.0;
+        }
+        let s = b.signum();
+        return s * (integrate_any(f, 0.0, f64::INFINITY) + integrate_any(f, f64::NEG_INFINITY, 0.0));
+    }
+    if b.is_infinite() {
+        if b < 0.0 {
+            return -integrate_any(f, f64::NEG_INFINITY, a);
+        }
+        // x = a + t/(1−t), dx = dt/(1−t)², t ∈ [0, 1)
+        // Gauss–Kronrod never samples the end points, so t = 1 itself is never reached.
+        let mut g = |t: f64| {
+            let u = 1.0 - t;
+            if u <= 0.0 { 0.0 } else { f(a + t / u) / (u * u) }
+        };
+        return integrate(&mut g, 0.0, 1.0);
+    }
+    // a = ∓∞
+    if a > 0.0 {
+        return -integrate_any(f, b, f64::INFINITY);
+    }
+    let mut g = |t: f64| {
+        let u = 1.0 - t;
+        if u <= 0.0 { 0.0 } else { f(b - t / u) / (u * u) }
+    };
+    integrate(&mut g, 0.0, 1.0)
+}
+
 pub fn integrate(f: F, a: f64, b: f64) -> f64 {
     if a == b {
         return 0.0;

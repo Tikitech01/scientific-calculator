@@ -18,6 +18,141 @@ pub enum Kind {
     Param(Expr, Expr),
     /// y < f(x) / y > f(x): the region is shaded. `strict` draws the boundary dashed.
     Ineq { expr: Expr, above: bool, strict: bool },
+    /// y′ = f(x, y) or y″ = f(x, y, y′) with initial values, solved numerically (RK4).
+    /// In `rhs`, y′ is the variable Y.
+    Ode { rhs: Expr, order: u8, x0: f64, y0: f64, dy0: f64 },
+}
+
+/// A solved differential equation: points (x, y) from the left edge to the right edge.
+#[derive(Default)]
+pub struct OdeSolution {
+    key: String,
+    pub pts: Vec<(f64, f64)>,
+}
+
+impl OdeSolution {
+    /// y at x by linear interpolation between the computed points.
+    pub fn at(&self, x: f64) -> f64 {
+        let n = self.pts.len();
+        if n == 0 || x < self.pts[0].0 || x > self.pts[n - 1].0 {
+            return f64::NAN;
+        }
+        let i = self.pts.partition_point(|p| p.0 < x).min(n - 1).max(1);
+        let (xa, ya) = self.pts[i - 1];
+        let (xb, yb) = self.pts[i];
+        if xb == xa {
+            return ya;
+        }
+        ya + (yb - ya) * (x - xa) / (xb - xa)
+    }
+}
+
+/// Reads "y' = x − y, y(0) = 1" or "y'' = −y − 0.2y', y(0) = 1, y'(0) = 0".
+/// Missing initial values default to x = 0, y = 1, y′ = 0.
+fn parse_ode(t: &str) -> Option<Result<Kind, String>> {
+    let norm = t.replace(['′', '’'], "'").replace('″', "''").replace('"', "''");
+    let compact: String = norm.chars().filter(|c| !c.is_whitespace()).collect();
+    let order = if compact.starts_with("y''=") {
+        2
+    } else if compact.starts_with("y'=") {
+        1
+    } else if compact.starts_with("dy/dx=") {
+        1
+    } else {
+        return None;
+    };
+    Some((|| {
+        let after_eq = norm.splitn(2, '=').nth(1).unwrap_or("").trim();
+        // Split at commas outside brackets: the equation, then the initial values.
+        let mut parts: Vec<String> = Vec::new();
+        let mut depth = 0i32;
+        let mut cur = String::new();
+        for c in after_eq.chars() {
+            match c {
+                '(' | '[' | '{' => depth += 1,
+                ')' | ']' | '}' => depth -= 1,
+                ',' if depth == 0 => {
+                    parts.push(std::mem::take(&mut cur));
+                    continue;
+                }
+                _ => {}
+            }
+            cur.push(c);
+        }
+        parts.push(cur);
+        let rhs_src = parts[0].replace("y'", "Y");
+        let rhs = engine::parse(rhs_src.trim())?;
+        let (mut x0, mut y0, mut dy0) = (0.0, 1.0, 0.0);
+        let mut env = Env::default();
+        for cond in &parts[1..] {
+            let c: String = cond.chars().filter(|c| !c.is_whitespace()).collect();
+            let (lhs, val) = c.split_once('=').ok_or("Initial values look like y(0) = 1")?;
+            let v = engine::field_value(val, &mut env)?.ok_or("Initial values look like y(0) = 1")?;
+            let (is_deriv, inner) = if let Some(r) = lhs.strip_prefix("y'(") {
+                (true, r)
+            } else if let Some(r) = lhs.strip_prefix("y(") {
+                (false, r)
+            } else {
+                return Err("Initial values look like y(0) = 1 or y'(0) = 0".to_string());
+            };
+            let at = engine::field_value(inner.trim_end_matches(')'), &mut env)?.ok_or("Initial values look like y(0) = 1")?;
+            x0 = at;
+            if is_deriv {
+                dy0 = v;
+            } else {
+                y0 = v;
+            }
+        }
+        if order == 1 && engine::uses_var(&rhs, "Y") {
+            return Err("y′ on the right needs a second-order equation: start with y'' =".into());
+        }
+        Ok(Kind::Ode { rhs, order, x0, y0, dy0 })
+    })())
+}
+
+/// Runge–Kutta (4th order) from x0 out to both edges of [lo, hi], about 2000 steps across.
+fn solve_ode(rhs: &Expr, order: u8, x0: f64, y0: f64, dy0: f64, lo: f64, hi: f64, env: &mut Env) -> Vec<(f64, f64)> {
+    let h = ((hi - lo) / 2000.0).max(1e-9);
+    let slope = |env: &mut Env, x: f64, y: f64, yp: f64| -> (f64, f64) {
+        env.set_real("x", x);
+        env.set_real("y", y);
+        env.set_real("Y", yp);
+        let f = match engine::eval(rhs, env) {
+            Ok(engine::Value::Num(z)) if z.im == 0.0 => z.re,
+            _ => f64::NAN,
+        };
+        if order == 1 { (f, 0.0) } else { (yp, f) }
+    };
+    let run = |env: &mut Env, dir: f64, end: f64| -> Vec<(f64, f64)> {
+        let mut out = Vec::new();
+        let (mut x, mut y, mut yp) = (x0, y0, dy0);
+        let step = dir * h;
+        while (end - x) * dir > -1e-12 {
+            out.push((x, y));
+            if !y.is_finite() || y.abs() > 1e12 {
+                break;
+            }
+            let (k1y, k1p) = slope(env, x, y, yp);
+            let (k2y, k2p) = slope(env, x + step / 2.0, y + step / 2.0 * k1y, yp + step / 2.0 * k1p);
+            let (k3y, k3p) = slope(env, x + step / 2.0, y + step / 2.0 * k2y, yp + step / 2.0 * k2p);
+            let (k4y, k4p) = slope(env, x + step, y + step * k3y, yp + step * k3p);
+            y += step / 6.0 * (k1y + 2.0 * k2y + 2.0 * k3y + k4y);
+            yp += step / 6.0 * (k1p + 2.0 * k2p + 2.0 * k3p + k4p);
+            x += step;
+        }
+        out
+    };
+    engine::with_var(env, "x", |env| {
+        engine::with_var(env, "y", |env| {
+            engine::with_var(env, "Y", |env| {
+                let mut left = if x0 > lo { run(env, -1.0, lo) } else { Vec::new() };
+                left.reverse();
+                let right = if x0 < hi { run(env, 1.0, hi) } else { Vec::new() };
+                left.extend(right.into_iter().skip(if left.is_empty() { 0 } else { 1 }));
+                left
+            })
+        })
+    })
 }
 
 pub struct FnEntry {
@@ -27,6 +162,8 @@ pub struct FnEntry {
     pub show_deriv: bool,
     parsed_for: Option<String>,
     pub kind: Option<Result<Kind, String>>,
+    /// The solved curve of a differential equation, for the current view and sliders.
+    pub ode: std::cell::RefCell<OdeSolution>,
 }
 
 /// A free letter in a function (a, b, k …) that gets a slider.
@@ -40,7 +177,7 @@ pub struct Param {
 
 impl FnEntry {
     pub fn new(text: &str) -> Self {
-        FnEntry { text: text.into(), visible: true, show_deriv: false, parsed_for: None, kind: None }
+        FnEntry { text: text.into(), visible: true, show_deriv: false, parsed_for: None, kind: None, ode: Default::default() }
     }
 
     fn refresh(&mut self) {
@@ -56,6 +193,10 @@ impl FnEntry {
         }
         if t.is_empty() {
             self.kind = None;
+            return;
+        }
+        if let Some(ode) = parse_ode(self.text.trim()) {
+            self.kind = Some(ode);
             return;
         }
         // Inequalities: y < f(x), y ≥ f(x) …
@@ -79,6 +220,38 @@ impl FnEntry {
             Some(Ok(Kind::Cart(e))) => Some(e),
             Some(Ok(Kind::Ineq { expr, .. })) => Some(expr),
             _ => None,
+        }
+    }
+
+    pub fn is_ode(&self) -> bool {
+        matches!(self.kind, Some(Ok(Kind::Ode { .. })))
+    }
+
+    /// True for lines that give y for an x: curves, inequality boundaries and solved equations.
+    pub fn has_y(&self) -> bool {
+        self.cart().is_some() || self.is_ode()
+    }
+
+    /// y at x for curves and solved differential equations (NaN where undefined).
+    pub fn y_at(&self, env: &mut Env, x: f64) -> f64 {
+        match &self.kind {
+            Some(Ok(Kind::Ode { .. })) => self.ode.borrow().at(x),
+            _ => match self.cart() {
+                Some(e) => engine::eval_at(e, env, "x", x),
+                None => f64::NAN,
+            },
+        }
+    }
+
+    /// Make sure the solution covers [lo, hi] with the current slider values.
+    pub fn solve(&self, env: &mut Env, lo: f64, hi: f64, params: &str) {
+        if let Some(Ok(Kind::Ode { rhs, order, x0, y0, dy0 })) = &self.kind {
+            let key = format!("{}|{:.6}|{:.6}|{}|{:?}", self.text, lo, hi, params, env.angle);
+            let mut sol = self.ode.borrow_mut();
+            if sol.key != key {
+                sol.pts = solve_ode(rhs, *order, *x0, *y0, *dy0, lo, hi, env);
+                sol.key = key;
+            }
         }
     }
 
@@ -160,6 +333,7 @@ pub struct GraphState {
     pub params: Vec<Param>,
     /// Show a tangent line where the mouse traces the selected curve.
     pub tangent: bool,
+    pub slope_field: bool,
     /// The Statistics X/Y columns, drawn as points when `show_points` is on.
     pub points: Vec<(f64, f64)>,
     pub show_points: bool,
@@ -186,6 +360,7 @@ impl Default for GraphState {
             export_msg: None,
             params: Vec::new(),
             tangent: false,
+            slope_field: false,
             points: Vec::new(),
             show_points: false,
         }
@@ -227,6 +402,8 @@ fn function_list(ui: &mut Ui, st: &mut GraphState, pal: &Pal) {
                 Some(Ok(Kind::Param(..))) => "x, y",
                 Some(Ok(Kind::Ineq { above: true, .. })) => "y >",
                 Some(Ok(Kind::Ineq { .. })) => "y <",
+                Some(Ok(Kind::Ode { order: 2, .. })) => "y″ =",
+                Some(Ok(Kind::Ode { .. })) => "y′ =",
                 _ => "y =",
             };
             let (pr, _) = ui.allocate_exact_size(vec2(26.0, 30.0), Sense::hover());
@@ -235,6 +412,7 @@ fn function_list(ui: &mut Ui, st: &mut GraphState, pal: &Pal) {
             let hint = match i {
                 0 => "x² − 2x − 3",
                 1 => "sin(x)",
+                2 => "y' = x − y, y(0) = 1",
                 _ => "",
             };
             let r = widgets::field(ui, pal, &mut f.text, hint, w.max(60.0)).on_hover_text(help::FUNCTION);
@@ -518,6 +696,9 @@ fn options_panel(ui: &mut Ui, st: &mut GraphState, pal: &Pal) {
             toggle(ui, &mut f.show_deriv, "Derivative f′(x) of the selected function", "Draws the slope of the selected curve as a dashed line in the same colour.");
         }
     }
+    if st.fns.iter().any(|f| matches!(f.kind, Some(Ok(Kind::Ode { order: 1, .. })))) {
+        toggle(ui, &mut st.slope_field, "Slope field of the selected equation", "Short lines showing the slope y′ = f(x, y) everywhere, so you can see all the solutions at once.");
+    }
     toggle(ui, &mut st.tangent, "Tangent line while tracing", "Hover a curve to see the tangent and its slope at that point.");
     if !st.points.is_empty() {
         toggle(ui, &mut st.show_points, &format!("Statistics data ({} points)", st.points.len()), "Plots the X and Y columns from Statistics as points, so you can compare them with a function.");
@@ -623,6 +804,7 @@ fn plot_ui(ui: &mut Ui, rect: Rect, st: &mut GraphState, env: &mut Env, pal: &Pa
         }
         // Curves.
         let (t0, t1) = engine::with_var(env, "t", |env| engine::with_var(env, "θ", |env| t_range(st, env)));
+        let param_key: String = st.params.iter().map(|p| format!("{}={};", p.name, p.value)).collect();
         for (i, f) in st.fns.iter().enumerate() {
             if !f.visible {
                 continue;
@@ -662,6 +844,46 @@ fn plot_ui(ui: &mut Ui, rect: Rect, st: &mut GraphState, env: &mut Env, pal: &Pa
                             .collect()
                     });
                     plot::draw_path(&p, rect, &view, color, width, &pts);
+                }
+                Some(Ok(Kind::Ode { rhs, order: 1, .. })) if st.slope_field && i == st.sel => {
+                    // Slope field: a short segment with slope f(x, y) on a grid, then the solution.
+                    let (ylo, yhi) = view.y_range(rect);
+                    let (nx, ny) = (24usize, 16usize);
+                    let len = (rect.width() / nx as f32 * 0.42) as f64;
+                    let faint = Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 110);
+                    engine::with_var(env, "x", |env| {
+                        engine::with_var(env, "y", |env| {
+                            for a in 0..nx {
+                                for b in 0..ny {
+                                    let x = x0 + (x1 - x0) * (a as f64 + 0.5) / nx as f64;
+                                    let y = ylo + (yhi - ylo) * (b as f64 + 0.5) / ny as f64;
+                                    env.set_real("x", x);
+                                    env.set_real("y", y);
+                                    let m = match engine::eval(rhs, env) {
+                                        Ok(engine::Value::Num(z)) if z.im == 0.0 => z.re,
+                                        _ => continue,
+                                    };
+                                    if !m.is_finite() {
+                                        continue;
+                                    }
+                                    // Slope in screen space (y axis points up).
+                                    let ms = -m * view.sx / view.sy;
+                                    let dx = (len / (1.0 + ms * ms).sqrt()) as f32;
+                                    let dy = (ms as f32) * dx;
+                                    let c = view.to_screen(rect, x, y);
+                                    if inner.contains(c) {
+                                        p.line_segment([c - vec2(dx, dy) / 2.0, c + vec2(dx, dy) / 2.0], Stroke::new(1.0_f32, faint));
+                                    }
+                                }
+                            }
+                        })
+                    });
+                    f.solve(env, x0, x1, &param_key);
+                    plot::draw_path(&p, rect, &view, color, width, &f.ode.borrow().pts);
+                }
+                Some(Ok(Kind::Ode { .. })) => {
+                    f.solve(env, x0, x1, &param_key);
+                    plot::draw_path(&p, rect, &view, color, width, &f.ode.borrow().pts);
                 }
                 Some(Ok(Kind::Param(ex, ey))) => {
                     let pts: Vec<(f64, f64)> = engine::with_var(env, "t", |env| {
@@ -717,8 +939,8 @@ fn plot_ui(ui: &mut Ui, rect: Rect, st: &mut GraphState, env: &mut Env, pal: &Pa
                 let (wx, _) = view.to_world(rect, mp);
                 let mut best = 28.0f32;
                 for (i, f) in st.fns.iter().enumerate() {
-                    if let (true, Some(e)) = (f.visible, f.cart()) {
-                        let y = engine::eval_at(e, env, "x", wx);
+                    if f.visible && f.has_y() {
+                        let y = f.y_at(env, wx);
                         if y.is_finite() {
                             let pos = view.to_screen(rect, wx, y);
                             let d = (pos.y - mp.y).abs();
@@ -842,7 +1064,7 @@ pub fn table_ui(ui: &mut Ui, st: &mut GraphState, env: &mut Env, pal: &Pal) {
         env.set_real(&p.name, p.value);
     }
     let (left, right) = split(ui);
-    let cols: Vec<usize> = (0..st.fns.len()).filter(|i| st.fns[*i].cart().is_some()).collect();
+    let cols: Vec<usize> = (0..st.fns.len()).filter(|i| st.fns[*i].has_y()).collect();
     let range = (|| -> Result<(f64, f64, usize), String> {
         let a = engine::field_value(&st.tb_start, env)?.ok_or("Enter a start value")?;
         let b = engine::field_value(&st.tb_end, env)?.ok_or("Enter an end value")?;
@@ -856,6 +1078,14 @@ pub fn table_ui(ui: &mut Ui, st: &mut GraphState, env: &mut Env, pal: &Pal) {
         }
         Ok((a, s, n))
     })();
+    // Differential equations are solved over the table's own range.
+    if let Ok((a, s, n)) = &range {
+        let (lo, hi) = (a.min(a + s * (*n as f64 - 1.0)), a.max(a + s * (*n as f64 - 1.0)));
+        let params: String = st.params.iter().map(|p| format!("{}={};", p.name, p.value)).collect();
+        for c in &cols {
+            st.fns[*c].solve(env, lo - 1e-9, hi + 1e-9, &params);
+        }
+    }
     ui.allocate_new_ui(UiBuilder::new().max_rect(left), |ui| {
         ScrollArea::vertical().id_salt("table_side").auto_shrink([false, false]).show(ui, |ui| {
             ui.set_width(left.width() - 8.0);
@@ -887,7 +1117,7 @@ pub fn table_ui(ui: &mut Ui, st: &mut GraphState, env: &mut Env, pal: &Pal) {
                             .map(|i| {
                                 let x = a + s * i as f64;
                                 let mut row = vec![fmt::short(x, 10)];
-                                row.extend(cols.iter().map(|c| fmt::short(engine::eval_at(fns[*c].cart().unwrap(), &mut env, "x", x), 10)));
+                                row.extend(cols.iter().map(|c| fmt::short(fns[*c].y_at(&mut env, x), 10)));
                                 row
                             })
                             .collect()
@@ -950,7 +1180,7 @@ pub fn table_ui(ui: &mut Ui, st: &mut GraphState, env: &mut Env, pal: &Pal) {
                             pal.dim,
                         );
                         for c in &cols {
-                            let y = engine::eval_at(st.fns[*c].cart().unwrap(), env, "x", x);
+                            let y = st.fns[*c].y_at(env, x);
                             let (r, _) = ui.allocate_exact_size(vec2(col_w, row_h), Sense::hover());
                             ui.painter().text(
                                 r.right_center() - vec2(14.0, 0.0),
@@ -1015,4 +1245,33 @@ fn save_png(img: &egui::ColorImage) -> Result<String, String> {
     image::save_buffer(&path, &bytes, img.size[0] as u32, img.size[1] as u32, image::ExtendedColorType::Rgba8)
         .map_err(|e| e.to_string())?;
     Ok(if dir.ends_with("Downloads") { format!("Downloads/{}", name) } else { name })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ode_solver() {
+        let mut env = Env::default();
+        // y' = y, y(0) = 1  →  y(1) = e, y(−1) = 1/e
+        let mut f = FnEntry::new("y' = y, y(0) = 1");
+        f.refresh();
+        f.solve(&mut env, -2.0, 2.0, "");
+        assert!((f.y_at(&mut env, 1.0) - std::f64::consts::E).abs() < 1e-6);
+        assert!((f.y_at(&mut env, -1.0) - 1.0 / std::f64::consts::E).abs() < 1e-6);
+        // y'' = −y, y(0) = 0, y'(0) = 1  →  y = sin x (radians, independent of the angle unit)
+        let mut g = FnEntry::new("y'' = −y, y(0) = 0, y'(0) = 1");
+        g.refresh();
+        g.solve(&mut env, 0.0, 4.0, "");
+        assert!((g.y_at(&mut env, std::f64::consts::FRAC_PI_2) - 1.0).abs() < 1e-6);
+        assert!((g.y_at(&mut env, std::f64::consts::PI)).abs() < 1e-6);
+        // Initial values default to y(0) = 1; a bad condition is reported.
+        let mut h = FnEntry::new("y' = 2");
+        h.refresh();
+        assert!(matches!(h.kind, Some(Ok(Kind::Ode { x0, y0, .. })) if x0 == 0.0 && y0 == 1.0));
+        let mut bad = FnEntry::new("y' = y, y0 = 1");
+        bad.refresh();
+        assert!(matches!(bad.kind, Some(Err(_))));
+    }
 }

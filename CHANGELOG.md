@@ -3,6 +3,23 @@
 All notable changes to Scientific Calculator. Downloads for the latest version are in the
 [README](README.md#download).
 
+## 3.0.0 — 14 October 2026
+
+**Differential equations** (in Graph)
+- `y' = x − y, y(0) = 1` draws the solution; second order: `y'' = −4y − 0.4y', y(0) = 2, y'(0) = 0`
+- Slope field option; the Table tab lists the solution's values; tracing works on it
+
+**Calculus**
+- Higher derivatives `diff(x^3, x, 2, 2)` (to order 4) and partial derivatives
+- Improper integrals: `integ(e^(-x), 0, inf)`, `integ(1/(1+x²), -inf, inf)`
+- `arclen( )`, `volume( )` of revolution, double integral `integ2( )`
+
+**Linear algebra**
+- `nullspace( )`, `lu( )`, `qr( )` (Gram–Schmidt), `expm( )`, `cond( )`
+
+**Polynomials** as coefficient lists
+- `polymul polydiv polyrem polyeval polyroots polyder polyint`
+
 ## 2.5.0 — 14 October 2026
 
 **Engineering**

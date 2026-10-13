@@ -1,6 +1,6 @@
 [package]
 name = "scientific-calculator"
-version = "2.5.0"
+version = "3.0.0"
 edition = "2021"
 description = "A clean, minimal scientific and graphing calculator"
 license = "MIT"

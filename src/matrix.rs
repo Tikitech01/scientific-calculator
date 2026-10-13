@@ -336,6 +336,146 @@ impl Matrix {
         Ok(out)
     }
 
+    /// Basis of the null space, one vector per column, read off the reduced row echelon form.
+    pub fn nullspace(&self) -> Result<Matrix, String> {
+        let (r, rank) = self.rref();
+        // Pivot columns: the first non-zero entry of each of the first `rank` rows.
+        let mut pivots = Vec::new();
+        for i in 0..rank {
+            if let Some(j) = (0..r.c).find(|j| r.get(i, *j) != 0.0) {
+                pivots.push(j);
+            }
+        }
+        let free: Vec<usize> = (0..r.c).filter(|j| !pivots.contains(j)).collect();
+        if free.is_empty() {
+            return Err("Only the zero vector: the columns are independent".into());
+        }
+        let mut rows = vec![vec![0.0; free.len()]; r.c];
+        for (k, &fcol) in free.iter().enumerate() {
+            rows[fcol][k] = 1.0;
+            for (i, &pcol) in pivots.iter().enumerate() {
+                rows[pcol][k] = -r.get(i, fcol);
+            }
+        }
+        Matrix::from_rows(rows)
+    }
+
+    /// LU decomposition with partial pivoting: returns (P, L, U) with P·A = L·U.
+    pub fn lu(&self) -> Result<(Matrix, Matrix, Matrix), String> {
+        if !self.is_square() {
+            return Err("LU needs a square matrix".into());
+        }
+        let n = self.r;
+        let mut u = self.clone();
+        let mut l = Matrix::identity(n);
+        let mut perm = Matrix::identity(n);
+        for col in 0..n {
+            let mut p = col;
+            for i in col + 1..n {
+                if u.get(i, col).abs() > u.get(p, col).abs() {
+                    p = i;
+                }
+            }
+            if u.get(p, col).abs() < EPS {
+                continue;
+            }
+            if p != col {
+                u.swap_rows(p, col);
+                perm.swap_rows(p, col);
+                for j in 0..col {
+                    let t = l.get(p, j);
+                    l.set(p, j, l.get(col, j));
+                    l.set(col, j, t);
+                }
+            }
+            for i in col + 1..n {
+                let f = u.get(i, col) / u.get(col, col);
+                l.set(i, col, f);
+                for j in col..n {
+                    let v = u.get(i, j) - f * u.get(col, j);
+                    u.set(i, j, v);
+                }
+            }
+        }
+        for v in u.d.iter_mut() {
+            if v.abs() < 1e-12 {
+                *v = 0.0;
+            }
+        }
+        Ok((perm, l, u))
+    }
+
+    /// QR decomposition by modified Gram–Schmidt: A = Q·R, Q with orthonormal columns.
+    pub fn qr(&self) -> Result<(Matrix, Matrix), String> {
+        let (m, n) = (self.r, self.c);
+        let mut q = Matrix::zeros(m, n);
+        let mut r = Matrix::zeros(n, n);
+        let mut cols: Vec<Vec<f64>> = (0..n).map(|j| (0..m).map(|i| self.get(i, j)).collect()).collect();
+        for j in 0..n {
+            for k in 0..j {
+                let qk: Vec<f64> = (0..m).map(|i| q.get(i, k)).collect();
+                let dot: f64 = qk.iter().zip(&cols[j]).map(|(a, b)| a * b).sum();
+                r.set(k, j, dot);
+                for i in 0..m {
+                    cols[j][i] -= dot * qk[i];
+                }
+            }
+            let norm = cols[j].iter().map(|v| v * v).sum::<f64>().sqrt();
+            if norm < 1e-10 {
+                return Err("The columns are not independent".into());
+            }
+            r.set(j, j, norm);
+            for i in 0..m {
+                q.set(i, j, cols[j][i] / norm);
+            }
+        }
+        Ok((q, r))
+    }
+
+    /// Matrix exponential by scaling and squaring with a Taylor series.
+    pub fn expm(&self) -> Result<Matrix, String> {
+        if !self.is_square() {
+            return Err("expm needs a square matrix".into());
+        }
+        let n = self.r;
+        let norm = self.norm();
+        let k = if norm > 0.5 { (norm / 0.5).log2().ceil() as i32 } else { 0 };
+        let a = self.scale(0.5f64.powi(k));
+        let mut term = Matrix::identity(n);
+        let mut sum = Matrix::identity(n);
+        for i in 1..=18 {
+            term = term.mul(&a)?.scale(1.0 / i as f64);
+            sum = sum.add(&term)?;
+        }
+        for _ in 0..k {
+            sum = sum.mul(&sum)?;
+        }
+        Ok(sum)
+    }
+
+    /// 2-norm condition number √(λmax/λmin) of AᵀA; ∞ for a singular matrix.
+    pub fn cond(&self) -> Result<f64, String> {
+        let ata = self.transpose().mul(self)?;
+        let ev = ata.eigenvalues()?;
+        let re: Vec<f64> = ev.iter().map(|z| z.re.max(0.0)).collect();
+        let max = re.iter().cloned().fold(0.0, f64::max);
+        let min = re.iter().cloned().fold(f64::INFINITY, f64::min);
+        if min <= 1e-14 * max.max(1.0) {
+            return Ok(f64::INFINITY);
+        }
+        Ok((max / min).sqrt())
+    }
+
+    /// Two matrices stacked vertically, for results that come in pairs (L over U, Q over R).
+    pub fn stack(top: &Matrix, bottom: &Matrix) -> Result<Matrix, String> {
+        if top.c != bottom.c {
+            return Err("Cannot stack matrices of different widths".into());
+        }
+        let mut d = top.d.clone();
+        d.extend_from_slice(&bottom.d);
+        Ok(Matrix { r: top.r + bottom.r, c: top.c, d })
+    }
+
     pub fn norm(&self) -> f64 {
         self.d.iter().map(|v| v * v).sum::<f64>().sqrt()
     }
