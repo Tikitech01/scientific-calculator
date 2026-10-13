@@ -1,6 +1,6 @@
 # Maintainer: Sopè Technology <https://sopetechnology.com>
 pkgname=scientific-calculator-bin
-pkgver=2.4.0
+pkgver=3.0.0
 pkgrel=1
 pkgdesc="Scientific, graphing, statistics and financial calculator for engineering students"
 arch=('x86_64')
@@ -9,9 +9,9 @@ license=('MIT')
 depends=('libgl' 'libxkbcommon' 'wayland' 'libx11' 'libxcursor' 'libxrandr' 'libxi')
 provides=('scientific-calculator')
 conflicts=('scientific-calculator')
-source=("Scientific-Calculator-$pkgver-Linux-x86_64.tar.gz::https://github.com/Tikitech01/scientific-calculator/raw/72180f021702712b74807955c1248a86026ea4b4/downloads/Scientific-Calculator-2.4.0-Linux-x86_64.tar.gz"
+source=("Scientific-Calculator-$pkgver-Linux-x86_64.tar.gz::https://github.com/Tikitech01/scientific-calculator/raw/d1c674832cbb826b9ec56c3478f240d482d9394b/downloads/Scientific-Calculator-3.0.0-Linux-x86_64.tar.gz"
         "LICENSE::https://github.com/Tikitech01/scientific-calculator/raw/a599080c2c8f85163585dbfb1546ccd1ab07bbcb/LICENSE")
-sha256sums=('1e96f2dbe5ceb25aa6af7b638544b34a4ec3aa76b5db9d787e8ae5617104755d'
+sha256sums=('2d512d4b961a58f6912ede6af1951775a1767544d17cace39bb136b631d127a6'
             '6f1c0438c0b0618ff820cd2218d84bd5e50ebe1fd7533401b7d25709b9db2b13')
 
 package() {

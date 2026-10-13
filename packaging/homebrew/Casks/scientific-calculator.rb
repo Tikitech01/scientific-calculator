@@ -1,8 +1,8 @@
 cask "scientific-calculator" do
-  version "2.4.0"
-  sha256 "3e56ebdd5ac686b6bad340aae35bdc4e6482e30d7b8e4f3b1d7a64d83ac7bd13"
+  version "3.0.0"
+  sha256 "910f56df9e06cef45cdea597df5945517869318ae0e5f9742c288568bd66dfb4"
 
-  url "https://github.com/Tikitech01/scientific-calculator/raw/72180f021702712b74807955c1248a86026ea4b4/downloads/Scientific-Calculator-2.4.0-macOS-AppleSilicon.zip"
+  url "https://github.com/Tikitech01/scientific-calculator/raw/d1c674832cbb826b9ec56c3478f240d482d9394b/downloads/Scientific-Calculator-3.0.0-macOS-AppleSilicon.zip"
   name "Scientific Calculator"
   desc "Scientific, graphing, statistics and financial calculator for engineering students"
   homepage "https://github.com/Tikitech01/scientific-calculator"
