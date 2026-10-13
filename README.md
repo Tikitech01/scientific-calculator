@@ -15,8 +15,10 @@ and expands into a full workstation when you need it.
   <img alt="Offline" src="https://img.shields.io/badge/works-offline-2F6FDE?style=for-the-badge">
 </p>
 
+<p align="center"><a href="https://claude.ai/artifact/DBMYUQcnU2SvSn1FyHFvcB"><b>Website</b></a> · <a href="https://github.com/Tikitech01/scientific-calculator/releases/latest"><b>Latest release</b></a> · <a href="CHANGELOG.md">What's new</a> · <a href="https://github.com/Tikitech01/scientific-calculator/issues/new">Feedback</a></p>
+
 <p align="center">
-  <img src="docs/demo.gif" alt="A tour: calculate with phasors, graph with sliders, solve equations, matrices, ANOVA, programmer and loan schedule" width="880">
+  <img src="docs/demo.gif" alt="The simple calculator expands into the full one, then a tour: calculate with phasors, graph with sliders, solve equations, matrices, ANOVA, programmer and loan schedule" width="880">
 </p>
 
 <p align="center">
