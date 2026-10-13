@@ -150,6 +150,8 @@ struct App {
     stats: ui_stats::StatsState,
     conv: ui_convert::ConvState,
     show_help: bool,
+    /// The small calculator shows Settings as a page instead of a popup.
+    show_settings: bool,
     /// The simple calculator: basic keys only, in a small window.
     compact: bool,
     size_applied: bool,
@@ -224,6 +226,7 @@ impl App {
             stats: Default::default(),
             conv: Default::default(),
             show_help: false,
+            show_settings: false,
             compact: true,
             size_applied: true,
             min_applied: true,
@@ -333,6 +336,7 @@ impl App {
         let size = if compact { COMPACT_SIZE } else { FULL_SIZE };
         self.pending_pos = Self::position_for(ctx, size, keep_right);
         self.compact = compact;
+        self.show_settings = false;
         self.size_applied = false;
         self.mode = Mode::Calc;
         self.calc.greek = false;
@@ -354,7 +358,14 @@ impl App {
         };
         for cmd in cmds {
             match cmd {
-                Cmd::Settings => ctx.memory_mut(|m| m.open_popup(egui::Id::new("settings_popup"))),
+                Cmd::Settings => {
+                    if self.compact {
+                        self.show_settings = !self.show_settings;
+                        self.show_help = false;
+                    } else {
+                        ctx.memory_mut(|m| m.open_popup(egui::Id::new("settings_popup")))
+                    }
+                }
                 // The menu takes these keys before the window sees them, so hand them to the text fields.
                 Cmd::Undo => ctx.input_mut(|i| i.events.push(key(Key::Z, false))),
                 Cmd::Redo => ctx.input_mut(|i| i.events.push(key(Key::Z, true))),
@@ -406,7 +417,13 @@ impl App {
     }
 
     fn settings_ui(&mut self, ui: &mut egui::Ui, pal: &Pal) {
-        ui.set_min_width(300.0);
+        if !self.compact {
+            // Wide enough for the longest row (the calculator types) in the popup.
+            ui.set_min_width(400.0);
+        } else {
+            // Long option rows wrap onto a second line in the small window.
+            ui.set_max_width(ui.available_width().max(200.0));
+        }
         ui.spacing_mut().item_spacing.y = 4.0;
         let head = |ui: &mut egui::Ui, t: &str| {
             ui.add_space(6.0);
@@ -723,18 +740,27 @@ impl App {
                         let help_clicked = widgets::glyph(ui, &pal, "?", 26.0).on_hover_text("Input guide: how to type powers, roots, functions and more").clicked();
                         if help_clicked {
                             self.show_help = !self.show_help;
+                            self.show_settings = false;
                         }
                         let set_btn = widgets::settings_button(ui, &pal, 26.0).on_hover_text("Settings: appearance, number format, keep on top, history");
                         let pop_id = egui::Id::new("settings_popup");
-                        if set_btn.clicked() {
-                            ui.memory_mut(|m| m.toggle_popup(pop_id));
+                        if self.compact {
+                            // Too narrow for a popup: Settings takes over the window instead.
+                            if set_btn.clicked() {
+                                self.show_settings = !self.show_settings;
+                                self.show_help = false;
+                            }
+                        } else {
+                            if set_btn.clicked() {
+                                ui.memory_mut(|m| m.toggle_popup(pop_id));
+                            }
+                            egui::popup::popup_below_widget(ui, pop_id, &set_btn, egui::popup::PopupCloseBehavior::CloseOnClickOutside, |ui| {
+                                let t = anim::appear(ui.ctx(), pop_id.with("fade"), "open", 0.16);
+                                ui.set_opacity(t);
+                                ui.add_space((1.0 - t) * 6.0);
+                                self.settings_ui(ui, &pal);
+                            });
                         }
-                        egui::popup::popup_below_widget(ui, pop_id, &set_btn, egui::popup::PopupCloseBehavior::CloseOnClickOutside, |ui| {
-                            let t = anim::appear(ui.ctx(), pop_id.with("fade"), "open", 0.16);
-                            ui.set_opacity(t);
-                            ui.add_space((1.0 - t) * 6.0);
-                            self.settings_ui(ui, &pal);
-                        });
                         let pin_tip = if self.settings.on_top { "Staying above other windows. Click to stop." } else { "Keep the calculator above other windows" };
                         if widgets::pin_button(ui, &pal, 26.0, self.settings.on_top).on_hover_text(pin_tip).clicked() {
                             self.settings.on_top = !self.settings.on_top;
@@ -774,6 +800,25 @@ impl App {
                     if help::content(ui, &pal, current) {
                         self.show_help = false;
                     }
+                    return;
+                }
+                if self.compact && self.show_settings {
+                    let t = anim::appear(ctx, egui::Id::new("settings_page"), "open", 0.18);
+                    ui.set_opacity(t);
+                    ui.add_space((1.0 - t) * 8.0);
+                    ui.horizontal(|ui| {
+                        ui.label(egui::RichText::new("Settings").font(theme::light(24.0)).color(pal.text));
+                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                            if widgets::glyph(ui, &pal, "×", 26.0).on_hover_text("Back to the calculator").clicked() {
+                                self.show_settings = false;
+                            }
+                        });
+                    });
+                    ui.add_space(4.0);
+                    egui::ScrollArea::vertical().id_salt("settings_page").auto_shrink([false, false]).show(ui, |ui| {
+                        self.settings_ui(ui, &pal);
+                        ui.add_space(12.0);
+                    });
                     return;
                 }
                 // Switching modes: the new content fades and rises in (the graph is drawn at

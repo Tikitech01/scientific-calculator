@@ -88,9 +88,19 @@ pub fn tab(ui: &mut Ui, pal: &Pal, label: &str, selected: bool) -> bool {
 /// Pill-style segmented control. Returns true when the selection changed.
 pub fn segmented(ui: &mut Ui, pal: &Pal, sel: &mut usize, labels: &[&str]) -> bool {
     let mut changed = false;
+    // Wrap onto more lines when the row would not fit (the small window's Settings page).
+    let needed: f32 = labels.iter().map(|l| text_width(ui, l, theme::medium(12.5)) + 20.0).sum::<f32>() + 4.0;
+    let wrap = needed > ui.available_width() && !ui.layout().prefer_right_to_left();
     Frame::new().fill(pal.key).corner_radius(CornerRadius::same(8)).inner_margin(Margin::same(2)).show(ui, |ui| {
-        ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = 2.0;
+        let layout = |ui: &mut Ui, add: &mut dyn FnMut(&mut Ui)| {
+            if wrap {
+                ui.horizontal_wrapped(|ui| add(ui));
+            } else {
+                ui.horizontal(|ui| add(ui));
+            }
+        };
+        layout(ui, &mut |ui| {
+            ui.spacing_mut().item_spacing = egui::vec2(2.0, 2.0);
             // Keep reading order even inside a right-to-left parent layout.
             let rtl = ui.layout().prefer_right_to_left();
             let order: Vec<usize> = if rtl { (0..labels.len()).rev().collect() } else { (0..labels.len()).collect() };
