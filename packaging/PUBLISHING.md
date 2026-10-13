@@ -62,16 +62,33 @@ notarises when the secrets in the README are set), submit to homebrew/cask for f
 
 Arch users then run `yay -S scientific-calculator-bin`.
 
-## 6. App stores (larger effort, large audience)
+## 6. Microsoft Store (MSIX)
 
-- **Microsoft Store**: free individual developer account. Submitting the existing installer
-  (as an EXE/MSI app) gets the app into Store search and removes the SmartScreen warning for
-  Store installs.
+Submit an MSIX package: Microsoft signs it for free, hosts it and updates users automatically.
+(The `.exe` installer route needs a paid code-signing certificate.)
+
+1. Partner Center > Apps and games > New product > MSIX or PWA app > reserve the name.
+   Plain "Scientific Calculator" is likely taken; have a distinct name ready.
+2. Product management > Product identity: copy Package/Identity/Name, Package/Identity/Publisher
+   and the reserved name into `packaging/msix/identity.json`.
+3. On the Windows PC: `.\build-msix.ps1` (or double-click `build-msix.bat`). It reuses the release
+   build from `build-windows.ps1`, installs the Windows SDK if needed and writes
+   `dist\Scientific-Calculator-<version>-x64.msix`.
+4. Upload that file in the submission's Packages step; listing text and screenshots go in Store listings.
+
+Before the account is ready, `.\build-msix.ps1 -Test` builds a test package with a temporary
+identity and signs it so it installs on that PC.
+
+Icons are in `packaging/msix/Assets` (made from `packaging/icon.png`); the package description is
+`packaging/msix/AppxManifest.xml`.
+
+## 7. Other app stores
+
 - **Snap Store**: a `snapcraft.yaml` that repackages the Linux binary; reaches Ubuntu users
   through Ubuntu Software.
 - **Flathub**: the MIT licence allows a build from source; needs a Flatpak manifest.
 
-## 7. Licence
+## 8. Licence
 
 The app is released under the MIT License (`LICENSE`, copyright Sopè Technology). The
 manifests declare MIT, and the AUR package installs the licence file.

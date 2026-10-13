@@ -1,0 +1,7 @@
+{
+  "_help": "Copy these from Partner Center > your app > Product management > Product identity, after reserving the name.",
+  "IdentityName": "PASTE Package/Identity/Name, e.g. 12345SopeTechnology.ScientificCalculator",
+  "Publisher": "PASTE Package/Identity/Publisher, e.g. CN=1A2B3C4D-....",
+  "PublisherDisplayName": "Sopè Technology",
+  "DisplayName": "PASTE the reserved app name"
+}
