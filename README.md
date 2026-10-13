@@ -33,7 +33,7 @@ What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 
 | System | File | How to install |
 | --- | --- | --- |
-| **macOS** (Apple silicon, M1 or later) | [Scientific-Calculator-2.4.0-macOS-AppleSilicon.zip](downloads/Scientific-Calculator-2.4.0-macOS-AppleSilicon.zip) | Unzip, drag **Scientific Calculator** to Applications. The first time, right-click the app and choose **Open** (the app is not notarised yet). |
+| **macOS** (Apple silicon, M1 or later) | [Scientific-Calculator-2.4.0-macOS-AppleSilicon.zip](downloads/Scientific-Calculator-2.4.0-macOS-AppleSilicon.zip) | Unzip and drag **Scientific Calculator** to Applications. The app is not notarised by Apple yet, so the first time macOS may say it can't be opened: open **System Settings ▸ Privacy & Security** and click **Open Anyway** (on macOS 14 and earlier, right-click the app and choose **Open**). |
 | **Windows** 10 / 11 (64-bit) | [Scientific-Calculator-2.0.0-Windows-Setup.exe](downloads/Scientific-Calculator-2.0.0-Windows-Setup.exe) | Run the installer and follow the steps. If SmartScreen appears, choose **More info → Run anyway** (the installer is not code-signed yet). |
 | **Linux** – Debian, Ubuntu, Mint | [scientific-calculator_2.4.0_amd64.deb](downloads/scientific-calculator_2.4.0_amd64.deb) | `sudo apt install ./scientific-calculator_2.4.0_amd64.deb` |
 | **Linux** – any other distribution | [Scientific-Calculator-2.4.0-Linux-x86_64.tar.gz](downloads/Scientific-Calculator-2.4.0-Linux-x86_64.tar.gz) | Extract it and run `./install.sh` (no root needed). |

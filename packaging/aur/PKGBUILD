@@ -1,0 +1,20 @@
+# Maintainer: Sope Technology <https://sopetechnology.com>
+pkgname=scientific-calculator-bin
+pkgver=2.4.0
+pkgrel=1
+pkgdesc="Scientific, graphing, statistics and financial calculator for engineering students"
+arch=('x86_64')
+url="https://github.com/Tikitech01/scientific-calculator"
+license=('LicenseRef-proprietary')
+depends=('libgl' 'libxkbcommon' 'wayland' 'libx11' 'libxcursor' 'libxrandr' 'libxi')
+provides=('scientific-calculator')
+conflicts=('scientific-calculator')
+source=("Scientific-Calculator-$pkgver-Linux-x86_64.tar.gz::https://github.com/Tikitech01/scientific-calculator/raw/72180f021702712b74807955c1248a86026ea4b4/downloads/Scientific-Calculator-2.4.0-Linux-x86_64.tar.gz")
+sha256sums=('1e96f2dbe5ceb25aa6af7b638544b34a4ec3aa76b5db9d787e8ae5617104755d')
+
+package() {
+  cd "Scientific-Calculator-$pkgver"
+  install -Dm755 scientific-calculator "$pkgdir/usr/bin/scientific-calculator"
+  install -Dm644 scientific-calculator.desktop "$pkgdir/usr/share/applications/scientific-calculator.desktop"
+  install -Dm644 icon-256.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/scientific-calculator.png"
+}

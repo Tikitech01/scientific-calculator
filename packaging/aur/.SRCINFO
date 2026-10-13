@@ -1,0 +1,20 @@
+pkgbase = scientific-calculator-bin
+	pkgdesc = Scientific, graphing, statistics and financial calculator for engineering students
+	pkgver = 2.4.0
+	pkgrel = 1
+	url = https://github.com/Tikitech01/scientific-calculator
+	arch = x86_64
+	license = LicenseRef-proprietary
+	depends = libgl
+	depends = libxkbcommon
+	depends = wayland
+	depends = libx11
+	depends = libxcursor
+	depends = libxrandr
+	depends = libxi
+	provides = scientific-calculator
+	conflicts = scientific-calculator
+	source = Scientific-Calculator-2.4.0-Linux-x86_64.tar.gz::https://github.com/Tikitech01/scientific-calculator/raw/72180f021702712b74807955c1248a86026ea4b4/downloads/Scientific-Calculator-2.4.0-Linux-x86_64.tar.gz
+	sha256sums = 1e96f2dbe5ceb25aa6af7b638544b34a4ec3aa76b5db9d787e8ae5617104755d
+
+pkgname = scientific-calculator-bin
