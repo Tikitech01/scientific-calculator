@@ -1,0 +1,24 @@
+# RLC impedance
+R = 100Ω
+L = 10mH
+C = 1µF
+f = 1kHz
+ω = 2π·f                    # rad/s
+
+XL = ω·L                    # inductive reactance, Ω
+XC = 1/(ω·C)                # capacitive reactance, Ω
+
+# Series R + L + C
+Zs = R + i·(XL − XC)        # complex impedance
+Zm = abs(Zs)                # magnitude, Ω
+θs = arg(Zs)                # phase, degrees (set DEG at the top right)
+Is = 10/Zs                  # current for 10 V, A
+
+# Parallel R ∥ L ∥ C
+Zp = R ∥ (i·XL) ∥ (−i·XC)
+θp = arg(Zp)
+
+# Resonance
+f0 = 1/(2π·√(L·C))          # Hz
+Q = √(L/C)/R                # series Q
+BW = f0/Q                   # bandwidth, Hz

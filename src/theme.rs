@@ -123,6 +123,10 @@ pub fn medium(size: f32) -> FontId {
     FontId::new(size, FontFamily::Name("medium".into()))
 }
 
+pub fn mono(size: f32) -> FontId {
+    FontId::new(size, FontFamily::Name("mono".into()))
+}
+
 pub fn regular(size: f32) -> FontId {
     FontId::new(size, FontFamily::Proportional)
 }
@@ -148,6 +152,10 @@ pub fn install(ctx: &egui::Context) {
     fonts.families.insert(FontFamily::Monospace, chain("inter"));
     fonts.families.insert(FontFamily::Name("light".into()), chain("inter-light"));
     fonts.families.insert(FontFamily::Name("medium".into()), chain("inter-medium"));
+    // The sheet: egui's bundled Hack, so columns of calculations and comments line up.
+    let mut mono = vec!["Hack".to_string()];
+    mono.extend(chain("inter"));
+    fonts.families.insert(FontFamily::Name("mono".into()), mono);
     ctx.set_fonts(fonts);
 
     ctx.set_visuals_of(egui::Theme::Light, Pal::light().visuals());

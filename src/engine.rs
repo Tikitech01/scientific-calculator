@@ -3,8 +3,39 @@
 use crate::matrix::Matrix;
 use crate::{numeric, stats};
 use num_complex::Complex64 as C;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::f64::consts::PI;
+
+thread_local! {
+    /// Stored variables with names longer than one letter (fc, ωn, u1), so the lexer reads
+    /// them as one name. Refreshed from the environment before every evaluation.
+    static USER_NAMES: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Tell the lexer which multi-letter variables exist.
+fn refresh_names(env: &Env) {
+    USER_NAMES.with(|names| {
+        let mut names = names.borrow_mut();
+        names.clear();
+        names.extend(env.vars.keys().filter(|k| k.chars().count() > 1 && !NAMED.contains(&k.as_str())).cloned());
+    });
+}
+
+/// Can a sheet line store into `name`? Letters (Latin or Greek) with digits after the first,
+/// and not a function or a built-in constant such as e, i, π, Ans.
+pub fn user_name_ok(name: &str) -> bool {
+    let mut it = name.chars();
+    let first_ok = it.next().map(|c| c.is_alphabetic()).unwrap_or(false);
+    let rest_ok = it.all(|c| c.is_alphanumeric());
+    first_ok
+        && rest_ok
+        && !is_function(name)
+        && !["e", "i", "pi", "π", "Ans", "theta", "inf"].contains(&name)
+        && !NEEDS_PAREN.contains(&name)
+        && !name.starts_with("Mat")
+        && !name.starts_with("List")
+}
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Angle {
@@ -304,7 +335,8 @@ fn lex(src: &str) -> Result<Vec<Tok>, String> {
             let mut best: Option<&str> = None;
             let consts = CONSTANTS.iter().map(|c| c.0).filter(|n| n.chars().count() > 1);
             let greek_consts = ["ε0", "μ0", "µ0", "ħ"].into_iter();
-            for name in FUNCS.iter().copied().chain(NAMED.iter().copied()).chain(consts).chain(greek_consts) {
+            let user = USER_NAMES.with(|u| u.borrow().clone());
+            for name in FUNCS.iter().copied().chain(NAMED.iter().copied()).chain(consts).chain(greek_consts).chain(user.iter().map(String::as_str)) {
                 let len = name.chars().count();
                 if i + len <= n && name.chars().zip(&ch[i..i + len]).all(|(a, b)| a == *b) {
                     if NEEDS_PAREN.contains(&name) {
@@ -318,7 +350,7 @@ fn lex(src: &str) -> Result<Vec<Tok>, String> {
                     }
                     // A name must end where the word ends: "me" must not match inside "mean".
                     let next = ch.get(i + len).copied();
-                    let word_continues = next.map(|c| c.is_alphanumeric() && !NEEDS_PAREN.contains(&name)).unwrap_or(false)
+                    let word_continues = next.map(|c| c.is_alphanumeric() && sup_digit(c).is_none() && !NEEDS_PAREN.contains(&name)).unwrap_or(false)
                         && is_function(name) == false
                         && NAMED.contains(&name) == false;
                     if word_continues {
@@ -1957,6 +1989,7 @@ pub fn unit_conversion(src: &str, env: &mut Env) -> Option<R> {
 
 /// Evaluate without touching the environment (used for live previews).
 pub fn evaluate_pure(src: &str, env: &mut Env) -> R {
+    refresh_names(env);
     let (body, _) = split_store(src);
     if let Some(r) = unit_conversion(body, env) {
         return r;
@@ -1966,6 +1999,7 @@ pub fn evaluate_pure(src: &str, env: &mut Env) -> R {
 
 /// Evaluate a full input line, applying "→ X" storage and updating Ans.
 pub fn evaluate(src: &str, env: &mut Env) -> R {
+    refresh_names(env);
     let (body, target) = split_store(src);
     let v = match unit_conversion(body, env) {
         Some(r) => r?,

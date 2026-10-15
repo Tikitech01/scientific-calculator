@@ -34,6 +34,17 @@ impl Default for MatState {
 }
 
 impl MatState {
+    /// The selected matrix as typed, one row per line, for a CSV file.
+    pub fn csv_rows(&self) -> Vec<Vec<String>> {
+        let (r, c) = self.dims[self.sel];
+        (0..r).map(|i| (0..c).map(|j| self.cells[self.sel][i][j].clone()).collect()).collect()
+    }
+
+    /// Name of the selected matrix, MatA … MatF.
+    pub fn name(&self) -> String {
+        format!("Mat{}", NAMES[self.sel])
+    }
+
     fn build(&self, k: usize, env: &mut Env) -> Result<Matrix, String> {
         let (r, c) = self.dims[k];
         let mut m = Matrix::zeros(r, c);

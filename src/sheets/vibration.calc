@@ -1,0 +1,20 @@
+# Vibration: mass, spring and damper (one degree of freedom)
+m = 20                      # mass, kg
+k = 50kN                    # stiffness, N per m
+c = 200                     # damping, N·s per m
+
+ωn = √(k/m)                 # natural frequency, rad/s
+fn = ωn/(2π)                # natural frequency, Hz
+Tn = 1/fn                   # period, s
+cc = 2·√(k·m)               # critical damping
+ζ = c/cc                    # damping ratio (< 1 underdamped)
+ωd = ωn·√(1 − ζ²)           # damped frequency, rad/s
+δ = 2π·ζ/√(1 − ζ²)          # logarithmic decrement
+ts = 4/(ζ·ωn)               # settling time to 2 %, s
+
+# Forced at frequency f
+f = 5                       # Hz
+r = f/fn                    # frequency ratio
+X = 1/√((1 − r²)² + (2·ζ·r)²)                  # dynamic amplification
+T = √(1 + (2·ζ·r)²)/√((1 − r²)² + (2·ζ·r)²)    # transmissibility
+φ = arg(1 − r² + i·2·ζ·r)                      # phase lag, degrees

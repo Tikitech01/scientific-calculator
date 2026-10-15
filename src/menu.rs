@@ -31,6 +31,9 @@ pub enum Cmd {
     DeveloperSite,
     Updates,
     Feedback,
+    /// File menu: 0 New, 1 Open, 2 Save, 3 Save As, 4 Export CSV.
+    File(usize),
+    Template(usize),
 }
 
 /// What the check marks in the menus should show.
@@ -88,6 +91,7 @@ impl AppMenu {
         mode_names: &[&str],
         type_names: &[(&str, String)],
         format_names: &[&str],
+        template_names: &[&str],
         wake: impl Fn() + Send + Sync + 'static,
     ) -> Option<AppMenu> {
         let (tx, rx) = channel();
@@ -121,6 +125,23 @@ impl AppMenu {
                 &sep(),
                 &PredefinedMenuItem::quit(Some("Quit Scientific Calculator")),
             ],
+        )
+        .ok()?;
+
+        // ---- File
+        let new_sheet = item(&mut commands, "New Sheet", "CmdOrCtrl+N", Cmd::File(0));
+        let templates: Vec<MenuItem> =
+            template_names.iter().enumerate().map(|(i, n)| item(&mut commands, n, "", Cmd::Template(i))).collect();
+        let template_items: Vec<&dyn muda::IsMenuItem> = templates.iter().map(|i| i as &dyn muda::IsMenuItem).collect();
+        let template_menu = Submenu::with_items("New from Template", true, &template_items).ok()?;
+        let open = item(&mut commands, "Open…", "CmdOrCtrl+O", Cmd::File(1));
+        let save = item(&mut commands, "Save", "CmdOrCtrl+S", Cmd::File(2));
+        let save_as = item(&mut commands, "Save As…", "CmdOrCtrl+Shift+S", Cmd::File(3));
+        let export = item(&mut commands, "Export CSV…", "", Cmd::File(4));
+        let file_menu = Submenu::with_items(
+            "File",
+            true,
+            &[&new_sheet, &template_menu, &open, &sep(), &save, &save_as, &sep(), &export, &sep(), &PredefinedMenuItem::close_window(None)],
         )
         .ok()?;
 
@@ -196,7 +217,7 @@ impl AppMenu {
         let feedback = item(&mut commands, "Send Feedback or Report a Problem…", "", Cmd::Feedback);
         let help_menu = Submenu::with_items("Help", true, &[&guide, &sep(), &updates, &feedback, &sep(), &website, &developer]).ok()?;
 
-        let menu = Menu::with_items(&[&app_menu, &edit_menu, &view_menu, &window_menu, &help_menu]).ok()?;
+        let menu = Menu::with_items(&[&app_menu, &file_menu, &edit_menu, &view_menu, &window_menu, &help_menu]).ok()?;
         #[cfg(target_os = "macos")]
         {
             menu.init_for_nsapp();
@@ -278,6 +299,10 @@ mod tests {
             "CmdOrCtrl+1",
             "CmdOrCtrl+8",
             "CmdOrCtrl+Shift+Slash",
+            "CmdOrCtrl+N",
+            "CmdOrCtrl+O",
+            "CmdOrCtrl+S",
+            "CmdOrCtrl+Shift+S",
         ] {
             assert!(super::acc(s).is_some(), "{}", s);
         }

@@ -1,0 +1,22 @@
+# RC filter
+# Change the values on the left; everything below follows.
+R = 4.7kΩ
+C = 100nF
+τ = R·C                     # time constant, s
+fc = 1/(2π·R·C)             # cutoff frequency, Hz
+f = 1kHz                    # frequency of interest
+
+# Low-pass (output across C)
+H = 1/√(1 + (f/fc)²)        # gain, ratio
+G = dBv(H)                  # gain, dB
+φ = −atan(f/fc)             # phase, degrees (set DEG at the top right)
+
+# High-pass (output across R)
+Hh = (f/fc)/√(1 + (f/fc)²)
+Gh = dBv(Hh)
+φh = atan(fc/f)
+
+# Step response: time to reach 63 %, 95 % and 99 %
+t63 = τ
+t95 = 3τ
+t99 = 4.6τ

@@ -1,0 +1,24 @@
+# Beam deflection
+# Units: N, m, Pa (write 2 for 2 metres; 2m would mean 2 millimetres)
+E = 200GPa                  # Young's modulus (steel 200GPa, aluminium 69GPa, timber 11GPa)
+b = 0.05                    # section width, m
+h = 0.1                     # section height, m
+I = b·h³/12                 # second moment of area, m⁴ (or type I = … directly)
+L = 2                       # span, m
+P = 10kN                    # point load, N
+w = 5kN                     # uniform load, N per m
+
+# Cantilever, fixed at one end
+δ1 = P·L³/(3·E·I)           # point load at the free end: deflection, m
+M1 = P·L                    # maximum moment, N·m
+δ2 = w·L⁴/(8·E·I)           # uniform load: deflection, m
+M2 = w·L²/2
+
+# Simply supported, both ends
+δ3 = P·L³/(48·E·I)          # point load at mid-span
+M3 = P·L/4
+δ4 = 5·w·L⁴/(384·E·I)       # uniform load
+M4 = w·L²/8
+
+# Bending stress for the case you use: σ = M·y/I
+σ = M1·(h/2)/I              # Pa

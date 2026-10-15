@@ -17,6 +17,7 @@ mod numeric;
 mod plot;
 mod stats;
 mod theme;
+mod sheet;
 mod ui_calc;
 mod ui_convert;
 mod ui_equation;
@@ -120,14 +121,25 @@ impl CalcType {
     }
 }
 
+/// The File menu: sheets as plain text files, and the current view as CSV.
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum FileCmd {
+    New,
+    Template(usize),
+    Open,
+    Save,
+    SaveAs,
+    ExportCsv,
+}
+
 const COMPACT_SIZE: [f32; 2] = [340.0, 580.0];
 const COMPACT_MIN: [f32; 2] = [300.0, 500.0];
 const FULL_SIZE: [f32; 2] = [1100.0, 700.0];
 /// Narrowest full window: wide enough that the mode tabs never run under the controls on the
 /// right. macOS needs more room because the window buttons sit inside the top bar.
-const FULL_MIN: [f32; 2] = if cfg!(target_os = "macos") { [1060.0, 600.0] } else { [990.0, 600.0] };
+const FULL_MIN: [f32; 2] = if cfg!(target_os = "macos") { [1120.0, 600.0] } else { [1050.0, 600.0] };
 /// The all-in-one type has nine tabs, so its window must be wider still.
-const ALL_MIN_WIDTH: f32 = if cfg!(target_os = "macos") { 1190.0 } else { 1120.0 };
+const ALL_MIN_WIDTH: f32 = if cfg!(target_os = "macos") { 1250.0 } else { 1180.0 };
 
 const FORMATS: [(&str, Fmt); 7] = [
     ("Normal", Fmt::Norm),
@@ -214,7 +226,7 @@ impl Settings {
 }
 
 impl App {
-    fn new(settings: Settings, history: Vec<String>) -> Self {
+    fn new(settings: Settings, history: Vec<String>, storage: Option<&dyn eframe::Storage>) -> Self {
         let mut app = App {
             mode: Mode::Calc,
             env: Env::default(),
@@ -256,6 +268,12 @@ impl App {
         app.calc.restore(&history, &mut app.env);
         app.mat.pull(&mut app.env);
         app.stats.pull(&mut app.env);
+        if let Some(st) = storage {
+            app.calc.sheet_text = st.get_string("sheet").unwrap_or_default();
+            app.calc.sheet_saved = st.get_string("sheet_saved").unwrap_or_default();
+            app.calc.sheet_path = st.get_string("sheet_path").filter(|p| !p.is_empty()).map(std::path::PathBuf::from);
+            app.calc.sheet = st.get_string("sheet_view").as_deref() == Some("1");
+        }
         #[cfg(debug_assertions)]
         app.debug_setup();
         app
@@ -402,6 +420,11 @@ impl App {
                 Cmd::Updates => ctx.open_url(egui::OpenUrl::new_tab(help::DOWNLOADS_URL)),
                 Cmd::Feedback => ctx.open_url(egui::OpenUrl::new_tab(help::FEEDBACK_URL)),
                 Cmd::About => self.show_about = true,
+                Cmd::File(i) => {
+                    let cmd = [FileCmd::New, FileCmd::Open, FileCmd::Save, FileCmd::SaveAs, FileCmd::ExportCsv][i.min(4)];
+                    self.file_cmd(ctx, cmd);
+                }
+                Cmd::Template(i) => self.file_cmd(ctx, FileCmd::Template(i)),
             }
         }
         let state = menu::MenuState {
@@ -417,6 +440,158 @@ impl App {
         };
         if let Some(m) = self.menu.as_mut() {
             m.sync(&state);
+        }
+    }
+
+    /// Show the sheet view of Calculate (used after New, Open and a template).
+    fn show_sheet(&mut self, ctx: &egui::Context) {
+        self.set_compact(ctx, false);
+        self.mode = Mode::Calc;
+        self.calc.sheet = true;
+        self.calc.pending_cursor_end = true;
+    }
+
+    /// What Export CSV writes in the current mode: a header and rows, or None when the mode
+    /// has nothing tabular.
+    fn csv_data(&mut self) -> Option<(Vec<String>, Vec<Vec<String>>)> {
+        match self.mode {
+            Mode::Calc if self.calc.sheet => Some(self.calc.sheet_csv()),
+            Mode::Calc => Some(self.calc.history_csv()).filter(|d| !d.1.is_empty()),
+            Mode::Table => ui_graph::table_rows(&mut self.graph, &mut self.env),
+            Mode::Stats => {
+                Some((vec!["X".into(), "Y".into(), "Freq".into()], self.stats.csv_rows())).filter(|d| !d.1.is_empty())
+            }
+            Mode::Matrix => Some((Vec::new(), self.mat.csv_rows())),
+            _ => None,
+        }
+    }
+
+    /// Suggested file name for Export CSV.
+    fn csv_name(&self) -> String {
+        match self.mode {
+            Mode::Calc if self.calc.sheet => format!("{}.csv", self.calc.sheet_name()),
+            Mode::Calc => "History.csv".into(),
+            Mode::Matrix => format!("{}.csv", self.mat.name()),
+            m => format!("{}.csv", m.name()),
+        }
+    }
+
+    fn file_cmd(&mut self, ctx: &egui::Context, cmd: FileCmd) {
+        let filter = |d: rfd::FileDialog| d.add_filter("Calculator sheet", &[sheet::EXT, "txt"]);
+        match cmd {
+            FileCmd::New => {
+                self.calc.open_sheet(String::new(), None);
+                self.show_sheet(ctx);
+            }
+            FileCmd::Template(i) => {
+                let (_, text) = sheet::TEMPLATES[i.min(sheet::TEMPLATES.len() - 1)];
+                self.calc.open_sheet(text.to_string(), None);
+                self.show_sheet(ctx);
+            }
+            FileCmd::Open => {
+                if let Some(path) = filter(rfd::FileDialog::new()).pick_file() {
+                    match std::fs::read_to_string(&path) {
+                        Ok(text) => self.calc.open_sheet(text, Some(path)),
+                        Err(e) => self.calc.sheet_note = Some(format!("Could not open the file: {}", e)),
+                    }
+                    self.show_sheet(ctx);
+                }
+            }
+            FileCmd::Save | FileCmd::SaveAs => {
+                let path = match (&self.calc.sheet_path, cmd) {
+                    (Some(p), FileCmd::Save) => Some(p.clone()),
+                    _ => filter(rfd::FileDialog::new())
+                        .set_file_name(format!("{}.{}", self.calc.sheet_name(), sheet::EXT))
+                        .save_file(),
+                };
+                if let Some(path) = path {
+                    match std::fs::write(&path, &self.calc.sheet_text) {
+                        Ok(()) => {
+                            self.calc.sheet_saved = self.calc.sheet_text.clone();
+                            self.calc.sheet_path = Some(path);
+                            self.calc.sheet_note = None;
+                        }
+                        Err(e) => self.calc.sheet_note = Some(format!("Could not save: {}", e)),
+                    }
+                }
+                self.show_sheet(ctx);
+            }
+            FileCmd::ExportCsv => {
+                let Some((head, rows)) = self.csv_data() else { return };
+                let name = self.csv_name();
+                if let Some(path) = rfd::FileDialog::new().add_filter("CSV", &["csv"]).set_file_name(name).save_file() {
+                    let head: Vec<&str> = head.iter().map(String::as_str).collect();
+                    if let Err(e) = std::fs::write(&path, sheet::to_csv(&head, &rows)) {
+                        self.calc.sheet_note = Some(format!("Could not export: {}", e));
+                    }
+                }
+            }
+        }
+    }
+
+    /// The File ▾ menu in the top bar.
+    fn file_menu(&mut self, ui: &mut egui::Ui, pal: &Pal) {
+        let mut cmd = None;
+        let can_export = self.csv_data().is_some();
+        let dirty = self.calc.sheet_dirty();
+        let mac = cfg!(target_os = "macos");
+        let key = |k: &str| if mac { format!("⌘{}", k) } else { format!("Ctrl+{}", k) };
+        let r = ui.menu_button(egui::RichText::new("File ▾").size(12.5).color(pal.text), |ui| {
+            ui.set_min_width(220.0);
+            let item = |ui: &mut egui::Ui, label: &str, key: &str| {
+                ui.horizontal(|ui| {
+                    let r = ui.add(egui::Button::new(label).frame(false));
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        ui.label(egui::RichText::new(key).size(11.5).color(pal.faint));
+                    });
+                    r
+                })
+                .inner
+                .clicked()
+            };
+            if item(ui, "New sheet", &key("N")) {
+                cmd = Some(FileCmd::New);
+            }
+            ui.menu_button("New from template", |ui| {
+                ui.set_min_width(200.0);
+                for (i, (name, _)) in sheet::TEMPLATES.iter().enumerate() {
+                    if ui.add(egui::Button::new(*name).frame(false)).clicked() {
+                        cmd = Some(FileCmd::Template(i));
+                        ui.close_menu();
+                    }
+                }
+            })
+            .response
+            .on_hover_text("Worked sheets for engineering: change the values at the top and read the results");
+            if item(ui, "Open…", &key("O")) {
+                cmd = Some(FileCmd::Open);
+            }
+            ui.separator();
+            if item(ui, if dirty { "Save •" } else { "Save" }, &key("S")) {
+                cmd = Some(FileCmd::Save);
+            }
+            if item(ui, "Save as…", &if mac { "⇧⌘S".to_string() } else { "Ctrl+Shift+S".to_string() }) {
+                cmd = Some(FileCmd::SaveAs);
+            }
+            ui.separator();
+            ui.add_enabled_ui(can_export, |ui| {
+                if item(ui, "Export CSV…", "") {
+                    cmd = Some(FileCmd::ExportCsv);
+                }
+            })
+            .response
+            .on_hover_text(if can_export {
+                "Save what is shown as a CSV file: the sheet or history, the table, the statistics data or the matrix"
+            } else {
+                "Nothing to export in this mode. Export works in Calculate, Table, Statistics and Matrix"
+            });
+            if cmd.is_some() {
+                ui.close_menu();
+            }
+        });
+        r.response.on_hover_text("Sheets: new, templates, open, save, and export as CSV");
+        if let Some(cmd) = cmd {
+            self.file_cmd(ui.ctx(), cmd);
         }
     }
 
@@ -554,6 +729,12 @@ impl App {
             self.size_applied = false;
         }
         self.calc.greek = std::env::var("SCICALC_GREEK").is_ok();
+        // SCICALC_SHEET=1..5 opens that template in the sheet view.
+        if let Some(n) = std::env::var("SCICALC_SHEET").ok().and_then(|v| v.parse::<usize>().ok()) {
+            self.calc.open_sheet(sheet::TEMPLATES[n.clamp(1, sheet::TEMPLATES.len()) - 1].1.to_string(), None);
+            self.compact = false;
+            self.size_applied = false;
+        }
         self.calc.consts = std::env::var("SCICALC_CONST").is_ok();
         if let Ok(sub) = std::env::var("SCICALC_SUB") {
             let s = sub.parse().unwrap_or(0);
@@ -642,6 +823,11 @@ impl eframe::App for App {
         let hist = self.calc.history_exprs();
         let keep = &hist[hist.len().saturating_sub(200)..];
         storage.set_string("history", keep.join("\n"));
+        // The sheet comes back as it was, including unsaved changes.
+        storage.set_string("sheet", self.calc.sheet_text.clone());
+        storage.set_string("sheet_saved", self.calc.sheet_saved.clone());
+        storage.set_string("sheet_path", self.calc.sheet_path.as_ref().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default());
+        storage.set_string("sheet_view", (self.calc.sheet as usize).to_string());
     }
 
     fn clear_color(&self, visuals: &egui::Visuals) -> [f32; 4] {
@@ -700,6 +886,27 @@ impl App {
         self.env.angle = [Angle::Deg, Angle::Rad, Angle::Grad][self.angle];
         let f = FORMATS[self.format].1;
 
+        // ⌘N ⌘O ⌘S ⇧⌘S: the File menu's shortcuts (on macOS the menu bar handles them).
+        #[cfg(not(native_menu))]
+        {
+            let cmd = ctx.input(|i| {
+                if !i.modifiers.command {
+                    return None;
+                }
+                if i.key_pressed(Key::N) {
+                    Some(FileCmd::New)
+                } else if i.key_pressed(Key::O) {
+                    Some(FileCmd::Open)
+                } else if i.key_pressed(Key::S) {
+                    Some(if i.modifiers.shift { FileCmd::SaveAs } else { FileCmd::Save })
+                } else {
+                    None
+                }
+            });
+            if let Some(cmd) = cmd {
+                self.file_cmd(ctx, cmd);
+            }
+        }
         // ⌘1 … ⌘9 switch between the tabs of the current type.
         if !self.compact {
             let modes = self.modes();
@@ -789,7 +996,7 @@ impl App {
                         let font = theme::medium(13.5);
                         let modes = self.modes();
                         let needed: f32 = modes.iter().map(|m| widgets::text_width(ui, m.name(), font.clone()) + 18.0).sum();
-                        let short = ui.available_width() - 370.0 < needed;
+                        let short = ui.available_width() - 430.0 < needed;
                         for mode in modes {
                             let label = if short { mode.short() } else { mode.name() };
                             if widgets::tab(ui, &pal, label, self.mode == *mode) {
@@ -849,6 +1056,7 @@ impl App {
                                     ui.selectable_value(&mut self.format, i, *name);
                                 }
                             });
+                        self.file_menu(ui, &pal);
                     });
                 });
             });
@@ -994,14 +1202,15 @@ fn main() -> eframe::Result {
                 .map(|h| h.lines().filter(|l| !l.trim().is_empty()).map(String::from).collect())
                 .unwrap_or_default();
             #[allow(unused_mut)]
-            let mut app = App::new(settings, history);
+            let mut app = App::new(settings, history, cc.storage);
             #[cfg(native_menu)]
             {
                 let names: Vec<&str> = ALL_MODES.iter().map(|m| m.name()).collect();
                 let types: Vec<(&str, String)> = TYPES.iter().map(|t| (t.name(), t.describe())).collect();
                 let formats: Vec<&str> = FORMATS.iter().map(|f| f.0).collect();
+                let templates: Vec<&str> = sheet::TEMPLATES.iter().map(|t| t.0).collect();
                 let ctx = cc.egui_ctx.clone();
-                app.menu = menu::AppMenu::install(&names, &types, &formats, move || ctx.request_repaint());
+                app.menu = menu::AppMenu::install(&names, &types, &formats, &templates, move || ctx.request_repaint());
             }
             Ok(Box::new(app))
         }),

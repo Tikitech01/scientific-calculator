@@ -1059,13 +1059,9 @@ pub fn graph_ui(ui: &mut Ui, st: &mut GraphState, env: &mut Env, pal: &Pal) {
     });
 }
 
-pub fn table_ui(ui: &mut Ui, st: &mut GraphState, env: &mut Env, pal: &Pal) {
-    for p in &st.params {
-        env.set_real(&p.name, p.value);
-    }
-    let (left, right) = split(ui);
-    let cols: Vec<usize> = (0..st.fns.len()).filter(|i| st.fns[*i].has_y()).collect();
-    let range = (|| -> Result<(f64, f64, usize), String> {
+/// The table's start, step and row count from its range fields.
+fn table_range(st: &GraphState, env: &mut Env) -> Result<(f64, f64, usize), String> {
+    (|| -> Result<(f64, f64, usize), String> {
         let a = engine::field_value(&st.tb_start, env)?.ok_or("Enter a start value")?;
         let b = engine::field_value(&st.tb_end, env)?.ok_or("Enter an end value")?;
         let s = engine::field_value(&st.tb_step, env)?.ok_or("Enter a step")?;
@@ -1077,14 +1073,54 @@ pub fn table_ui(ui: &mut Ui, st: &mut GraphState, env: &mut Env, pal: &Pal) {
             return Err("That is more than 5000 rows. Use a larger step".into());
         }
         Ok((a, s, n))
-    })();
-    // Differential equations are solved over the table's own range.
+    })()
+}
+
+/// The table as rows for a CSV file: a header (x, y1, y2 …) and one row per x.
+pub fn table_rows(st: &mut GraphState, env: &mut Env) -> Option<(Vec<String>, Vec<Vec<String>>)> {
+    for p in &st.params {
+        env.set_real(&p.name, p.value);
+    }
+    let cols: Vec<usize> = (0..st.fns.len()).filter(|i| st.fns[*i].has_y()).collect();
+    let (a, s, n) = table_range(st, env).ok()?;
+    if cols.is_empty() {
+        return None;
+    }
+    solve_for_table(st, env, &cols, a, s, n);
+    let mut head: Vec<String> = vec!["x".into()];
+    head.extend(cols.iter().map(|c| format!("y{}", c + 1)));
+    let fns = &st.fns;
+    let rows = engine::with_var(env, "x", |env| {
+        (0..n)
+            .map(|i| {
+                let x = a + s * i as f64;
+                let mut row = vec![fmt::short(x, 10)];
+                row.extend(cols.iter().map(|c| fmt::short(fns[*c].y_at(env, x), 10)));
+                row
+            })
+            .collect()
+    });
+    Some((head, rows))
+}
+
+/// Differential equations are solved over the table's own range.
+fn solve_for_table(st: &mut GraphState, env: &mut Env, cols: &[usize], a: f64, s: f64, n: usize) {
+    let (lo, hi) = (a.min(a + s * (n as f64 - 1.0)), a.max(a + s * (n as f64 - 1.0)));
+    let params: String = st.params.iter().map(|p| format!("{}={};", p.name, p.value)).collect();
+    for c in cols {
+        st.fns[*c].solve(env, lo - 1e-9, hi + 1e-9, &params);
+    }
+}
+
+pub fn table_ui(ui: &mut Ui, st: &mut GraphState, env: &mut Env, pal: &Pal) {
+    for p in &st.params {
+        env.set_real(&p.name, p.value);
+    }
+    let (left, right) = split(ui);
+    let cols: Vec<usize> = (0..st.fns.len()).filter(|i| st.fns[*i].has_y()).collect();
+    let range = table_range(st, env);
     if let Ok((a, s, n)) = &range {
-        let (lo, hi) = (a.min(a + s * (*n as f64 - 1.0)), a.max(a + s * (*n as f64 - 1.0)));
-        let params: String = st.params.iter().map(|p| format!("{}={};", p.name, p.value)).collect();
-        for c in &cols {
-            st.fns[*c].solve(env, lo - 1e-9, hi + 1e-9, &params);
-        }
+        solve_for_table(st, env, &cols, *a, *s, *n);
     }
     ui.allocate_new_ui(UiBuilder::new().max_rect(left), |ui| {
         ScrollArea::vertical().id_salt("table_side").auto_shrink([false, false]).show(ui, |ui| {

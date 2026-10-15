@@ -49,6 +49,11 @@ impl Default for StatsState {
 }
 
 impl StatsState {
+    /// The data as typed, for a CSV file: X, Y, Freq, empty rows left out.
+    pub fn csv_rows(&self) -> Vec<Vec<String>> {
+        self.rows.iter().filter(|r| r.iter().any(|c| !c.trim().is_empty())).map(|r| r.to_vec()).collect()
+    }
+
     fn column(&self, c: usize, env: &mut Env) -> Vec<Option<f64>> {
         self.rows.iter().map(|r| engine::field_value(&r[c], env).ok().flatten()).collect()
     }

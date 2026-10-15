@@ -3,6 +3,7 @@
 use crate::engine::{self, Env, Value};
 use crate::fmt::{self, Fmt};
 use crate::help;
+use crate::sheet;
 use crate::theme::{self, Pal};
 use crate::widgets::{self, KeyKind};
 use eframe::egui::{
@@ -27,6 +28,16 @@ pub struct CalcState {
     pub prefer_exact: bool,
     /// Set from other modes to put the caret at the end of the input on the next Calculate frame.
     pub pending_cursor_end: bool,
+    /// The sheet view: a text of calculations, one per line, instead of the input line.
+    pub sheet: bool,
+    pub sheet_text: String,
+    pub sheet_path: Option<std::path::PathBuf>,
+    /// The text as last opened or saved, to show whether there are unsaved changes.
+    pub sheet_saved: String,
+    /// What each line came to, from the last run.
+    pub sheet_lines: Vec<sheet::Line>,
+    /// A note under the sheet's name: a file that could not be read or written.
+    pub sheet_note: Option<String>,
     recall: Option<usize>,
     content_h: f32,
     /// When a result was last copied (seconds, egui time), for the short "Copied" note.
@@ -78,10 +89,164 @@ impl CalcState {
         self.history.clear();
         self.recall = None;
     }
+
+    /// Show a sheet (new, from a template or from a file) in the sheet view.
+    pub fn open_sheet(&mut self, text: String, path: Option<std::path::PathBuf>) {
+        self.sheet_saved = text.clone();
+        self.sheet_text = text;
+        self.sheet_path = path;
+        self.sheet_note = None;
+        self.sheet = true;
+        self.pending_cursor_end = true;
+    }
+
+    /// The sheet's name for the title line and the save dialog.
+    pub fn sheet_name(&self) -> String {
+        self.sheet_path
+            .as_ref()
+            .and_then(|p| p.file_stem())
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "Untitled".into())
+    }
+
+    pub fn sheet_dirty(&self) -> bool {
+        self.sheet_text != self.sheet_saved
+    }
+
+    /// The sheet for a CSV file: a header and one row per line.
+    pub fn sheet_csv(&self) -> (Vec<String>, Vec<Vec<String>>) {
+        (vec!["line".into(), "result".into()], sheet::csv_rows(&self.sheet_text, &self.sheet_lines))
+    }
+
+    /// The history for a CSV file, oldest first.
+    pub fn history_csv(&self) -> (Vec<String>, Vec<Vec<String>>) {
+        (vec!["calculation".into(), "result".into()], self.history.iter().map(|e| vec![e.expr.clone(), fmt::plain(&e.value)]).collect())
+    }
 }
 
 pub fn input_id() -> Id {
     Id::new("calc_input")
+}
+
+pub fn sheet_id() -> Id {
+    Id::new("calc_sheet")
+}
+
+/// Typographic operators and raised powers in the calculations of the sheet, line by line,
+/// leaving the comments alone. The caret stays where the user left it.
+fn prettify_sheet(ctx: &egui::Context, id: Id, text: &mut String) {
+    let pretty: String = text
+        .split('\n')
+        .map(|line| {
+            let (code, comment) = match line.find('#') {
+                Some(i) => (&line[..i], &line[i..]),
+                None => (line, ""),
+            };
+            let code = code.replace('*', "×").replace('/', "÷").replace('-', "−").replace("−>", "→");
+            format!("{}{}", fmt::prettify(&code, false), comment)
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    if pretty == *text {
+        return;
+    }
+    let delta = pretty.chars().count() as isize - text.chars().count() as isize;
+    *text = pretty;
+    if let Some(mut state) = TextEdit::load_state(ctx, id) {
+        if let Some(r) = state.cursor.char_range() {
+            let pos = (r.primary.index as isize + delta).max(0) as usize;
+            state.cursor.set_char_range(Some(egui::text::CCursorRange::one(egui::text::CCursor::new(pos))));
+            state.store(ctx, id);
+        }
+    }
+}
+
+/// Remove the line the caret is on (the AC key in the sheet view).
+fn clear_sheet_line(ctx: &egui::Context, id: Id, text: &mut String) {
+    let caret = TextEdit::load_state(ctx, id).and_then(|s| s.cursor.char_range()).map(|r| r.primary.index).unwrap_or(0);
+    let byte = text.char_indices().nth(caret).map(|(b, _)| b).unwrap_or(text.len());
+    let start = text[..byte].rfind('\n').map(|i| i + 1).unwrap_or(0);
+    let end = text[byte..].find('\n').map(|i| byte + i).unwrap_or(text.len());
+    text.replace_range(start..end, "");
+    widgets::cursor_to_end(ctx, id, &text[..start]);
+}
+
+/// The sheet: text on the left, each line's result on the right. Returns true when the text changed.
+fn sheet_ui(ui: &mut Ui, st: &mut CalcState, f: Fmt, pal: &Pal, rect: Rect) -> bool {
+    use eframe::egui::{CornerRadius, Stroke, StrokeKind};
+    let ctx = ui.ctx().clone();
+    let id = sheet_id();
+    ui.painter().rect_filled(rect, CornerRadius::same(12), pal.surface);
+    ui.painter().rect_stroke(rect, CornerRadius::same(12), Stroke::new(1.0_f32, pal.line), StrokeKind::Inside);
+    let body = rect.shrink2(vec2(14.0, 8.0));
+    let results_w = (body.width() * 0.3).clamp(140.0, 260.0);
+    let text_w = body.width() - results_w - 12.0;
+    let font = theme::mono(14.0);
+    let mut changed = false;
+    ui.allocate_new_ui(UiBuilder::new().max_rect(body), |ui| {
+        ScrollArea::vertical().id_salt("calc_sheet_scroll").auto_shrink([false, false]).show(ui, |ui| {
+            ui.set_min_height(body.height() - 4.0);
+            // Lines never wrap, so every row of the text is one line of the sheet. Comments are dimmed.
+            let (text_color, dim) = (pal.text, pal.faint);
+            let font_l = font.clone();
+            let mut layouter = move |ui: &Ui, text: &str, _wrap: f32| {
+                let mut job = egui::text::LayoutJob::default();
+                job.wrap.max_width = f32::INFINITY;
+                for (i, line) in text.split('\n').enumerate() {
+                    if i > 0 {
+                        job.append("\n", 0.0, egui::TextFormat::simple(font_l.clone(), text_color));
+                    }
+                    let (code, comment) = match line.find('#') {
+                        Some(k) => (&line[..k], &line[k..]),
+                        None => (line, ""),
+                    };
+                    job.append(code, 0.0, egui::TextFormat::simple(font_l.clone(), text_color));
+                    if !comment.is_empty() {
+                        job.append(comment, 0.0, egui::TextFormat::simple(font_l.clone(), dim));
+                    }
+                }
+                ui.fonts(|fo| fo.layout_job(job))
+            };
+            let out = TextEdit::multiline(&mut st.sheet_text)
+                .id(id)
+                .frame(false)
+                .font(font.clone())
+                .desired_width(text_w)
+                .desired_rows(12)
+                .lock_focus(true)
+                .hint_text(RichText::new("R = 4.7kΩ\nC = 100nF\nfc = 1/(2π·R·C)        # one calculation per line").font(font.clone()).color(pal.faint))
+                .layouter(&mut layouter)
+                .show(ui);
+            out.response.clone().on_hover_text(help::SHEET);
+            if out.response.changed() {
+                changed = true;
+                prettify_sheet(&ctx, id, &mut st.sheet_text);
+            }
+            // Results, one per row, right-aligned beside the text (clear of the scroll bar).
+            let x = body.right() - 12.0;
+            let clip = ui.clip_rect();
+            for (i, row) in out.galley.rows.iter().enumerate() {
+                let y = out.galley_pos.y + row.rect.center().y;
+                let (text, color) = match st.sheet_lines.get(i) {
+                    Some(sheet::Line::Value(v)) => (display(v, f, st.prefer_exact).0, pal.text),
+                    Some(sheet::Line::Error(e)) => (e.clone(), pal.danger),
+                    _ => continue,
+                };
+                let mut job = egui::text::LayoutJob::simple_singleline(text, font.clone(), color);
+                job.wrap.max_width = results_w;
+                job.wrap.max_rows = 1;
+                job.wrap.break_anywhere = true;
+                let galley = ui.fonts(|fo| fo.layout_job(job));
+                let pos = pos2(x - galley.size().x, y - galley.size().y / 2.0);
+                // A backing in the card colour, so a long line never runs into its result.
+                let back = Rect::from_min_size(pos, galley.size()).expand2(vec2(6.0, 1.0));
+                let p = ui.painter().with_clip_rect(clip);
+                p.rect_filled(back, CornerRadius::same(4), pal.surface);
+                p.galley(pos, galley, color);
+            }
+        });
+    });
+    changed
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -303,15 +468,57 @@ pub fn ui(ui: &mut Ui, st: &mut CalcState, env: &mut Env, f: Fmt, pal: &Pal, com
     let pad_h = 5.0 * key_h + 4.0 * gap;
     let pad_rect = Rect::from_min_max(pos2(avail.left(), avail.bottom() - pad_h), avail.max);
     let line_rect = Rect::from_min_max(pos2(avail.left(), pad_rect.top() - 104.0), pos2(avail.right(), pad_rect.top() - 18.0));
-    let hist_rect = Rect::from_min_max(avail.min, pos2(avail.right(), line_rect.top() - 6.0));
+    // The full calculator has a row above the history: the sheet's name and the view switch.
+    let bar_h = if compact { 0.0 } else { 30.0 };
+    let hist_rect = Rect::from_min_max(pos2(avail.left(), avail.top() + bar_h), pos2(avail.right(), line_rect.top() - 6.0));
     ui.allocate_rect(avail, Sense::hover());
+    if compact {
+        st.sheet = false;
+    }
+    let sheet = st.sheet;
+    let id = if sheet { sheet_id() } else { id };
 
     let mut evaluated = false;
     let mut insert: Option<String> = None;
     let mut load: Option<String> = None;
     let mut copy: Option<String> = None;
 
+    // ---- the row above: sheet name on the left, History | Sheet on the right
+    if !compact {
+        let bar = Rect::from_min_size(avail.min, vec2(avail.width(), bar_h));
+        ui.allocate_new_ui(UiBuilder::new().max_rect(bar).layout(Layout::right_to_left(Align::Center)), |ui| {
+            let mut sel = st.sheet as usize;
+            if widgets::segmented(ui, pal, &mut sel, &["History", "Sheet"]) {
+                st.sheet = sel == 1;
+                st.pending_cursor_end = true;
+            }
+            ui.add_space(6.0);
+            ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                ui.add_space(4.0);
+                if st.sheet {
+                    let name = format!("{}{}", st.sheet_name(), if st.sheet_dirty() { " •" } else { "" });
+                    ui.label(RichText::new(name).font(theme::medium(13.0)).color(pal.dim)).on_hover_text(
+                        "The sheet: one calculation per line, name = value stores a value. File ▾ saves and opens sheets.",
+                    );
+                    if let Some(note) = &st.sheet_note {
+                        ui.add_space(8.0);
+                        ui.label(RichText::new(note).size(12.5).color(pal.danger));
+                    }
+                }
+            });
+        });
+    }
+
+    // ---- the sheet takes the place of the history and the input line
+    if sheet {
+        let rect = Rect::from_min_max(hist_rect.min, pos2(avail.right(), pad_rect.top() - 10.0));
+        let changed = sheet_ui(ui, st, f, pal, rect);
+        st.sheet_lines = sheet::run(&st.sheet_text, env);
+        evaluated = changed;
+    }
+
     // ---- history
+    if !sheet {
     ui.allocate_new_ui(UiBuilder::new().max_rect(hist_rect), |ui| {
         ScrollArea::vertical().id_salt("calc_history").auto_shrink([false, false]).stick_to_bottom(true).show(ui, |ui| {
             ui.with_layout(Layout::top_down(Align::RIGHT), |ui| {
@@ -471,6 +678,7 @@ pub fn ui(ui: &mut Ui, st: &mut CalcState, env: &mut Env, f: Fmt, pal: &Pal, com
             widgets::cursor_to_end(&ctx, id, &st.input);
         }
     }
+    } // !sheet
 
     // ---- keypad
     let key_w = if compact {
@@ -491,12 +699,14 @@ pub fn ui(ui: &mut Ui, st: &mut CalcState, env: &mut Env, f: Fmt, pal: &Pal, com
             };
             let y = pad_rect.top() + r as f32 * (key_h + gap);
             let rect = Rect::from_min_size(pos2(x, y), vec2(key_w, key_h));
+            // In the sheet view the keys type into the sheet.
+            let target: &mut String = if sheet { &mut st.sheet_text } else { &mut st.input };
             if let Some((label, text)) = if st.consts { const_key(r, c) } else { None } {
                 let resp = widgets::key_at(ui, pal, rect, (r, c), label, KeyKind::Func, false);
                 let tip = const_tip(text);
                 let resp = if tip.is_empty() { resp } else { resp.on_hover_text(tip) };
                 if resp.clicked() {
-                    widgets::insert_at_cursor(&ctx, id, &mut st.input, text);
+                    widgets::insert_at_cursor(&ctx, id, target, text);
                     st.error = None;
                     st.shift = false;
                 }
@@ -514,7 +724,7 @@ pub fn ui(ui: &mut Ui, st: &mut CalcState, env: &mut Env, f: Fmt, pal: &Pal, com
                     resp
                 };
                 if resp.clicked() {
-                    widgets::insert_at_cursor(&ctx, id, &mut st.input, text);
+                    widgets::insert_at_cursor(&ctx, id, target, text);
                     st.error = None;
                     st.shift = false;
                 }
@@ -531,6 +741,33 @@ pub fn ui(ui: &mut Ui, st: &mut CalcState, env: &mut Env, f: Fmt, pal: &Pal, com
                 None => resp,
             };
             if !resp.clicked() {
+                continue;
+            }
+            if sheet {
+                match k.act {
+                    Act::Ins => {
+                        widgets::insert_at_cursor(&ctx, id, &mut st.sheet_text, if shifted { k.ins2 } else { k.ins });
+                        prettify_sheet(&ctx, id, &mut st.sheet_text);
+                        st.shift = false;
+                    }
+                    Act::Clear => clear_sheet_line(&ctx, id, &mut st.sheet_text),
+                    Act::Back => widgets::backspace_at_cursor(&ctx, id, &mut st.sheet_text),
+                    Act::Eval => widgets::insert_at_cursor(&ctx, id, &mut st.sheet_text, " = "),
+                    Act::Shift => st.shift = !st.shift,
+                    Act::Exact => st.prefer_exact = !st.prefer_exact,
+                    Act::Greek => {
+                        if shifted {
+                            st.consts = !st.consts;
+                            st.greek = false;
+                        } else if st.consts {
+                            st.consts = false;
+                        } else {
+                            st.greek = !st.greek;
+                        }
+                        st.shift = false;
+                    }
+                }
+                ctx.memory_mut(|m| m.request_focus(id));
                 continue;
             }
             match k.act {
@@ -607,7 +844,7 @@ pub fn ui(ui: &mut Ui, st: &mut CalcState, env: &mut Env, f: Fmt, pal: &Pal, com
     }
     if st.pending_cursor_end {
         st.pending_cursor_end = false;
-        widgets::cursor_to_end(&ctx, id, &st.input);
+        widgets::cursor_to_end(&ctx, id, if sheet { &st.sheet_text } else { &st.input });
     }
     // Keep the input focused so typing always lands in it.
     if ctx.memory(|m| m.focused().is_none()) {

@@ -106,6 +106,12 @@ The type only decides which tabs are shown; ⌘1, ⌘2 … follow the tabs you s
   revolution, double integrals, and a solver
 - Polynomials as coefficient lists: `polymul polydiv polyrem polyeval polyroots polyder polyint`
 - Degrees, radians or gradians; Normal, Fix, Sci and Eng number formats
+- **Sheet**: switch Calculate to a sheet of calculations, one per line, each result shown beside it.
+  `name = calculation` stores a value (`R = 4.7kΩ`, `fc = 1/(2π·R·C)`), `#` starts a comment, and
+  changing a value updates every line below. Sheets are plain text files: **File ▾** New, Open, Save,
+  Save as, Export CSV
+- **Templates** under File ▸ New from template: RC Filter, Beam deflection, Vibration, RLC impedance
+  and Measurement uncertainty — ordinary sheets with the inputs at the top, ready to edit
 
 ### Graph and Table
 - Up to six functions: y = f(x), polar r = f(θ), parametric (x(t), y(t)) and inequalities
@@ -194,7 +200,8 @@ The type only decides which tabs are shown; ⌘1, ⌘2 … follow the tabs you s
   table and the Finance schedules straight into a spreadsheet
 - **Input guide** (the `?` button) explains how to type powers, roots, functions and more, and
   every field and key has a tooltip
-- **macOS menu bar** with View, Window and Help menus and the usual shortcuts
+- **Export CSV** of the sheet, the history, the value table, the statistics data or a matrix
+- **macOS menu bar** with File, View, Window and Help menus and the usual shortcuts
 - Works offline, collects no data and needs no account
 
 ### Keyboard shortcuts

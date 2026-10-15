@@ -3,6 +3,22 @@
 All notable changes to Scientific Calculator. Downloads for the latest version are in the
 [README](README.md#download).
 
+## 3.1.0 — 15 October 2026
+
+**Sheet** (History | Sheet at the top right of Calculate)
+- A sheet of calculations, one per line, worked out top to bottom with each result beside it
+- `name = calculation` stores a value; names may be longer than a letter: `fc`, `ωn`, `u1`
+- `#` comments; change a value and every line below follows; the keys type into the sheet
+
+**File menu** (File ▾ in the top bar, and the macOS menu bar)
+- New, Open…, Save, Save as…: sheets as plain text `.calc` files (⌘N ⌘O ⌘S, Ctrl on Windows and Linux)
+- New from template: RC Filter, Beam deflection, Vibration, RLC impedance, Measurement uncertainty
+- Export CSV…: the sheet or history, the Table values, the Statistics data or the selected matrix
+- The sheet comes back as it was when the app is next opened
+
+**Fixes**
+- Multi-letter names before a raised power (`kB²`) are read as one name
+
 ## 3.0.0 — 14 October 2026
 
 **Differential equations** (in Graph)

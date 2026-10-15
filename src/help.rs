@@ -12,6 +12,10 @@ Powers: type ^ (x^3).  Multiply: 2x or 2*x.\n\
 Polar: use θ or write theta, e.g. 4cos(3theta).\n\
 Parametric: (cos(t), sin(t)).\n\
 Differential equation: y' = x - y, y(0) = 1  or  y'' = -4y - 0.4y', y(0) = 2, y'(0) = 0.";
+pub const SHEET: &str = "One calculation per line, worked out top to bottom.\n\
+name = calculation stores the value: R = 4.7kΩ, then fc = 1/(2π·R·C).\n\
+Names can be longer than a letter (fc, ωn, u1). Anything after # is a comment.\n\
+Change a value and every line below follows. File ▾ saves, opens and exports.";
 pub const NUMBER: &str = "A number or a calculation, e.g. 2.5, 1/3, sqrt(2), 2^10, pi.";
 pub const EQUATION: &str = "An equation in x, e.g. x^3 - 2x = 5 or sin(x) = 0.5.\n\
 Powers: type ^.  Without “=” the expression is solved for 0.";
@@ -54,7 +58,7 @@ pub fn key_tip(label: &str) -> Option<&'static str> {
         "nPr" => "Permutations: nPr(10, 3)",
         "gcd" => "Greatest common divisor: gcd(12, 18)",
         "lcm" => "Least common multiple: lcm(4, 6)",
-        "STO →" => "Store the result in a variable: 5 → A",
+        "STO →" => "Store the result in a variable: 5 → A. In the sheet you can also write A = 5",
         "x" | "y" | "A" | "B" | "C" | "D" => "Variable. Give it a value with →, e.g. 5 → A",
         "," => "Separates the arguments of a function",
         "Ans" => "The last result",
@@ -66,8 +70,9 @@ pub fn key_tip(label: &str) -> Option<&'static str> {
         "Π" => "Product: prod(k, k, 1, 5)",
         "solve" => "Solve for x: solve(x^2 - 2, 1) starts searching near 1",
         "Rand" => "Random number between 0 and 1",
-        "AC" => "Clear the line. Press again to clear the history",
+        "AC" => "Clear the line. Press again to clear the history. In the sheet: clear the current line",
         "(−)" => "Negative sign",
+        "=" => "Calculate. In the sheet it types =, as in R = 4.7k",
         "%" => "Percent: 50% = 0.5",
         "∥" => "Parallel: 10k ∥ 4.7k = 3.197k (also for impedances)",
         "CONST" => "Physical constants: c, h, kB, NA, ε₀, μ₀ … and ∥, dB, limit, taylor",
@@ -100,6 +105,10 @@ const SECTIONS: &[(&str, &[(&str, &str)])] = &[
         ("Copy", "Click a result to copy it. Right-click it to copy it as shown, copy the whole line or insert it. ⌘⇧C (Ctrl+Shift+C) copies the latest result."),
         ("Reuse", "Click an earlier line to edit it. Ans is the last result."),
         ("History", "Kept between launches, along with stored variables. Press AC twice, or use Clear history in Settings, to clear it."),
+        ("Sheet", "History | Sheet at the top right switches to a sheet: one calculation per line, worked out top to bottom, each result shown on the right. name = calculation stores the value (R = 4.7kΩ, then fc = 1/(2π·R·C)); names can be longer than one letter: fc, ωn, u1. Anything after # is a comment. Change a value and every line below follows. The keys type into the sheet; AC clears the current line."),
+        ("Templates", "File ▾ New from template: RC Filter, Beam deflection, Vibration, RLC impedance and Measurement uncertainty. Each is an ordinary sheet with the inputs at the top and the formulas below, so you can change anything or add lines."),
+        ("Files", "File ▾ New, Open…, Save, Save as… keep sheets as plain text files (.calc) you can open in any editor. ⌘N ⌘O ⌘S (Ctrl on Windows and Linux). The sheet, saved or not, comes back when the app is next opened. Sheet names stay available in Calculate afterwards, so fc works in the history too."),
+        ("Export CSV", "File ▾ Export CSV… saves what is shown as a .csv file for a spreadsheet: the sheet (line, result) or the history, the Table values, the Statistics data or the selected matrix."),
         ("Complex numbers", "(1+2i)(3-i),  sqrt(-4),  abs(3+4i).  Polar form: 5∠30 (angle in the current unit). Settings can show results as r∠θ."),
         ("Percent", "200 + 10% = 220,  200 − 10% = 180,  50% = 0.5,  80 × 15% = 12."),
         ("Units", "5 km to m,  98.6 °F in °C,  2.5 hours to minutes,  3*2 kg in lb. Any unit from Convert works, by symbol or name."),
