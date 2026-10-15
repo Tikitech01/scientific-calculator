@@ -19,6 +19,7 @@ pub enum Cmd {
     SelectAll,
     CopyResult,
     ClearHistory,
+    ClearSheet,
     ToggleFull,
     Mode(usize),
     Type(usize),
@@ -154,10 +155,11 @@ impl AppMenu {
         let select_all = item(&mut commands, "Select All", "CmdOrCtrl+A", Cmd::SelectAll);
         let copy_result = item(&mut commands, "Copy Last Result", "CmdOrCtrl+Shift+C", Cmd::CopyResult);
         let clear_history = item(&mut commands, "Clear History", "", Cmd::ClearHistory);
+        let clear_sheet = item(&mut commands, "Clear Sheet", "", Cmd::ClearSheet);
         let edit_menu = Submenu::with_items(
             "Edit",
             true,
-            &[&undo, &redo, &sep(), &cut, &copy, &paste, &select_all, &sep(), &copy_result, &clear_history],
+            &[&undo, &redo, &sep(), &cut, &copy, &paste, &select_all, &sep(), &copy_result, &clear_history, &clear_sheet],
         )
         .ok()?;
 

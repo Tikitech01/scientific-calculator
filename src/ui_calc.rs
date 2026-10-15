@@ -100,6 +100,15 @@ impl CalcState {
         self.pending_cursor_end = true;
     }
 
+    /// Empty the sheet without changing the view (Settings and Edit ▸ Clear Sheet).
+    pub fn clear_sheet(&mut self) {
+        self.sheet_text.clear();
+        self.sheet_saved.clear();
+        self.sheet_path = None;
+        self.sheet_note = None;
+        self.sheet_lines.clear();
+    }
+
     /// The sheet's name for the title line and the save dialog.
     pub fn sheet_name(&self) -> String {
         self.sheet_path

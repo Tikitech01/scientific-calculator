@@ -214,6 +214,7 @@ The type only decides which tabs are shown; ⌘1, ⌘2 … follow the tabs you s
 | ⌘1 … ⌘9 (Ctrl on Windows/Linux) | The tabs of the current calculator type, left to right |
 | ⌘0 | Simple / full calculator (macOS menu) |
 | ⇧⌘C | Copy the last result |
+| ⌘N / ⌘O / ⌘S / ⇧⌘S | New sheet / Open / Save / Save as (Ctrl on Windows/Linux) |
 | ⌘, | Settings (macOS menu) |
 | ⌘? | Input guide (macOS menu) |
 

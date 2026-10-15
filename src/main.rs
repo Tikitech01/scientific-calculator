@@ -400,6 +400,7 @@ impl App {
                 Cmd::SelectAll => ctx.input_mut(|i| i.events.push(key(Key::A, false))),
                 Cmd::CopyResult => self.calc.copy_last(ctx),
                 Cmd::ClearHistory => self.calc.clear_history(),
+                Cmd::ClearSheet => self.calc.clear_sheet(),
                 Cmd::ToggleFull => self.set_compact(ctx, !self.compact),
                 Cmd::Mode(i) => {
                     self.set_compact(ctx, false);
@@ -674,6 +675,19 @@ impl App {
                 ui.add_enabled_ui(n > 0, |ui| {
                     if widgets::link(ui, pal, "Clear history") {
                         self.calc.clear_history();
+                    }
+                });
+            });
+            widgets::hairline(ui, pal);
+            let lines = self.calc.sheet_text.lines().filter(|l| !l.trim().is_empty()).count();
+            let desc = match (&self.calc.sheet_path, self.calc.sheet_dirty()) {
+                (Some(p), dirty) => format!("{}{} — kept between launches. Files are plain text (.calc).", p.display(), if dirty { " (unsaved changes)" } else { "" }),
+                (None, _) => format!("{} line{}, not saved to a file yet. File ▾ Save as… keeps it as a plain text (.calc) file.", lines, if lines == 1 { "" } else { "s" }),
+            };
+            widgets::setting_row(ui, pal, "Sheet", &desc, 110.0, |ui| {
+                ui.add_enabled_ui(lines > 0, |ui| {
+                    if widgets::link(ui, pal, "Clear sheet") {
+                        self.calc.clear_sheet();
                     }
                 });
             });
@@ -1006,12 +1020,12 @@ impl App {
                     }
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         ui.spacing_mut().item_spacing.x = 8.0;
-                        let help_clicked = widgets::glyph(ui, &pal, "?", 26.0).on_hover_text("Input guide: how to type powers, roots, functions and more").clicked();
+                        let help_clicked = widgets::glyph(ui, &pal, "?", 26.0).on_hover_text("Input guide: how to type powers, roots, functions, sheets and more").clicked();
                         if help_clicked {
                             self.show_help = !self.show_help;
                             self.show_settings = false;
                         }
-                        let set_btn = widgets::settings_button(ui, &pal, 26.0).on_hover_text("Settings: appearance, number format, keep on top, history");
+                        let set_btn = widgets::settings_button(ui, &pal, 26.0).on_hover_text("Settings: appearance, number format, keep on top, history and sheet");
                         let pop_id = egui::Id::new("settings_popup");
                         if self.compact {
                             // Too narrow for a popup: Settings takes over the window instead.
