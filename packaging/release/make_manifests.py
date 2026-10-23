@@ -3,9 +3,8 @@
 
     python3 packaging/release/make_manifests.py
 
-Each download is referenced through the commit that added it, so a manifest keeps working
-after a newer file replaces it on main. Run this after committing new downloads, then commit
-the regenerated files under packaging/.
+Each download is referenced by its Cloudflare R2 address (one folder per version), so upload
+the files with packaging/release/upload-r2.sh first. Then commit the regenerated files under packaging/.
 
 Writes:
   packaging/homebrew/Casks/scientific-calculator.rb   (for a tap: Tikitech01/homebrew-tap)
@@ -48,8 +47,14 @@ def commit_of(p: pathlib.Path) -> str:
     return out
 
 
+# Downloads are served from Cloudflare R2 (uploaded with packaging/release/upload-r2.sh),
+# one folder per version, so a manifest's URL never changes after release.
+R2 = "https://pub-8a5cc98180e2407488e6a7c7e4d86a4b.r2.dev/scientific-calculator"
+
+
 def url(p: pathlib.Path) -> str:
-    return f"{HOME}/raw/{commit_of(p)}/downloads/{p.name}"
+    m = re.search(r"(\d+\.\d+\.\d+)", p.name)
+    return f"{R2}/{m.group(1)}/{p.name}"
 
 
 def find(pattern: str):

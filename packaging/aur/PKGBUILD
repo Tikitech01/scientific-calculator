@@ -9,7 +9,7 @@ license=('MIT')
 depends=('libgl' 'libxkbcommon' 'wayland' 'libx11' 'libxcursor' 'libxrandr' 'libxi')
 provides=('scientific-calculator')
 conflicts=('scientific-calculator')
-source=("Scientific-Calculator-$pkgver-Linux-x86_64.tar.gz::https://github.com/Tikitech01/scientific-calculator/raw/710c0d88f0d2a7dcca566b4c96b8a90219987a7a/downloads/Scientific-Calculator-3.1.0-Linux-x86_64.tar.gz"
+source=("Scientific-Calculator-$pkgver-Linux-x86_64.tar.gz::https://pub-8a5cc98180e2407488e6a7c7e4d86a4b.r2.dev/scientific-calculator/3.1.0/Scientific-Calculator-3.1.0-Linux-x86_64.tar.gz"
         "LICENSE::https://github.com/Tikitech01/scientific-calculator/raw/a599080c2c8f85163585dbfb1546ccd1ab07bbcb/LICENSE")
 sha256sums=('452b13cdc21029b8fce342b44370fc7c4e441242b96d7e679e24ca0028e4b3b5'
             '6f1c0438c0b0618ff820cd2218d84bd5e50ebe1fd7533401b7d25709b9db2b13')

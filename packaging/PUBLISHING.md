@@ -1,13 +1,18 @@
 # Publishing Scientific Calculator
 
 Everything needed to put the app in front of people, in the order that pays off most.
-Manifests are generated from `downloads/` by:
+
+Each release:
 
 ```
-python3 packaging/release/make_manifests.py
+# 1. put the four files for the version in downloads/
+bash packaging/release/upload-r2.sh 3.1.0          # 2. upload to Cloudflare R2 (keys in .env.local)
+python3 packaging/release/make_manifests.py        # 3. Homebrew, Scoop, winget, AUR point at R2
 ```
 
-Run it after each release's downloads are committed, then commit what it writes.
+Downloads are served from
+`https://pub-8a5cc98180e2407488e6a7c7e4d86a4b.r2.dev/scientific-calculator/<version>/<file>`;
+the README, the website and every manifest link there. Commit what step 3 writes.
 
 ## 1. GitHub (do first)
 
@@ -15,8 +20,8 @@ Run it after each release's downloads are committed, then commit what it writes.
   `Free, offline scientific calculator for engineering students: phasors, matrices, equations, calculus, graphing, statistics, finance. macOS, Windows, Linux.`
 - **Website**: the landing page link
 - **Topics**: `calculator scientific-calculator graphing-calculator engineering engineering-students complex-numbers matrix statistics anova financial-calculator rust egui macos windows linux offline`
-- **Release**: Releases ▸ Draft a new release ▸ tag `v2.4.0` ▸ title `Scientific Calculator 2.4.0` ▸ paste
-  `docs/release-notes/2.4.0.md` ▸ attach the four files from `downloads/` ▸ Publish.
+- **Release**: Releases ▸ Draft a new release ▸ tag `v3.1.0` ▸ title `Scientific Calculator 3.1.0` ▸ paste
+  `docs/release-notes/3.1.0.md` ▸ attach the four files from `downloads/` ▸ Publish.
   Release pages show download counts, so you can measure every channel below.
 - **Social preview** (Settings ▸ General ▸ Social preview): upload `docs/screenshots/calculate.png`.
   This is the image shown when the repo link is shared on WhatsApp, X, LinkedIn or Slack.

@@ -5,7 +5,7 @@
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/Tikitech01/scientific-calculator/raw/710c0d88f0d2a7dcca566b4c96b8a90219987a7a/downloads/Scientific-Calculator-3.1.0-Windows-x64.msi",
+            "url": "https://pub-8a5cc98180e2407488e6a7c7e4d86a4b.r2.dev/scientific-calculator/3.1.0/Scientific-Calculator-3.1.0-Windows-x64.msi",
             "hash": "6fb4d867195cea24c372e52e912d4a38aeb74407ab2b814de39b92ec851b6546"
         }
     },
