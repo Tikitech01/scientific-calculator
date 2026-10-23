@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The Windows installer (.msi), built by build-msi.ps1 with the WiX Toolset v3.
+     Version comes from Cargo.toml; the UpgradeCode never changes, so a newer version replaces
+     an older one in place. -->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" Name="Scientific Calculator" Language="1033" Version="$(var.Version)"
+           Manufacturer="Sope Technology" UpgradeCode="9C0C3F1E-6B5A-4B0A-9D55-5A1E2C7F3D10">
+    <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" Platform="x64"
+             Description="Scientific Calculator $(var.Version)" Comments="Free, offline scientific calculator" />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Scientific Calculator is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="AppIcon" SourceFile="packaging\icon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/Tikitech01/scientific-calculator" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/Tikitech01/scientific-calculator/issues" />
+    <Property Id="ARPNOREPAIR" Value="1" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="Scientific Calculator" />
+      </Directory>
+      <Directory Id="ProgramMenuFolder" />
+    </Directory>
+
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="MainExe" Guid="7D2B6E9A-3C4F-4A1B-8E6D-2F0B9C5A7E21" Win64="yes">
+        <File Id="AppExe" Source="target\release\scientific-calculator.exe" Name="ScientificCalculator.exe" KeyPath="yes">
+          <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuFolder" Name="Scientific Calculator"
+                    Description="Free, offline scientific calculator" WorkingDirectory="INSTALLFOLDER"
+                    Icon="AppIcon" Advertise="yes" />
+        </File>
+      </Component>
+      <Component Id="LicenseFile" Guid="A4E1D7C2-5B8F-4F3A-9C6E-1D2B3A4C5E60" Win64="yes">
+        <File Id="LicenseTxt" Source="LICENSE" Name="LICENSE.txt" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id="Main" Title="Scientific Calculator" Level="1" Absent="disallow">
+      <ComponentRef Id="MainExe" />
+      <ComponentRef Id="LicenseFile" />
+    </Feature>
+
+    <!-- Licence page, then install: the simplest standard dialog set. -->
+    <WixVariable Id="WixUILicenseRtf" Value="packaging\msi\license.rtf" />
+    <UIRef Id="WixUI_Minimal" />
+  </Product>
+</Wix>

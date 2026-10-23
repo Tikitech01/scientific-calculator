@@ -82,6 +82,16 @@ identity and signs it so it installs on that PC.
 Icons are in `packaging/msix/Assets` (made from `packaging/icon.png`); the package description is
 `packaging/msix/AppxManifest.xml`.
 
+## 6b. Windows: the .msi installer
+
+`build-msi.ps1` (or double-click `build-msi.bat`) on the Windows PC makes
+`dist\Scientific-Calculator-<version>-Windows-x64.msi` from the same release build that
+`build-windows.ps1` compiles. It uses the WiX Toolset v3 (offered through winget) and
+`packaging/msi/main.wxs`: a per-machine install into Program Files, a Start-menu shortcut, the
+licence page, and an UpgradeCode that never changes, so installing a newer .msi replaces the
+older version in place. Attach the .msi to the GitHub release next to the Inno Setup .exe; winget
+accepts either (`InstallerType: wix` for the .msi).
+
 ## 7. Other app stores
 
 - **Snap Store**: a `snapcraft.yaml` that repackages the Linux binary; reaches Ubuntu users
