@@ -37,10 +37,12 @@ What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 
 | System | File | How to install |
 | --- | --- | --- |
-| **macOS** (Apple silicon, M1 or later) | [Scientific-Calculator-3.1.0-macOS-AppleSilicon.zip](https://github.com/Tikitech01/scientific-calculator/releases/download/v3.1.0/Scientific-Calculator-3.1.0-macOS-AppleSilicon.zip) | Unzip and drag **Scientific Calculator** to Applications. The app is not notarised by Apple yet, so the first time macOS may say it can't be opened: open **System Settings ▸ Privacy & Security** and click **Open Anyway** (on macOS 14 and earlier, right-click the app and choose **Open**). |
-| **Windows** 10 / 11 (64-bit) | [Scientific-Calculator-3.1.0-Windows-x64.msi](https://github.com/Tikitech01/scientific-calculator/releases/download/v3.1.0/Scientific-Calculator-3.1.0-Windows-x64.msi) | Double-click the installer. If SmartScreen appears, choose **More info → Run anyway** (the installer is not code-signed yet). Remove it later from Settings ▸ Apps. |
-| **Linux** – Debian, Ubuntu, Mint | [scientific-calculator_3.1.0_amd64.deb](https://github.com/Tikitech01/scientific-calculator/releases/download/v3.1.0/scientific-calculator_3.1.0_amd64.deb) | `sudo apt install ./scientific-calculator_3.1.0_amd64.deb` |
-| **Linux** – any other distribution | [Scientific-Calculator-3.1.0-Linux-x86_64.tar.gz](https://github.com/Tikitech01/scientific-calculator/releases/download/v3.1.0/Scientific-Calculator-3.1.0-Linux-x86_64.tar.gz) | Extract it and run `./install.sh` (no root needed). |
+| **macOS** (Apple silicon, M1 or later) | [Scientific-Calculator-3.1.0-macOS-AppleSilicon.zip](https://pub-8a5cc98180e2407488e6a7c7e4d86a4b.r2.dev/scientific-calculator/3.1.0/Scientific-Calculator-3.1.0-macOS-AppleSilicon.zip) | Unzip and drag **Scientific Calculator** to Applications. The app is not notarised by Apple yet, so the first time macOS may say it can't be opened: open **System Settings ▸ Privacy & Security** and click **Open Anyway** (on macOS 14 and earlier, right-click the app and choose **Open**). |
+| **Windows** 10 / 11 (64-bit) | [Scientific-Calculator-3.1.0-Windows-x64.msi](https://pub-8a5cc98180e2407488e6a7c7e4d86a4b.r2.dev/scientific-calculator/3.1.0/Scientific-Calculator-3.1.0-Windows-x64.msi) | Double-click the installer. If SmartScreen appears, choose **More info → Run anyway** (the installer is not code-signed yet). Remove it later from Settings ▸ Apps. |
+| **Linux** – Debian, Ubuntu, Mint | [scientific-calculator_3.1.0_amd64.deb](https://pub-8a5cc98180e2407488e6a7c7e4d86a4b.r2.dev/scientific-calculator/3.1.0/scientific-calculator_3.1.0_amd64.deb) | `sudo apt install ./scientific-calculator_3.1.0_amd64.deb` |
+| **Linux** – any other distribution | [Scientific-Calculator-3.1.0-Linux-x86_64.tar.gz](https://pub-8a5cc98180e2407488e6a7c7e4d86a4b.r2.dev/scientific-calculator/3.1.0/Scientific-Calculator-3.1.0-Linux-x86_64.tar.gz) | Extract it and run `./install.sh` (no root needed). |
+
+The same files, and older versions, are on the [Releases](https://github.com/Tikitech01/scientific-calculator/releases) page.
 
 Or with a package manager:
 
