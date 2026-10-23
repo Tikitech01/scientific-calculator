@@ -4,3 +4,6 @@ Numera.app/
 Scientific Calculator.app/
 .DS_Store
 dist/
+# Local secrets (R2 keys and the like)
+.env
+.env.*

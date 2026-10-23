@@ -26,9 +26,10 @@ REPO = "Tikitech01/scientific-calculator"
 HOME = f"https://github.com/{REPO}"
 DESC = "Scientific, graphing, statistics and financial calculator for engineering students"
 LONG = (
-    "A free, offline scientific calculator: complex numbers and phasors, matrices, equation "
-    "solving, calculus, graphing with sliders, unit conversion, hypothesis tests and ANOVA, "
-    "finance (EMI, NPV, IRR) and a programmer mode."
+    "A free, offline scientific calculator: a sheet of calculations with engineering templates, "
+    "complex numbers and phasors, matrices, equation solving, calculus, differential equations, "
+    "graphing with sliders, unit conversion, hypothesis tests and ANOVA, finance (EMI, NPV, IRR) "
+    "and a programmer mode."
 )
 PUBLISHER = "Sopè Technology"
 
@@ -96,10 +97,21 @@ end
 ''')
 
 # ---------------------------------------------------------------- Windows: Scoop and winget
-win, win_v = find("Scientific-Calculator-*-Windows-Setup.exe")
+# The newest Windows download: the .msi (from build-msi.ps1) or the Inno Setup .exe.
+def vkey(v):
+    return tuple(int(x) for x in v.split("."))
+
+msi, msi_v = find("Scientific-Calculator-*-Windows-x64.msi")
+exe, exe_v = find("Scientific-Calculator-*-Windows-Setup.exe")
+if msi and (not exe or vkey(msi_v) >= vkey(exe_v)):
+    win, win_v, kind = msi, msi_v, "msi"
+else:
+    win, win_v, kind = exe, exe_v, "inno"
 if win:
     win_sha = sha256(win)
     win_url = url(win)
+    # Scoop unpacks an .msi itself (no installer runs); the app sits in "Scientific Calculator".
+    unpack = '"extract_dir": "Scientific Calculator",' if kind == "msi" else '"innosetup": true,'
     write("scoop/scientific-calculator.json", f'''{{
     "version": "{win_v}",
     "description": "{DESC}",
@@ -111,7 +123,7 @@ if win:
             "hash": "{win_sha}"
         }}
     }},
-    "innosetup": true,
+    {unpack}
     "bin": "ScientificCalculator.exe",
     "shortcuts": [["ScientificCalculator.exe", "Scientific Calculator"]]
 }}
@@ -125,10 +137,20 @@ DefaultLocale: en-US
 ManifestType: version
 ManifestVersion: 1.12.0
 ''')
-    write(f"{base}/{ident}.installer.yaml", f'''# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
-PackageIdentifier: {ident}
-PackageVersion: {win_v}
-InstallerType: inno
+    if kind == "msi":
+        installer = f'''InstallerType: wix
+Scope: machine
+InstallModes:
+  - interactive
+  - silent
+UpgradeBehavior: install
+Installers:
+  - Architecture: x64
+    InstallerUrl: {win_url}
+    InstallerSha256: {win_sha.upper()}
+'''
+    else:
+        installer = f'''InstallerType: inno
 Scope: user
 InstallModes:
   - interactive
@@ -138,7 +160,11 @@ Installers:
   - Architecture: x64
     InstallerUrl: {win_url}
     InstallerSha256: {win_sha.upper()}
-ManifestType: installer
+'''
+    write(f"{base}/{ident}.installer.yaml", f'''# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
+PackageIdentifier: {ident}
+PackageVersion: {win_v}
+{installer}ManifestType: installer
 ManifestVersion: 1.12.0
 ''')
     write(f"{base}/{ident}.locale.en-US.yaml", f'''# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.12.0.schema.json

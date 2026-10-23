@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
+PackageIdentifier: SopeTechnology.ScientificCalculator
+PackageVersion: 3.1.0
+InstallerType: wix
+Scope: machine
+InstallModes:
+  - interactive
+  - silent
+UpgradeBehavior: install
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/Tikitech01/scientific-calculator/raw/710c0d88f0d2a7dcca566b4c96b8a90219987a7a/downloads/Scientific-Calculator-3.1.0-Windows-x64.msi
+    InstallerSha256: 6FB4D867195CEA24C372E52E912D4A38AEB74407AB2B814DE39B92EC851B6546
+ManifestType: installer
+ManifestVersion: 1.12.0

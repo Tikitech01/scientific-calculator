@@ -1,6 +1,6 @@
 pkgbase = scientific-calculator-bin
 	pkgdesc = Scientific, graphing, statistics and financial calculator for engineering students
-	pkgver = 3.0.0
+	pkgver = 3.1.0
 	pkgrel = 1
 	url = https://github.com/Tikitech01/scientific-calculator
 	arch = x86_64
@@ -14,9 +14,9 @@ pkgbase = scientific-calculator-bin
 	depends = libxi
 	provides = scientific-calculator
 	conflicts = scientific-calculator
-	source = Scientific-Calculator-3.0.0-Linux-x86_64.tar.gz::https://github.com/Tikitech01/scientific-calculator/raw/d1c674832cbb826b9ec56c3478f240d482d9394b/downloads/Scientific-Calculator-3.0.0-Linux-x86_64.tar.gz
+	source = Scientific-Calculator-3.1.0-Linux-x86_64.tar.gz::https://github.com/Tikitech01/scientific-calculator/raw/710c0d88f0d2a7dcca566b4c96b8a90219987a7a/downloads/Scientific-Calculator-3.1.0-Linux-x86_64.tar.gz
 	source = LICENSE::https://github.com/Tikitech01/scientific-calculator/raw/a599080c2c8f85163585dbfb1546ccd1ab07bbcb/LICENSE
-	sha256sums = 2d512d4b961a58f6912ede6af1951775a1767544d17cace39bb136b631d127a6
+	sha256sums = 452b13cdc21029b8fce342b44370fc7c4e441242b96d7e679e24ca0028e4b3b5
 	sha256sums = 6f1c0438c0b0618ff820cd2218d84bd5e50ebe1fd7533401b7d25709b9db2b13
 
 pkgname = scientific-calculator-bin
