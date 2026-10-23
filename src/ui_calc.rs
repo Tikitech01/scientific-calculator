@@ -492,32 +492,6 @@ pub fn ui(ui: &mut Ui, st: &mut CalcState, env: &mut Env, f: Fmt, pal: &Pal, com
     let mut load: Option<String> = None;
     let mut copy: Option<String> = None;
 
-    // ---- the row above: sheet name on the left, History | Sheet on the right
-    if !compact {
-        let bar = Rect::from_min_size(avail.min, vec2(avail.width(), bar_h));
-        ui.allocate_new_ui(UiBuilder::new().max_rect(bar).layout(Layout::right_to_left(Align::Center)), |ui| {
-            let mut sel = st.sheet as usize;
-            if widgets::segmented(ui, pal, &mut sel, &["History", "Sheet"]) {
-                st.sheet = sel == 1;
-                st.pending_cursor_end = true;
-            }
-            ui.add_space(6.0);
-            ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                ui.add_space(4.0);
-                if st.sheet {
-                    let name = format!("{}{}", st.sheet_name(), if st.sheet_dirty() { " •" } else { "" });
-                    ui.label(RichText::new(name).font(theme::medium(13.0)).color(pal.dim)).on_hover_text(
-                        "The sheet: one calculation per line, name = value stores a value. File ▾ saves and opens sheets.",
-                    );
-                    if let Some(note) = &st.sheet_note {
-                        ui.add_space(8.0);
-                        ui.label(RichText::new(note).size(12.5).color(pal.danger));
-                    }
-                }
-            });
-        });
-    }
-
     // ---- the sheet takes the place of the history and the input line
     if sheet {
         let rect = Rect::from_min_max(hist_rect.min, pos2(avail.right(), pad_rect.top() - 10.0));
@@ -593,6 +567,22 @@ pub fn ui(ui: &mut Ui, st: &mut CalcState, env: &mut Env, f: Fmt, pal: &Pal, com
             });
         });
     });
+    // Fade the top of a long history into the background, so a line half scrolled out of view
+    // does not look cut off under the bar above it.
+    if st.content_h > hist_rect.height() {
+        let solid = Rect::from_min_size(hist_rect.min - vec2(0.0, 8.0), vec2(hist_rect.width(), 22.0));
+        ui.painter().rect_filled(solid, 0.0, pal.bg);
+        let fade = Rect::from_min_size(solid.left_bottom(), vec2(hist_rect.width(), 40.0));
+        let clear = egui::Color32::from_rgba_unmultiplied(pal.bg.r(), pal.bg.g(), pal.bg.b(), 0);
+        let mut mesh = egui::Mesh::default();
+        mesh.colored_vertex(fade.left_top(), pal.bg);
+        mesh.colored_vertex(fade.right_top(), pal.bg);
+        mesh.colored_vertex(fade.left_bottom(), clear);
+        mesh.colored_vertex(fade.right_bottom(), clear);
+        mesh.add_triangle(0, 1, 2);
+        mesh.add_triangle(1, 3, 2);
+        ui.painter().add(egui::Shape::mesh(mesh));
+    }
 
     // ---- input line
     let n = st.input.chars().count();
@@ -688,6 +678,34 @@ pub fn ui(ui: &mut Ui, st: &mut CalcState, env: &mut Env, f: Fmt, pal: &Pal, com
         }
     }
     } // !sheet
+
+    // ---- the row above (drawn after the history so it sits on top of it): sheet name on the left, History | Sheet on the right
+    if !compact {
+        let bar = Rect::from_min_size(avail.min, vec2(avail.width(), bar_h));
+        ui.allocate_new_ui(UiBuilder::new().max_rect(bar).layout(Layout::right_to_left(Align::Center)), |ui| {
+            let mut sel = st.sheet as usize;
+            if widgets::segmented(ui, pal, &mut sel, &["History", "Sheet"]) {
+                st.sheet = sel == 1;
+                st.pending_cursor_end = true;
+            }
+            ui.add_space(6.0);
+            ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                ui.add_space(4.0);
+                if st.sheet {
+                    let name = format!("{}{}", st.sheet_name(), if st.sheet_dirty() { " •" } else { "" });
+                    ui.label(RichText::new(name).font(theme::medium(13.0)).color(pal.dim)).on_hover_text(
+                        "The sheet: one calculation per line, name = value stores a value. File ▾ saves and opens sheets.",
+                    );
+                    if let Some(note) = &st.sheet_note {
+                        ui.add_space(8.0);
+                        ui.label(RichText::new(note).size(12.5).color(pal.danger));
+                    }
+                }
+            });
+        });
+    }
+
+
 
     // ---- keypad
     let key_w = if compact {

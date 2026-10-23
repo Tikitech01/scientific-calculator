@@ -17,7 +17,7 @@ fn icon(ctx: &egui::Context, cache: &mut Option<TextureHandle>) -> Option<Textur
 
 fn row(ui: &mut egui::Ui, pal: &Pal, label: &str, add: impl FnOnce(&mut egui::Ui)) {
     ui.horizontal(|ui| {
-        ui.add_sized([96.0, 20.0], egui::Label::new(RichText::new(label).font(theme::regular(13.0)).color(pal.dim)));
+        crate::widgets::row_label(ui, RichText::new(label).font(theme::regular(13.0)).color(pal.dim), 96.0, 20.0);
         add(ui);
     });
 }

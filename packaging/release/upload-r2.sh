@@ -41,11 +41,13 @@ for f in "${files[@]}"; do
     *.gif) type="image/gif" ;;
     *.jpg|*.jpeg) type="image/jpeg" ;;
     *.svg) type="image/svg+xml" ;;
+    *.mp4) type="video/mp4" ;;
+    *.webm) type="video/webm" ;;
     *) type="application/octet-stream" ;;
   esac
   # Installers download as files; images display in the page and are cached for a day.
   case "$type" in
-    image/*) extra=(-H "Cache-Control: public, max-age=86400") ;;
+    image/*|video/*) extra=(-H "Cache-Control: public, max-age=86400") ;;
     *) extra=(-H "Content-Disposition: attachment; filename=\"${name}\"") ;;
   esac
   hash=$(shasum -a 256 "$f" | cut -d' ' -f1)

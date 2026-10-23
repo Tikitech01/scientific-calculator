@@ -545,3 +545,13 @@ pub fn page_header(ui: &mut Ui, pal: &Pal, title: &str, subtitle: &str, closable
     });
     close
 }
+
+/// A label in a fixed-width column, left-aligned and vertically centred, so a column of
+/// labels lines up with the fields beside them.
+pub fn row_label(ui: &mut Ui, text: RichText, width: f32, height: f32) -> Response {
+    ui.allocate_ui_with_layout(egui::vec2(width, height), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+        ui.set_min_size(egui::vec2(width, height));
+        ui.add(egui::Label::new(text).truncate())
+    })
+    .inner
+}

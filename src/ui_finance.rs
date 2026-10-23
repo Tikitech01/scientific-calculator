@@ -118,7 +118,7 @@ fn value(ui: &mut Ui, pal: &Pal, src: &str, env: &mut Env) -> Option<f64> {
 fn labelled(ui: &mut Ui, pal: &Pal, label: &str, text: &mut String, hint: &str, tip: &str) -> egui::Response {
     let mut resp = None;
     ui.horizontal(|ui| {
-        ui.add_sized([150.0, 24.0], egui::Label::new(RichText::new(label).size(13.5).color(pal.dim)));
+        crate::widgets::row_label(ui, RichText::new(label).size(13.5).color(pal.dim), 150.0, 34.0);
         resp = Some(widgets::field(ui, pal, text, hint, 150.0).on_hover_text(tip));
     });
     resp.unwrap()
@@ -126,7 +126,7 @@ fn labelled(ui: &mut Ui, pal: &Pal, label: &str, text: &mut String, hint: &str, 
 
 fn choice(ui: &mut Ui, pal: &Pal, label: &str, sel: &mut usize, names: &[&str], id: &str) {
     ui.horizontal(|ui| {
-        ui.add_sized([150.0, 24.0], egui::Label::new(RichText::new(label).size(13.5).color(pal.dim)));
+        crate::widgets::row_label(ui, RichText::new(label).size(13.5).color(pal.dim), 150.0, 34.0);
         ui.spacing_mut().interact_size.y = 28.0;
         ComboBox::from_id_salt(id).width(170.0).selected_text(names[*sel]).show_ui(ui, |ui| {
             for (i, n) in names.iter().enumerate() {
@@ -198,7 +198,7 @@ fn tvm_ui(ui: &mut Ui, st: &mut FinState, env: &mut Env, pal: &Pal) {
     let mut parsed = [None; 5];
     for (i, (name, hint, tip, var)) in rows.iter().enumerate() {
         ui.horizontal(|ui| {
-            ui.add_sized([60.0, 24.0], egui::Label::new(RichText::new(*name).font(theme::medium(14.0))));
+            crate::widgets::row_label(ui, RichText::new(*name).font(theme::medium(14.0)), 60.0, 24.0);
             widgets::field(ui, pal, &mut st.tvm[i], hint, 170.0).on_hover_text(*tip);
             if ui.add(egui::Button::new(RichText::new("Solve").size(12.5))).on_hover_text(format!("Work out {} from the other four", name)).clicked() {
                 solve = Some(*var);
@@ -219,7 +219,7 @@ fn tvm_ui(ui: &mut Ui, st: &mut FinState, env: &mut Env, pal: &Pal) {
     choice(ui, pal, "Payments per year", &mut st.tvm_py, &names, "tvm_py");
     choice(ui, pal, "Compounding", &mut st.tvm_cy, &names, "tvm_cy");
     ui.horizontal(|ui| {
-        ui.add_sized([150.0, 24.0], egui::Label::new(RichText::new("Payments due").size(13.5).color(pal.dim)));
+        crate::widgets::row_label(ui, RichText::new("Payments due").size(13.5).color(pal.dim), 150.0, 34.0);
         let mut b = st.tvm_begin as usize;
         if widgets::segmented(ui, pal, &mut b, &["End of period", "Beginning"]) {
             st.tvm_begin = b == 1;
@@ -283,7 +283,7 @@ fn loan_ui(ui: &mut Ui, st: &mut FinState, env: &mut Env, pal: &Pal) {
     labelled(ui, pal, "Loan amount", &mut st.loan[0], "e.g. 2500000", "Principal borrowed.");
     labelled(ui, pal, "Interest rate % / year", &mut st.loan[1], "e.g. 8.5", "Annual interest rate in percent, reduced monthly.");
     ui.horizontal(|ui| {
-        ui.add_sized([150.0, 24.0], egui::Label::new(RichText::new("Term").size(13.5).color(pal.dim)));
+        crate::widgets::row_label(ui, RichText::new("Term").size(13.5).color(pal.dim), 150.0, 34.0);
         widgets::field(ui, pal, &mut st.loan[2], if st.loan_years { "years" } else { "months" }, 90.0);
         let mut y = if st.loan_years { 0 } else { 1 };
         if widgets::segmented(ui, pal, &mut y, &["Years", "Months"]) {
@@ -625,7 +625,7 @@ fn business_ui(ui: &mut Ui, st: &mut FinState, env: &mut Env, pal: &Pal) {
             labelled(ui, pal, "Amount", &mut st.biz[0], "e.g. 11800", "The amount before or after tax.");
             labelled(ui, pal, "Tax rate %", &mut st.biz[1], "e.g. 18", "GST, VAT or sales tax rate in percent.");
             ui.horizontal(|ui| {
-                ui.add_sized([150.0, 24.0], egui::Label::new(RichText::new("The amount is").size(13.5).color(pal.dim)));
+                crate::widgets::row_label(ui, RichText::new("The amount is").size(13.5).color(pal.dim), 150.0, 34.0);
                 let mut k = (st.biz[3] == "1") as usize;
                 if widgets::segmented(ui, pal, &mut k, &["Before tax", "Tax included"]) {
                     st.biz[3] = k.to_string();
