@@ -1,4 +1,4 @@
-# Publishing Scientific Calculator
+# Publishing Scientific Calculator Studio Pro
 
 Everything needed to put the app in front of people, in the order that pays off most.
 
@@ -6,8 +6,8 @@ Each release:
 
 ```
 # 1. put the four files for the version in downloads/
-bash packaging/release/upload-r2.sh 3.1.0          # 2. upload to Cloudflare R2 (keys in .env.local)
-python3 packaging/release/make_manifests.py        # 3. Homebrew, Scoop, winget, AUR point at R2
+python3 packaging/release/make_manifests.py        # 2. generate manifests and the AUR licence file
+bash packaging/release/upload-r2.sh 3.1.1          # 3. upload to Cloudflare R2 (keys in .env.local)
 ```
 
 Downloads are served from
@@ -20,8 +20,8 @@ the README, the website and every manifest link there. Commit what step 3 writes
   `Free, offline scientific calculator for engineering students: phasors, matrices, equations, calculus, graphing, statistics, finance. macOS, Windows, Linux.`
 - **Website**: the landing page link
 - **Topics**: `calculator scientific-calculator graphing-calculator engineering engineering-students complex-numbers matrix statistics anova financial-calculator rust egui macos windows linux offline`
-- **Release**: Releases ▸ Draft a new release ▸ tag `v3.1.0` ▸ title `Scientific Calculator 3.1.0` ▸ paste
-  `docs/release-notes/3.1.0.md` ▸ attach the four files from `downloads/` ▸ Publish.
+- **Release**: Releases ▸ Draft a new release ▸ tag `v3.1.1` ▸ title `Scientific Calculator Studio Pro 3.1.1` ▸ paste
+  `docs/release-notes/3.1.1.md` ▸ attach the four files from `downloads/` ▸ Publish.
   Release pages show download counts, so you can measure every channel below.
 - **Social preview** (Settings ▸ General ▸ Social preview): upload `docs/screenshots/calculate.png`.
   This is the image shown when the repo link is shared on WhatsApp, X, LinkedIn or Slack.
@@ -73,12 +73,12 @@ Submit an MSIX package: Microsoft signs it for free, hosts it and updates users 
 (The `.exe` installer route needs a paid code-signing certificate.)
 
 1. Partner Center > Apps and games > New product > MSIX or PWA app > reserve the name.
-   Plain "Scientific Calculator" is likely taken; have a distinct name ready.
+   Reserve the name Scientific Calculator Studio Pro.
 2. Product management > Product identity: copy Package/Identity/Name, Package/Identity/Publisher
    and the reserved name into `packaging/msix/identity.json`.
 3. On the Windows PC: `.\build-msix.ps1` (or double-click `build-msix.bat`). It reuses the release
    build from `build-windows.ps1`, installs the Windows SDK if needed and writes
-   `dist\Scientific-Calculator-<version>-x64.msix`.
+   `dist\Scientific-Calculator-Studio-Pro-<version>-x64.msix`.
 4. Upload that file in the submission's Packages step; listing text and screenshots go in Store listings.
 
 Before the account is ready, `.\build-msix.ps1 -Test` builds a test package with a temporary
@@ -90,7 +90,7 @@ Icons are in `packaging/msix/Assets` (made from `packaging/icon.png`); the packa
 ## 6b. Windows: the .msi installer
 
 `build-msi.ps1` (or double-click `build-msi.bat`) on the Windows PC makes
-`dist\Scientific-Calculator-<version>-Windows-x64.msi` from the same release build that
+`dist\Scientific-Calculator-Studio-Pro-<version>-Windows-x64.msi` from the same release build that
 `build-windows.ps1` compiles. It uses the WiX Toolset v3 (offered through winget) and
 `packaging/msi/main.wxs`: a per-machine install into Program Files, a Start-menu shortcut, the
 licence page, and an UpgradeCode that never changes, so installing a newer .msi replaces the

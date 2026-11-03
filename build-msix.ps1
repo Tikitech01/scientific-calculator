@@ -14,7 +14,7 @@ if ($Test) {
         IdentityName = "SopeTechnology.ScientificCalculator.Test"
         Publisher = "CN=Sope Technology Test"
         PublisherDisplayName = "Sopè Technology"
-        DisplayName = "Scientific Calculator (test)"
+        DisplayName = "Scientific Calculator Studio Pro (test)"
     }
 } elseif (($id.IdentityName + $id.Publisher + $id.DisplayName) -match "PASTE") {
     Write-Host "packaging\msix\identity.json still has placeholders."
@@ -73,7 +73,7 @@ $manifest = $manifest.Replace("{{VERSION}}", $msixVersion)
 
 # ---- Pack -------------------------------------------------------------------------------------
 $suffix = if ($Test) { "-test" } else { "" }
-$out = "dist\Scientific-Calculator-$version-x64$suffix.msix"
+$out = "dist\Scientific-Calculator-Studio-Pro-$version-x64$suffix.msix"
 & $makeappx pack /o /d $stage /p $out
 if ($LASTEXITCODE -ne 0) { throw "MakeAppx failed (see the message above)" }
 
@@ -89,7 +89,7 @@ $signtool = Find-SdkTool "signtool.exe"
 $cert = Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.Subject -eq $id.Publisher } | Select-Object -First 1
 if (-not $cert) {
     $cert = New-SelfSignedCertificate -Type Custom -Subject $id.Publisher -KeyUsage DigitalSignature `
-        -FriendlyName "Scientific Calculator test signing" -CertStoreLocation Cert:\CurrentUser\My `
+        -FriendlyName "Scientific Calculator Studio Pro test signing" -CertStoreLocation Cert:\CurrentUser\My `
         -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
 }
 & $signtool sign /fd SHA256 /sha1 $cert.Thumbprint $out

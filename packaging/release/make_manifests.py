@@ -3,8 +3,8 @@
 
     python3 packaging/release/make_manifests.py
 
-Each download is referenced by its Cloudflare R2 address (one folder per version), so upload
-the files with packaging/release/upload-r2.sh first. Then commit the regenerated files under packaging/.
+Each download is referenced by its Cloudflare R2 address (one folder per version). Run this
+before upload-r2.sh so the versioned licence file is included in the upload.
 
 Writes:
   packaging/homebrew/Casks/scientific-calculator.rb   (for a tap: Tikitech01/homebrew-tap)
@@ -17,13 +17,12 @@ import hashlib
 import json
 import pathlib
 import re
-import subprocess
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 DL = ROOT / "downloads"
 REPO = "Tikitech01/scientific-calculator"
 HOME = f"https://github.com/{REPO}"
-DESC = "Scientific, graphing, statistics and financial calculator for engineering students"
+DESC = "Scientific Calculator Studio Pro for engineering students"
 LONG = (
     "A free, offline scientific calculator: a sheet of calculations with engineering templates, "
     "complex numbers and phasors, matrices, equation solving, calculus, differential equations, "
@@ -35,16 +34,6 @@ PUBLISHER = "Sopè Technology"
 
 def sha256(p: pathlib.Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
-
-
-def commit_of(p: pathlib.Path) -> str:
-    out = subprocess.run(
-        ["git", "log", "-1", "--format=%H", "--", str(p.relative_to(ROOT))],
-        cwd=ROOT, capture_output=True, text=True, check=True,
-    ).stdout.strip()
-    if not out:
-        raise SystemExit(f"{p.name} is not committed yet; commit it first, then run this again.")
-    return out
 
 
 # Downloads are served from Cloudflare R2 (uploaded with packaging/release/upload-r2.sh),
@@ -74,28 +63,28 @@ def write(rel: str, text: str):
 
 
 # ---------------------------------------------------------------- macOS: Homebrew cask (tap)
-mac, mac_v = find("Scientific-Calculator-*-macOS-AppleSilicon.zip")
+mac, mac_v = find("Scientific-Calculator-Studio-Pro-*-macOS-AppleSilicon.zip")
 if mac:
     write("homebrew/Casks/scientific-calculator.rb", f'''cask "scientific-calculator" do
   version "{mac_v}"
   sha256 "{sha256(mac)}"
 
   url "{url(mac)}"
-  name "Scientific Calculator"
+  name "Scientific Calculator Studio Pro"
   desc "{DESC}"
   homepage "{HOME}"
 
   depends_on arch: :arm64
   depends_on macos: ">= :big_sur"
 
-  app "Scientific Calculator.app"
+  app "Scientific Calculator Studio Pro.app"
 
   zap trash: [
     "~/Library/Application Support/Scientific Calculator",
   ]
 
   caveats <<~EOS
-    Scientific Calculator is not notarised by Apple yet. If macOS says it cannot be opened,
+    Scientific Calculator Studio Pro is not notarised by Apple yet. If macOS says it cannot be opened,
     open System Settings > Privacy & Security and click "Open Anyway".
   EOS
 end
@@ -106,8 +95,8 @@ end
 def vkey(v):
     return tuple(int(x) for x in v.split("."))
 
-msi, msi_v = find("Scientific-Calculator-*-Windows-x64.msi")
-exe, exe_v = find("Scientific-Calculator-*-Windows-Setup.exe")
+msi, msi_v = find("Scientific-Calculator-Studio-Pro-*-Windows-x64.msi")
+exe, exe_v = find("Scientific-Calculator-Studio-Pro-*-Windows-Setup.exe")
 if msi and (not exe or vkey(msi_v) >= vkey(exe_v)):
     win, win_v, kind = msi, msi_v, "msi"
 else:
@@ -115,8 +104,8 @@ else:
 if win:
     win_sha = sha256(win)
     win_url = url(win)
-    # Scoop unpacks an .msi itself (no installer runs); the app sits in "Scientific Calculator".
-    unpack = '"extract_dir": "Scientific Calculator",' if kind == "msi" else '"innosetup": true,'
+    # Scoop unpacks an .msi itself (no installer runs); the app sits in the named install folder.
+    unpack = '"extract_dir": "Scientific Calculator Studio Pro",' if kind == "msi" else '"innosetup": true,'
     write("scoop/scientific-calculator.json", f'''{{
     "version": "{win_v}",
     "description": "{DESC}",
@@ -130,7 +119,7 @@ if win:
     }},
     {unpack}
     "bin": "ScientificCalculator.exe",
-    "shortcuts": [["ScientificCalculator.exe", "Scientific Calculator"]]
+    "shortcuts": [["ScientificCalculator.exe", "Scientific Calculator Studio Pro"]]
 }}
 ''')
     base = f"winget/manifests/s/SopeTechnology/ScientificCalculator/{win_v}"
@@ -178,7 +167,7 @@ PackageVersion: {win_v}
 PackageLocale: en-US
 Publisher: {PUBLISHER}
 PublisherUrl: https://sopetechnology.com
-PackageName: Scientific Calculator
+PackageName: Scientific Calculator Studio Pro
 PackageUrl: {HOME}
 License: MIT
 LicenseUrl: {HOME}/blob/main/LICENSE
@@ -200,13 +189,14 @@ ManifestVersion: 1.12.0
 ''')
 
 # ---------------------------------------------------------------- Linux: AUR binary package
-tar, tar_v = find("Scientific-Calculator-*-Linux-x86_64.tar.gz")
+tar, tar_v = find("Scientific-Calculator-Studio-Pro-*-Linux-x86_64.tar.gz")
 if tar:
     tsha = sha256(tar)
     turl = url(tar)
-    lic = ROOT / "LICENSE"
+    lic = DL / f"Scientific-Calculator-Studio-Pro-{tar_v}-LICENSE.txt"
+    lic.write_bytes((ROOT / "LICENSE").read_bytes())
     lsha = sha256(lic)
-    lurl = f"{HOME}/raw/{commit_of(lic)}/LICENSE"
+    lurl = url(lic)
     write("aur/PKGBUILD", f'''# Maintainer: {PUBLISHER} <https://sopetechnology.com>
 pkgname=scientific-calculator-bin
 pkgver={tar_v}
@@ -218,13 +208,13 @@ license=('MIT')
 depends=('libgl' 'libxkbcommon' 'wayland' 'libx11' 'libxcursor' 'libxrandr' 'libxi')
 provides=('scientific-calculator')
 conflicts=('scientific-calculator')
-source=("Scientific-Calculator-$pkgver-Linux-x86_64.tar.gz::{turl}"
+source=("Scientific-Calculator-Studio-Pro-$pkgver-Linux-x86_64.tar.gz::{turl}"
         "LICENSE::{lurl}")
 sha256sums=('{tsha}'
             '{lsha}')
 
 package() {{
-  cd "Scientific-Calculator-$pkgver"
+  cd "Scientific-Calculator-Studio-Pro-$pkgver"
   install -Dm755 scientific-calculator "$pkgdir/usr/bin/scientific-calculator"
   install -Dm644 scientific-calculator.desktop "$pkgdir/usr/share/applications/scientific-calculator.desktop"
   install -Dm644 icon-256.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/scientific-calculator.png"
@@ -247,7 +237,7 @@ package() {{
 \tdepends = libxi
 \tprovides = scientific-calculator
 \tconflicts = scientific-calculator
-\tsource = Scientific-Calculator-{tar_v}-Linux-x86_64.tar.gz::{turl}
+\tsource = Scientific-Calculator-Studio-Pro-{tar_v}-Linux-x86_64.tar.gz::{turl}
 \tsource = LICENSE::{lurl}
 \tsha256sums = {tsha}
 \tsha256sums = {lsha}

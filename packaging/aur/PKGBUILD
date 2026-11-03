@@ -1,21 +1,21 @@
 # Maintainer: Sopè Technology <https://sopetechnology.com>
 pkgname=scientific-calculator-bin
-pkgver=3.1.0
+pkgver=3.1.1
 pkgrel=1
-pkgdesc="Scientific, graphing, statistics and financial calculator for engineering students"
+pkgdesc="Scientific Calculator Studio Pro for engineering students"
 arch=('x86_64')
 url="https://github.com/Tikitech01/scientific-calculator"
 license=('MIT')
 depends=('libgl' 'libxkbcommon' 'wayland' 'libx11' 'libxcursor' 'libxrandr' 'libxi')
 provides=('scientific-calculator')
 conflicts=('scientific-calculator')
-source=("Scientific-Calculator-$pkgver-Linux-x86_64.tar.gz::https://pub-8a5cc98180e2407488e6a7c7e4d86a4b.r2.dev/scientific-calculator/3.1.0/Scientific-Calculator-3.1.0-Linux-x86_64.tar.gz"
-        "LICENSE::https://github.com/Tikitech01/scientific-calculator/raw/a599080c2c8f85163585dbfb1546ccd1ab07bbcb/LICENSE")
-sha256sums=('452b13cdc21029b8fce342b44370fc7c4e441242b96d7e679e24ca0028e4b3b5'
+source=("Scientific-Calculator-Studio-Pro-$pkgver-Linux-x86_64.tar.gz::https://pub-8a5cc98180e2407488e6a7c7e4d86a4b.r2.dev/scientific-calculator/3.1.1/Scientific-Calculator-Studio-Pro-3.1.1-Linux-x86_64.tar.gz"
+        "LICENSE::https://pub-8a5cc98180e2407488e6a7c7e4d86a4b.r2.dev/scientific-calculator/3.1.1/Scientific-Calculator-Studio-Pro-3.1.1-LICENSE.txt")
+sha256sums=('410af0b612598985052f13af8389dbc1518fa11d8ef33dcafa2053f38a7c5193'
             '6f1c0438c0b0618ff820cd2218d84bd5e50ebe1fd7533401b7d25709b9db2b13')
 
 package() {
-  cd "Scientific-Calculator-$pkgver"
+  cd "Scientific-Calculator-Studio-Pro-$pkgver"
   install -Dm755 scientific-calculator "$pkgdir/usr/bin/scientific-calculator"
   install -Dm644 scientific-calculator.desktop "$pkgdir/usr/share/applications/scientific-calculator.desktop"
   install -Dm644 icon-256.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/scientific-calculator.png"

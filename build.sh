@@ -1,9 +1,9 @@
 #!/bin/bash
-# Builds "Scientific Calculator.app" in this folder. Run it from Terminal:  ./build.sh
+# Builds "Scientific Calculator Studio Pro.app" in this folder. Run it from Terminal:  ./build.sh
 set -euo pipefail
 cd "$(dirname "$0")"
 
-APP="Scientific Calculator.app"
+APP="Scientific Calculator Studio Pro.app"
 
 # The Rust toolchain may be installed but not yet on PATH in this shell.
 if ! command -v cargo >/dev/null 2>&1 && [ -f "$HOME/.cargo/env" ]; then

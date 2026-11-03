@@ -1,0 +1,12 @@
+[package]
+name = "scicalc_mobile_core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+num-complex = "0.4"
+libm = "0.2"
+serde_json = "1"

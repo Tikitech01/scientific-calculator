@@ -2,7 +2,7 @@
 
 Scientific Calculator Studio Pro is created and maintained by Sope Technology. The source code and release build instructions are published in this repository.
 
-We are applying for free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/). If approved, Windows will show **SignPath Foundation** as the verified signer of releases built from this repository. It will not identify Sope Technology as the certificate holder. Current Windows downloads are unsigned until a signed release is published.
+We are applying for free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/). If approved, Windows will show **SignPath Foundation** as the verified signer of standalone releases built from this repository. It will not identify Sope Technology as the certificate holder. Standalone Windows installers remain unsigned until a signed release is published; the Microsoft Store distributes its own signed package.
 
 ## Release controls
 

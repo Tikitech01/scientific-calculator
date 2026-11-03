@@ -11,5 +11,5 @@
     },
     "extract_dir": "Scientific Calculator",
     "bin": "ScientificCalculator.exe",
-    "shortcuts": [["ScientificCalculator.exe", "Scientific Calculator"]]
+    "shortcuts": [["ScientificCalculator.exe", "Scientific Calculator Studio Pro"]]
 }

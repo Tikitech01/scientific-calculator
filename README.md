@@ -9,7 +9,7 @@ native app. No account, no ads, no internet needed. It opens as a small everyday
 expands into a full workstation when you need it.
 
 <p align="center">
-  <a href="#download"><img alt="Download" src="https://img.shields.io/badge/download-v3.1.0-E2542B?style=for-the-badge"></a>
+  <a href="#download"><img alt="Download" src="https://img.shields.io/badge/download-v3.1.1-E2542B?style=for-the-badge"></a>
   <img alt="macOS" src="https://img.shields.io/badge/macOS-Apple%20silicon-1B1B1A?style=for-the-badge&logo=apple">
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10%20%7C%2011-1B1B1A?style=for-the-badge&logo=windows">
   <img alt="Linux" src="https://img.shields.io/badge/Linux-deb%20%7C%20tar.gz-1B1B1A?style=for-the-badge&logo=linux">
@@ -17,7 +17,7 @@ expands into a full workstation when you need it.
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-1B1B1A?style=for-the-badge"></a>
 </p>
 
-<p align="center"><a href="https://s4w.in/Scientific-Calculator"><b>Website</b></a> · <a href="https://github.com/Tikitech01/scientific-calculator/releases/latest"><b>Latest release</b></a> · <a href="CHANGELOG.md">What's new</a> · <a href="CODE_SIGNING.md">Code signing policy</a> · <a href="https://github.com/Tikitech01/scientific-calculator/issues/new">Feedback</a></p>
+<p align="center"><a href="https://sopetechnology.com/scientific-calculator/"><b>Website</b></a> · <a href="https://github.com/Tikitech01/scientific-calculator/releases"><b>GitHub releases</b></a> · <a href="CHANGELOG.md">What's new</a> · <a href="CODE_SIGNING.md">Code signing policy</a> · <a href="https://github.com/Tikitech01/scientific-calculator/issues/new">Feedback</a></p>
 
 <p align="center">
   <img src="docs/demo.gif" alt="A tour: calculate with phasors, graph with sliders, solve equations, matrices, ANOVA, programmer and loan schedule" width="880">
@@ -35,16 +35,16 @@ What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 
 ## Download
 
-See the [Code signing policy](CODE_SIGNING.md) for the publisher shown by Windows and the status of signed releases.
+For standalone Windows installers, see the [Code signing policy](CODE_SIGNING.md).
 
 | System | File | How to install |
 | --- | --- | --- |
-| **macOS** (Apple silicon, M1 or later) | [Scientific-Calculator-3.1.0-macOS-AppleSilicon.zip](https://pub-8a5cc98180e2407488e6a7c7e4d86a4b.r2.dev/scientific-calculator/3.1.0/Scientific-Calculator-3.1.0-macOS-AppleSilicon.zip) | Unzip and drag **Scientific Calculator** to Applications. The app is not notarised by Apple yet, so the first time macOS may say it can't be opened: open **System Settings ▸ Privacy & Security** and click **Open Anyway** (on macOS 14 and earlier, right-click the app and choose **Open**). |
-| **Windows** 10 / 11 (64-bit) | [Scientific-Calculator-3.1.0-Windows-x64.msi](https://pub-8a5cc98180e2407488e6a7c7e4d86a4b.r2.dev/scientific-calculator/3.1.0/Scientific-Calculator-3.1.0-Windows-x64.msi) | Double-click the installer. If SmartScreen appears, choose **More info → Run anyway** (the installer is not code-signed yet). Remove it later from Settings ▸ Apps. |
-| **Linux** – Debian, Ubuntu, Mint | [scientific-calculator_3.1.0_amd64.deb](https://pub-8a5cc98180e2407488e6a7c7e4d86a4b.r2.dev/scientific-calculator/3.1.0/scientific-calculator_3.1.0_amd64.deb) | `sudo apt install ./scientific-calculator_3.1.0_amd64.deb` |
-| **Linux** – any other distribution | [Scientific-Calculator-3.1.0-Linux-x86_64.tar.gz](https://pub-8a5cc98180e2407488e6a7c7e4d86a4b.r2.dev/scientific-calculator/3.1.0/Scientific-Calculator-3.1.0-Linux-x86_64.tar.gz) | Extract it and run `./install.sh` (no root needed). |
+| **macOS** (Apple silicon, M1 or later) | [Scientific-Calculator-Studio-Pro-3.1.1-macOS-AppleSilicon.zip](https://pub-8a5cc98180e2407488e6a7c7e4d86a4b.r2.dev/scientific-calculator/3.1.1/Scientific-Calculator-Studio-Pro-3.1.1-macOS-AppleSilicon.zip) | Unzip and drag **Scientific Calculator Studio Pro** to Applications. The app is not notarised by Apple yet, so the first time macOS may say it can't be opened: open **System Settings ▸ Privacy & Security** and click **Open Anyway** (on macOS 14 and earlier, right-click the app and choose **Open**). |
+| **Windows** 10 / 11 | [Microsoft Store](https://apps.microsoft.com/detail/9p3fb76wvkhr) | Install **Scientific Calculator Studio Pro** from the Store. |
+| **Linux** – Debian, Ubuntu, Mint | [scientific-calculator_3.1.1_amd64.deb](https://pub-8a5cc98180e2407488e6a7c7e4d86a4b.r2.dev/scientific-calculator/3.1.1/scientific-calculator_3.1.1_amd64.deb) | `sudo apt install ./scientific-calculator_3.1.1_amd64.deb` |
+| **Linux** – any other distribution | [Scientific-Calculator-Studio-Pro-3.1.1-Linux-x86_64.tar.gz](https://pub-8a5cc98180e2407488e6a7c7e4d86a4b.r2.dev/scientific-calculator/3.1.1/Scientific-Calculator-Studio-Pro-3.1.1-Linux-x86_64.tar.gz) | Extract it and run `./install.sh` (no root needed). |
 
-The same files, and older versions, are on the [Releases](https://github.com/Tikitech01/scientific-calculator/releases) page.
+Older versions are on the [Releases](https://github.com/Tikitech01/scientific-calculator/releases) page.
 
 Or with a package manager:
 
@@ -259,14 +259,14 @@ The app is written in Rust with [egui](https://github.com/emilk/egui).
 bash build.sh
 ```
 
-Builds `Scientific Calculator.app` in this folder (the script offers to install Rust if needed).
+Builds `Scientific Calculator Studio Pro.app` in this folder (the script offers to install Rust if needed).
 
 **Windows 10 / 11**
 
 Double-click `build-windows.bat` (or run `.\build-windows.ps1` in PowerShell). It produces
-`dist\Scientific-Calculator-<version>-Windows-Setup.exe`, an installer with a Start-menu entry,
+`dist\Scientific-Calculator-Studio-Pro-<version>-Windows-Setup.exe`, an installer with a Start-menu entry,
 an optional desktop shortcut and an uninstaller. `build-msi.bat` makes the same app as a Windows
-Installer package, `dist\Scientific-Calculator-<version>-Windows-x64.msi` (needs the WiX Toolset v3,
+Installer package, `dist\Scientific-Calculator-Studio-Pro-<version>-Windows-x64.msi` (needs the WiX Toolset v3,
 offered through winget). The script installs what is missing with winget: Rust, Inno Setup and a
 C++ linker (either Visual Studio Build Tools, or Rust's smaller GNU toolchain if you prefer not to
 install Visual Studio).
