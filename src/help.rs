@@ -184,7 +184,7 @@ const SECTIONS: &[(&str, &[(&str, &str)])] = &[
     ]),
 ];
 
-pub const APP_NAME: &str = "Scientific Calculator";
+pub const APP_NAME: &str = "Scientific Calculator Studio Pro";
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const BUILD_DATE: &str = env!("SCICALC_BUILD_DATE");
 pub const DEVELOPER: &str = "Sopè Technology";

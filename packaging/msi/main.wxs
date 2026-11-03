@@ -3,11 +3,11 @@
      Version comes from Cargo.toml; the UpgradeCode never changes, so a newer version replaces
      an older one in place. -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="*" Name="Scientific Calculator" Language="1033" Version="$(var.Version)"
+  <Product Id="*" Name="Scientific Calculator Studio Pro" Language="1033" Version="$(var.Version)"
            Manufacturer="Sope Technology" UpgradeCode="9C0C3F1E-6B5A-4B0A-9D55-5A1E2C7F3D10">
     <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" Platform="x64"
-             Description="Scientific Calculator $(var.Version)" Comments="Free, offline scientific calculator" />
-    <MajorUpgrade DowngradeErrorMessage="A newer version of Scientific Calculator is already installed." />
+             Description="Scientific Calculator Studio Pro $(var.Version)" Comments="Free, offline scientific calculator" />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Scientific Calculator Studio Pro is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
     <Icon Id="AppIcon" SourceFile="packaging\icon.ico" />
@@ -18,7 +18,7 @@
 
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFiles64Folder">
-        <Directory Id="INSTALLFOLDER" Name="Scientific Calculator" />
+        <Directory Id="INSTALLFOLDER" Name="Scientific Calculator Studio Pro" />
       </Directory>
       <Directory Id="ProgramMenuFolder" />
     </Directory>
@@ -26,7 +26,7 @@
     <DirectoryRef Id="INSTALLFOLDER">
       <Component Id="MainExe" Guid="7D2B6E9A-3C4F-4A1B-8E6D-2F0B9C5A7E21" Win64="yes">
         <File Id="AppExe" Source="target\release\scientific-calculator.exe" Name="ScientificCalculator.exe" KeyPath="yes">
-          <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuFolder" Name="Scientific Calculator"
+          <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuFolder" Name="Scientific Calculator Studio Pro"
                     Description="Free, offline scientific calculator" WorkingDirectory="INSTALLFOLDER"
                     Icon="AppIcon" Advertise="yes" />
         </File>
@@ -36,7 +36,7 @@
       </Component>
     </DirectoryRef>
 
-    <Feature Id="Main" Title="Scientific Calculator" Level="1" Absent="disallow">
+    <Feature Id="Main" Title="Scientific Calculator Studio Pro" Level="1" Absent="disallow">
       <ComponentRef Id="MainExe" />
       <ComponentRef Id="LicenseFile" />
     </Feature>

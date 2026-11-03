@@ -1,4 +1,4 @@
-//! Scientific Calculator — a clean, minimal scientific and graphing calculator.
+//! Scientific Calculator Studio Pro — a clean scientific and graphing calculator.
 #![allow(dead_code)]
 // No console window behind the app on Windows.
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
@@ -1155,6 +1155,7 @@ impl App {
 }
 
 /// Name of the folder that holds saved settings and history.
+// Keep the existing storage directory so a display-name change preserves saved settings and history.
 const STORAGE_NAME: &str = "Scientific Calculator";
 
 /// Name of the settings folder from before the app was renamed.

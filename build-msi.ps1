@@ -40,7 +40,7 @@ if (-not $wix) {
 
 # ---- Build ------------------------------------------------------------------------------------
 New-Item -ItemType Directory -Force dist, dist\msi-obj | Out-Null
-$out = "dist\Scientific-Calculator-$version-Windows-x64.msi"
+$out = "dist\Scientific-Calculator-Studio-Pro-$version-Windows-x64.msi"
 & (Join-Path $wix "candle.exe") -nologo -arch x64 "-dVersion=$version" -ext WixUIExtension -out "dist\msi-obj\main.wixobj" "packaging\msi\main.wxs"
 if ($LASTEXITCODE -ne 0) { throw "candle (WiX compile) failed" }
 & (Join-Path $wix "light.exe") -nologo -ext WixUIExtension -spdb -out $out "dist\msi-obj\main.wixobj"

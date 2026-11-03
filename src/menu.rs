@@ -108,7 +108,7 @@ impl AppMenu {
         let sep = PredefinedMenuItem::separator;
 
         // ---- App menu
-        let about = item(&mut commands, "About Scientific Calculator", "", Cmd::About);
+        let about = item(&mut commands, "About Scientific Calculator Studio Pro", "", Cmd::About);
         let settings = item(&mut commands, "Settings…", "CmdOrCtrl+Comma", Cmd::Settings);
         let app_menu = Submenu::with_items(
             crate::help::APP_NAME,
@@ -120,11 +120,11 @@ impl AppMenu {
                 &sep(),
                 &PredefinedMenuItem::services(None),
                 &sep(),
-                &PredefinedMenuItem::hide(Some("Hide Scientific Calculator")),
+                &PredefinedMenuItem::hide(Some("Hide Scientific Calculator Studio Pro")),
                 &PredefinedMenuItem::hide_others(None),
                 &PredefinedMenuItem::show_all(None),
                 &sep(),
-                &PredefinedMenuItem::quit(Some("Quit Scientific Calculator")),
+                &PredefinedMenuItem::quit(Some("Quit Scientific Calculator Studio Pro")),
             ],
         )
         .ok()?;
@@ -213,7 +213,7 @@ impl AppMenu {
 
         // ---- Help
         let guide = item(&mut commands, "Input Guide", "CmdOrCtrl+Shift+Slash", Cmd::Guide);
-        let website = item(&mut commands, "Scientific Calculator on GitHub", "", Cmd::Website);
+        let website = item(&mut commands, "Scientific Calculator Studio Pro on GitHub", "", Cmd::Website);
         let developer = item(&mut commands, "Sopè Technology Website", "", Cmd::DeveloperSite);
         let updates = item(&mut commands, "Check for Updates…", "", Cmd::Updates);
         let feedback = item(&mut commands, "Send Feedback or Report a Problem…", "", Cmd::Feedback);

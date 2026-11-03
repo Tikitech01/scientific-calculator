@@ -1,6 +1,6 @@
 [package]
 name = "scientific-calculator"
-version = "3.1.0"
+version = "3.1.1"
 edition = "2021"
 description = "A clean, minimal scientific and graphing calculator"
 license = "MIT"
@@ -20,7 +20,7 @@ lto = "fat"
 codegen-units = 1
 strip = true
 
-[target.'cfg(windows)'.build-dependencies]
+[build-dependencies]
 winresource = "0.1"
 
 [target.'cfg(target_os = "macos")'.dependencies]

@@ -21,12 +21,11 @@ fn main() {
     let year = yoe + era * 400 + if month <= 2 { 1 } else { 0 };
     println!("cargo:rustc-env=SCICALC_BUILD_DATE={:04}-{:02}-{:02}", year, month, day);
     // Embed the application icon and version info into the Windows executable.
-    #[cfg(windows)]
-    {
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
         let mut res = winresource::WindowsResource::new();
         res.set_icon("packaging/icon.ico");
-        res.set("ProductName", "Scientific Calculator");
-        res.set("FileDescription", "Scientific Calculator");
+        res.set("ProductName", "Scientific Calculator Studio Pro");
+        res.set("FileDescription", "Scientific Calculator Studio Pro");
         res.set("CompanyName", "Sope Technology");
         res.set("LegalCopyright", "(c) 2026 Sope Technology");
         if let Err(e) = res.compile() {
